@@ -1,5 +1,6 @@
 package com.cinema.testcinema.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.ArrayList;
@@ -7,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "genres")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Genre {
 
     @Id
@@ -22,10 +24,9 @@ public class Genre {
 
     // Конструкторы
     public Genre() {}
-    public Genre(String name) { this.name = name; }
-    public Genre(String name, List<Movie> movies) {
+
+    public Genre(String name) {
         this.name = name;
-        this.movies = movies;
     }
 
     // Геттеры и сеттеры
@@ -38,7 +39,7 @@ public class Genre {
     public List<Movie> getMovies() { return movies; }
     public void setMovies(List<Movie> movies) { this.movies = movies; }
 
-    // Удобные методы для добавления и удаления фильма
+    // Методы для управления фильмами
     public void addMovie(Movie movie) {
         movies.add(movie);
         movie.setGenre(this);

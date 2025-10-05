@@ -1,6 +1,7 @@
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.model.Movie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -12,34 +13,49 @@ public class OmdbService {
 
     private final String apiKey = "aee5595e";
     private final String apiUrl = "http://www.omdbapi.com/";
+    private final RestTemplate restTemplate = new RestTemplate();
 
+    /**
+     * Получить данные фильма из OMDB по IMDB ID.
+     * Добавлен retry (до 2 попыток) на случай сетевых сбоев.
+     */
     public Movie getMovieFromOmdb(String imdbId) {
-        UriComponentsBuilder uri = UriComponentsBuilder.fromHttpUrl(apiUrl)
-                .queryParam("apikey", apiKey)
-                .queryParam("i", imdbId);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                UriComponentsBuilder uri = UriComponentsBuilder.fromHttpUrl(apiUrl)
+                        .queryParam("apikey", apiKey)
+                        .queryParam("i", imdbId);
 
-        RestTemplate restTemplate = new RestTemplate();
+                ResponseEntity<Map> responseEntity = restTemplate.getForEntity(uri.toUriString(), Map.class);
+                Map<String, Object> response = responseEntity.getBody();
 
-        // Получаем JSON как Map
-        Map<String, Object> response = restTemplate.getForObject(uri.toUriString(), Map.class);
+                if (response == null || "False".equals(response.get("Response"))) {
+                    return null; // Фильм не найден
+                }
 
-        if (response == null || response.get("Response").equals("False")) {
-            return null; // фильм не найден
+                Movie movie = new Movie();
+                movie.setTitle(getStringOrDefault(response, "Title", ""));
+                movie.setImdbId(imdbId);
+
+                // Обработка года (может быть "2017–" для сериалов)
+                String yearStr = getStringOrDefault(response, "Year", "0");
+                if (yearStr.matches("\\d{4}.*")) { // Только если начинается с 4 цифр
+                    movie.setYear(Long.parseLong(yearStr.substring(0, 4)));
+                }
+
+                movie.setDescription(getStringOrDefault(response, "Plot", ""));
+                movie.setPosterUrl(getStringOrDefault(response, "Poster", ""));
+
+                return movie;
+            } catch (Exception e) {
+                if (attempt == 1) throw new RuntimeException("Failed to fetch from OMDB: " + e.getMessage());
+            }
         }
+        return null;
+    }
 
-        Movie movie = new Movie();
-        movie.setTitle((String) response.get("Title"));
-
-        // В поле Year может быть "2017–" для сериалов, берём первые 4 цифры
-        String yearStr = (String) response.get("Year");
-        if (yearStr != null && yearStr.length() >= 4) {
-            movie.setYear(Long.parseLong(yearStr.substring(0, 4)));
-        }
-
-        movie.setDescription((String) response.getOrDefault("Plot", ""));
-        movie.setPosterUrl((String) response.getOrDefault("Poster", ""));
-        movie.setImdbId(imdbId);
-
-        return movie;
+    private String getStringOrDefault(Map<String, Object> map, String key, String defaultValue) {
+        Object value = map.getOrDefault(key, defaultValue);
+        return value != null && !"N/A".equals(value) ? value.toString() : defaultValue;
     }
 }

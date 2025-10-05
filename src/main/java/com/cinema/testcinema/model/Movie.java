@@ -1,10 +1,12 @@
 package com.cinema.testcinema.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "movies")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Movie {
 
     @Id
@@ -32,11 +34,13 @@ public class Movie {
 
     // Конструкторы
     public Movie() {}
+
     public Movie(String title, String imdbId, Long year) {
         this.title = title;
         this.imdbId = imdbId;
         this.year = year;
     }
+
     public Movie(String title, String imdbId, Long year, String description, String posterUrl, Genre genre) {
         this.title = title;
         this.imdbId = imdbId;
