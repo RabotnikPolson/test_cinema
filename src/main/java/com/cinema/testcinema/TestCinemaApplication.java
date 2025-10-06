@@ -61,25 +61,6 @@ public class TestCinemaApplication {
                     Genre dramaGenre = dramaOpt.get();
                     Genre sciFiGenre = sciFiOpt.get();
 
-                    Movie movie1 = new Movie(
-                            "Крёстный отец",
-                            "tt0068646",
-                            1972L,
-                            "Классика мафиозного кино. Семейные ценности и месть.",
-                            "https://via.placeholder.com/300x450/ff6b6b/fff?text=Godfather",
-                            dramaGenre
-                    );
-                    movieRepo.save(movie1);
-
-                    Movie movie2 = new Movie(
-                            "Интерстеллар",
-                            "tt0816692",
-                            2014L,
-                            "Путешествие сквозь время и пространство. Эмоциональный sci-fi шедевр.",
-                            "https://via.placeholder.com/300x450/45b7d1/fff?text=Interstellar",
-                            sciFiGenre
-                    );
-                    movieRepo.save(movie2);
 
                     System.out.println("✅ Тестовые фильмы вставлены: Крёстный отец, Интерстеллар");
                 } else {

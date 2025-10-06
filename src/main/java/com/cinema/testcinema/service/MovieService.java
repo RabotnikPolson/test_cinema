@@ -23,45 +23,32 @@ public class MovieService {
         this.omdbService = omdbService;
     }
 
-    /**
-     * Получить все фильмы.
-     */
     public List<Movie> getAllMovies() {
-        return movieRepository.findAll();
+        return movieRepository.findByType("movie");
     }
 
-    /**
-     * Получить фильм по ID.
-     */
+    public List<Movie> getAllSeries() {
+        return movieRepository.findByType("series");
+    }
+
     public Optional<Movie> getMovieById(Long id) {
         return movieRepository.findById(id);
     }
 
-    /**
-     * Добавить фильм: автозаполнение из OMDB по imdbId, привязка к жанру.
-     */
     public Movie addMovie(MovieDto movieDto) {
         if (movieDto.getImdbId() == null || movieDto.getImdbId().isEmpty()) {
-            throw new RuntimeException("IMDB ID is required for auto-filling movie data");
+            throw new RuntimeException("IMDB ID is required");
         }
 
-        // Автозаполнение из OMDB
         Movie movie = omdbService.getMovieFromOmdb(movieDto.getImdbId());
-        if (movie == null) {
-            throw new RuntimeException("Movie not found in OMDB with ID: " + movieDto.getImdbId());
-        }
+        if (movie == null) throw new RuntimeException("Movie not found in OMDB");
 
-        // Перезапись из DTO, если нужно (fallback)
         if (movieDto.getTitle() != null) movie.setTitle(movieDto.getTitle());
         if (movieDto.getYear() != null) movie.setYear(movieDto.getYear());
+        if (movieDto.getType() != null) movie.setType(movieDto.getType()); // movie или series
 
-        // Привязка жанра
         Optional<Genre> genreOpt = genreRepository.findById(movieDto.getGenreId());
-        if (genreOpt.isPresent()) {
-            movie.setGenre(genreOpt.get());
-        } else {
-            throw new RuntimeException("Genre not found with id: " + movieDto.getGenreId());
-        }
+        genreOpt.ifPresent(movie::setGenre);
 
         return movieRepository.save(movie);
     }

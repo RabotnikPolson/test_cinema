@@ -1,12 +1,12 @@
 package com.cinema.testcinema.repository;
 
-import com.cinema.testcinema.model.Movie;
+import com.cinema.testcinema.model.Review;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface MovieRepository extends JpaRepository<Movie, Long> {
-    List<Movie> findByType(String type);
+public interface ReviewRepository extends JpaRepository<Review, Long> {
+    List<Review> findByMovieId(Long movieId);
 }

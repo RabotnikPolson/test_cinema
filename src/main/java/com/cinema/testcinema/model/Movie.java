@@ -32,6 +32,10 @@ public class Movie {
     @JsonBackReference
     private Genre genre;
 
+    // 🔥 Новый столбец type с дефолтом
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'movie'")
+    private String type = "movie";  // дефолтное значение для новых записей
+
     // Конструкторы
     public Movie() {}
 
@@ -71,4 +75,7 @@ public class Movie {
 
     public Genre getGenre() { return genre; }
     public void setGenre(Genre genre) { this.genre = genre; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; } // можно "movie" или "series"
 }

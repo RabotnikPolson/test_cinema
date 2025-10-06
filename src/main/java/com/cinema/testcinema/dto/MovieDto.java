@@ -1,21 +1,22 @@
 package com.cinema.testcinema.dto;
 
 public class MovieDto {
-    private String title;  // Игнорируется, если есть imdbId (берётся из OMDB)
-    private Long year;     // Теперь Long для consistency
-    private String imdbId; // Обязательно для автозаполнения
+    private String title;
+    private Long year;
+    private String imdbId;
     private Long genreId;
+    private String type; // "movie" или "series"
 
     public MovieDto() {}
 
-    public MovieDto(String title, Long year, String imdbId, Long genreId) {
+    public MovieDto(String title, Long year, String imdbId, Long genreId, String type) {
         this.title = title;
         this.year = year;
         this.imdbId = imdbId;
         this.genreId = genreId;
+        this.type = type;
     }
 
-    // Геттеры и сеттеры
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
@@ -27,4 +28,7 @@ public class MovieDto {
 
     public Long getGenreId() { return genreId; }
     public void setGenreId(Long genreId) { this.genreId = genreId; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
 }
