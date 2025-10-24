@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping
+@RequestMapping("/api/movies") // базовый путь для всех эндпоинтов фильмов
 public class MovieController {
 
     private final MovieService movieService;
@@ -18,30 +18,40 @@ public class MovieController {
         this.movieService = movieService;
     }
 
-    @GetMapping("/movies")
-    public List<Movie> getAllMovies() {
-        return movieService.getAllMovies();
+    /**
+     * Получить все фильмы по типу.
+     * Пример: GET /api/movies/type/movie
+     */
+    @GetMapping("/type/{type}")
+    public ResponseEntity<List<Movie>> getAllMoviesByType(@PathVariable String type) {
+        List<Movie> movies = movieService.getAllMoviesByType(type);
+        return ResponseEntity.ok(movies);
     }
 
-    @GetMapping("/series")
-    public List<Movie> getAllSeries() {
-        return movieService.getAllSeries();
-    }
-
-    @GetMapping("/movies/{id}")
+    /**
+     * Получить фильм по ID.
+     * Пример: GET /api/movies/5
+     */
+    @GetMapping("/{id}")
     public ResponseEntity<Movie> getMovieById(@PathVariable Long id) {
         return movieService.getMovieById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/movies")
+    /**
+     * Добавить новый фильм.
+     * Пример: POST /api/movies
+     */
+    @PostMapping
     public ResponseEntity<Movie> addMovie(@RequestBody MovieDto movieDto) {
         try {
             Movie movie = movieService.addMovie(movieDto);
             return ResponseEntity.ok(movie);
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

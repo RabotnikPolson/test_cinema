@@ -36,7 +36,7 @@ public class ReviewController {
         return saved;
     }
 
-    @GetMapping("/movies/{movieId}/reviews")
+    @GetMapping("/api/movies/{movieId}/reviews")
     public List<Review> getReviewsByMovie(@PathVariable Long movieId) {
         return reviewService.getReviewsByMovieId(movieId);
     }
