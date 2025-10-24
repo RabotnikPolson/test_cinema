@@ -1,45 +1,69 @@
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.model.Movie;
+import com.cinema.testcinema.repository.MovieRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
-
-import java.util.Map;
+import org.json.JSONObject;
 
 @Service
 public class OmdbService {
 
-    private final String apiKey = "aee5595e";
-    private final String apiUrl = "http://www.omdbapi.com/";
+    @Value("${omdb.api.key}")
+    private String apiKey;
+
+    private final MovieRepository movieRepository;
+
+    public OmdbService(MovieRepository movieRepository) {
+        this.movieRepository = movieRepository;
+    }
 
     public Movie getMovieFromOmdb(String imdbId) {
-        UriComponentsBuilder uri = UriComponentsBuilder.fromHttpUrl(apiUrl)
-                .queryParam("apikey", apiKey)
-                .queryParam("i", imdbId);
+        try {
+            String url = "http://www.omdbapi.com/?i=" + imdbId + "&apikey=" + apiKey;
+            RestTemplate restTemplate = new RestTemplate();
+            String response = restTemplate.getForObject(url, String.class);
 
-        RestTemplate restTemplate = new RestTemplate();
+            JSONObject json = new JSONObject(response);
 
-        // Получаем JSON как Map
-        Map<String, Object> response = restTemplate.getForObject(uri.toUriString(), Map.class);
+            if (!json.getBoolean("Response")) {
+                return null;
+            }
 
-        if (response == null || response.get("Response").equals("False")) {
-            return null; // фильм не найден
+            // Проверяем, есть ли фильм уже в БД
+            Movie existing = movieRepository.findByImdbId(imdbId);
+            if (existing != null) return existing;
+
+            // Создаём новый объект фильма
+            Movie movie = new Movie();
+            movie.setImdbId(imdbId);
+            movie.setTitle(json.optString("Title", "No title"));
+            movie.setYear(parseYear(json.optString("Year", "0")));
+            movie.setDescription(json.optString("Plot", ""));
+            movie.setPosterUrl(json.optString("Poster", ""));
+            movie.setDirector(json.optString("Director", ""));
+            movie.setActors(json.optString("Actors", ""));
+            movie.setGenreText(json.optString("Genre", ""));
+            movie.setLanguage(json.optString("Language", ""));
+            movie.setCountry(json.optString("Country", ""));
+            movie.setImdbRating(json.optString("imdbRating", ""));
+            movie.setRuntime(json.optString("Runtime", ""));
+            movie.setReleased(json.optString("Released", ""));
+
+            return movie;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
+    }
 
-        Movie movie = new Movie();
-        movie.setTitle((String) response.get("Title"));
-
-        // В поле Year может быть "2017–" для сериалов, берём первые 4 цифры
-        String yearStr = (String) response.get("Year");
-        if (yearStr != null && yearStr.length() >= 4) {
-            movie.setYear(Long.parseLong(yearStr.substring(0, 4)));
+    private Long parseYear(String yearStr) {
+        try {
+            return Long.parseLong(yearStr.replaceAll("[^0-9]", ""));
+        } catch (Exception e) {
+            return 0L;
         }
-
-        movie.setDescription((String) response.getOrDefault("Plot", ""));
-        movie.setPosterUrl((String) response.getOrDefault("Poster", ""));
-        movie.setImdbId(imdbId);
-
-        return movie;
     }
 }
