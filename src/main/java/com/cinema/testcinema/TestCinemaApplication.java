@@ -9,5 +9,5 @@ public class TestCinemaApplication {
     public static void main(String[] args) {
         SpringApplication.run(TestCinemaApplication.class, args);
     }
-
+//asdasd
 }
