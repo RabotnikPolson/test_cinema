@@ -5,6 +5,7 @@ import com.cinema.testcinema.repository.MovieRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 @Service
@@ -27,7 +28,7 @@ public class OmdbService {
 
             JSONObject json = new JSONObject(response);
 
-            if (!json.getBoolean("Response")) {
+            if (!json.optBoolean("Response", false)) {
                 return null;
             }
 
@@ -35,7 +36,6 @@ public class OmdbService {
             Movie existing = movieRepository.findByImdbId(imdbId);
             if (existing != null) return existing;
 
-            // Создаём новый объект фильма
             Movie movie = new Movie();
             movie.setImdbId(imdbId);
             movie.setTitle(json.optString("Title", "No title"));
@@ -50,6 +50,23 @@ public class OmdbService {
             movie.setImdbRating(json.optString("imdbRating", ""));
             movie.setRuntime(json.optString("Runtime", ""));
             movie.setReleased(json.optString("Released", ""));
+            movie.setImdbVotes(json.optString("imdbVotes", ""));
+
+            // 🔥 Парсим массив Ratings
+            JSONArray ratingsArray = json.optJSONArray("Ratings");
+            if (ratingsArray != null) {
+                for (int i = 0; i < ratingsArray.length(); i++) {
+                    JSONObject ratingObj = ratingsArray.getJSONObject(i);
+                    String source = ratingObj.optString("Source", "");
+                    String value = ratingObj.optString("Value", "");
+
+                    if (source.equalsIgnoreCase("Rotten Tomatoes")) {
+                        movie.setRottenTomatoesRating(value);
+                    } else if (source.equalsIgnoreCase("Metacritic")) {
+                        movie.setMetacriticRating(value);
+                    }
+                }
+            }
 
             return movie;
 

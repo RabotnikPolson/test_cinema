@@ -29,7 +29,8 @@ public class Movie {
     @Column(length = 1000)
     private String actors;
 
-    private String genreText; // текстовое поле "Action, Comedy, Drama" из API
+    @Column
+    private String genreText; // например "Action, Comedy, Drama" из API
 
     private String language;
 
@@ -40,6 +41,11 @@ public class Movie {
     private String runtime;
 
     private String released;
+
+    // 🔥 Новые поля для рейтингов
+    private String rottenTomatoesRating;
+    private String metacriticRating;
+    private String imdbVotes;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "genre_id")
@@ -63,7 +69,7 @@ public class Movie {
         this.genre = genre;
     }
 
-    // Геттеры и сеттеры
+    // --- Геттеры и сеттеры ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -105,6 +111,15 @@ public class Movie {
 
     public String getReleased() { return released; }
     public void setReleased(String released) { this.released = released; }
+
+    public String getRottenTomatoesRating() { return rottenTomatoesRating; }
+    public void setRottenTomatoesRating(String rottenTomatoesRating) { this.rottenTomatoesRating = rottenTomatoesRating; }
+
+    public String getMetacriticRating() { return metacriticRating; }
+    public void setMetacriticRating(String metacriticRating) { this.metacriticRating = metacriticRating; }
+
+    public String getImdbVotes() { return imdbVotes; }
+    public void setImdbVotes(String imdbVotes) { this.imdbVotes = imdbVotes; }
 
     public Genre getGenre() { return genre; }
     public void setGenre(Genre genre) { this.genre = genre; }
