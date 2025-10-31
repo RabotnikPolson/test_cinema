@@ -1,3 +1,4 @@
+// src/main/java/com/cinema/testcinema/controller/MovieController.java
 package com.cinema.testcinema.controller;
 
 import com.cinema.testcinema.model.Genre;
@@ -5,50 +6,74 @@ import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.repository.GenreRepository;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.service.OmdbService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/movies")
+@RequestMapping("/api/movies")
 public class MovieController {
 
-    @Autowired
-    private MovieRepository movieRepository;
+    private final MovieRepository movieRepository;
+    private final GenreRepository genreRepository;
+    private final OmdbService omdbService;
 
-    @Autowired
-    private GenreRepository genreRepository;
+    public MovieController(MovieRepository movieRepository,
+                           GenreRepository genreRepository,
+                           OmdbService omdbService) {
+        this.movieRepository = movieRepository;
+        this.genreRepository = genreRepository;
+        this.omdbService = omdbService;
+    }
 
-    @Autowired
-    private OmdbService omdbService;
+    // отдельный путь, чтобы не конфликтовать с /{id}
+    @GetMapping("/imdb/{imdbId}")
+    public Movie getMovieByImdbId(@PathVariable String imdbId) {
+        Movie movie = movieRepository.findByImdbId(imdbId).orElse(null);
 
-    /**
-     * Добавление фильма из OMDb по IMDb ID.
-     * Пример: /movies/addFromImdb?imdbId=tt0468569
-     */
+        if (movie == null) {
+            movie = omdbService.getMovieFromOmdb(imdbId);
+            if (movie == null) {
+                throw new RuntimeException("Фильм не найден в OMDB API");
+            }
+            // жанр
+            String genreText = movie.getGenreText() == null ? "" : movie.getGenreText();
+            String firstGenreName = genreText.isBlank()
+                    ? "Unknown"
+                    : genreText.split(",")[0].trim();
+
+            Genre genre = genreRepository.findByName(firstGenreName);
+            if (genre == null) {
+                genre = new Genre();
+                genre.setName(firstGenreName);
+                genre = genreRepository.save(genre);
+            }
+            movie.setGenre(genre);
+            movie = movieRepository.save(movie);
+        }
+
+        return movie;
+    }
+
     @PostMapping("/addFromImdb")
     public Movie addFromImdb(@RequestParam String imdbId) {
+        Movie existing = movieRepository.findByImdbId(imdbId).orElse(null);
+        if (existing != null) return existing;
+
         Movie movie = omdbService.getMovieFromOmdb(imdbId);
         if (movie == null) {
-            throw new RuntimeException("Фильм не найден в OMDb API");
+            throw new RuntimeException("Фильм не найден в OMDB API");
         }
 
-        // Достаём первый жанр из поля genreText
-        String genreText = movie.getGenreText() != null ? movie.getGenreText() : "";
-        String firstGenreName = "Unknown";
+        String genreText = movie.getGenreText() == null ? "" : movie.getGenreText();
+        String firstGenreName = genreText.isBlank()
+                ? "Unknown"
+                : (genreText.contains(",") ? genreText.split(",")[0].trim() : genreText.trim());
 
-        if (!genreText.isEmpty()) {
-            if (genreText.contains(",")) {
-                firstGenreName = genreText.split(",")[0].trim();
-            } else {
-                firstGenreName = genreText.trim();
-            }
-        }
-
-        // Проверяем, есть ли уже жанр с таким именем
         Genre genre = genreRepository.findByName(firstGenreName);
         if (genre == null) {
             genre = new Genre();
-            genre.setName(firstGenreName); // ✅ ВАЖНО: тут именно название жанра, не описание
+            genre.setName(firstGenreName);
             genre = genreRepository.save(genre);
         }
 
@@ -56,17 +81,11 @@ public class MovieController {
         return movieRepository.save(movie);
     }
 
-    /**
-     * Получить все фильмы
-     */
     @GetMapping
-    public Iterable<Movie> getAllMovies() {
+    public List<Movie> getAllMovies() {
         return movieRepository.findAll();
     }
 
-    /**
-     * Получить фильм по ID
-     */
     @GetMapping("/{id}")
     public Movie getMovieById(@PathVariable Long id) {
         return movieRepository.findById(id)

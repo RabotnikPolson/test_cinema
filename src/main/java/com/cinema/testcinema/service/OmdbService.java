@@ -1,12 +1,12 @@
+// src/main/java/com/cinema/testcinema/service/OmdbService.java
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.repository.MovieRepository;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 @Service
 public class OmdbService {
@@ -22,19 +22,17 @@ public class OmdbService {
 
     public Movie getMovieFromOmdb(String imdbId) {
         try {
-            String url = "http://www.omdbapi.com/?i=" + imdbId + "&apikey=" + apiKey;
+            // если уже есть в БД — вернуть
+            Movie existing = movieRepository.findByImdbId(imdbId).orElse(null);
+            if (existing != null) return existing;
+
+            String url = "http://www.omdbapi.com/?i=" + imdbId + "&apikey=" + apiKey + "&plot=full&r=json";
             RestTemplate restTemplate = new RestTemplate();
             String response = restTemplate.getForObject(url, String.class);
+            if (response == null || response.isBlank()) return null;
 
             JSONObject json = new JSONObject(response);
-
-            if (!json.optBoolean("Response", false)) {
-                return null;
-            }
-
-            // Проверяем, есть ли фильм уже в БД
-            Movie existing = movieRepository.findByImdbId(imdbId);
-            if (existing != null) return existing;
+            if (!"True".equalsIgnoreCase(json.optString("Response"))) return null;
 
             Movie movie = new Movie();
             movie.setImdbId(imdbId);
@@ -50,35 +48,17 @@ public class OmdbService {
             movie.setImdbRating(json.optString("imdbRating", ""));
             movie.setRuntime(json.optString("Runtime", ""));
             movie.setReleased(json.optString("Released", ""));
-            movie.setImdbVotes(json.optString("imdbVotes", ""));
-
-            // 🔥 Парсим массив Ratings
-            JSONArray ratingsArray = json.optJSONArray("Ratings");
-            if (ratingsArray != null) {
-                for (int i = 0; i < ratingsArray.length(); i++) {
-                    JSONObject ratingObj = ratingsArray.getJSONObject(i);
-                    String source = ratingObj.optString("Source", "");
-                    String value = ratingObj.optString("Value", "");
-
-                    if (source.equalsIgnoreCase("Rotten Tomatoes")) {
-                        movie.setRottenTomatoesRating(value);
-                    } else if (source.equalsIgnoreCase("Metacritic")) {
-                        movie.setMetacriticRating(value);
-                    }
-                }
-            }
-
             return movie;
 
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
 
     private Long parseYear(String yearStr) {
         try {
-            return Long.parseLong(yearStr.replaceAll("[^0-9]", ""));
+            String digits = yearStr == null ? "" : yearStr.replaceAll("[^0-9]", "");
+            return digits.isEmpty() ? 0L : Long.parseLong(digits);
         } catch (Exception e) {
             return 0L;
         }

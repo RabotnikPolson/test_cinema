@@ -30,7 +30,8 @@ dependencies {
 
     implementation 'org.json:json:20240303'
 
-
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
 }
 

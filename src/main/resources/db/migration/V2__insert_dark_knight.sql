@@ -1,0 +1,31 @@
+INSERT INTO movies (
+    description,
+    imdb_id,
+    poster_url,
+    title,
+    year,
+    genre_id,
+    actors,
+    country,
+    director,
+    genre_text,
+    imdb_rating,
+    language,
+    released,
+    runtime
+) VALUES (
+             'When the menace known as the Joker wreaks havoc and chaos on Gotham, Batman must face one of the greatest psychological and physical tests of his ability to fight injustice.',
+             'tt0468569',
+             'https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_SX300.jpg',
+             'The Dark Knight',
+             2008,
+             1,
+             'Christian Bale, Heath Ledger, Aaron Eckhart',
+             'United States, United Kingdom',
+             'Christopher Nolan',
+             'Action, Crime, Drama',
+             '9.0',
+             'English',
+             '18 Jul 2008',
+             '152 min'
+         );
