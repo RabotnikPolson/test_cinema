@@ -30,29 +30,46 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        try {
-            String header = req.getHeader("Authorization");
-            String token = null;
-            if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
-                token = header.substring(7);
-            }
+        String header = req.getHeader("Authorization");
+        String token = null;
 
-            if (token != null && jwt.isValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String username = jwt.getUsername(token);
-                if (username != null) {
-                    UserDetails details = uds.loadUserByUsername(username); // может кинуть UsernameNotFoundException
-                    var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                    log.debug("JWT authenticated user={} remoteAddr={}", username, req.getRemoteAddr());
+        if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+            token = header.substring(7);
+        }
+
+        log.debug("[JwtAuthFilter] {} {} tokenPresent={} authNull={}",
+                req.getMethod(), req.getRequestURI(), token != null,
+                SecurityContextHolder.getContext().getAuthentication() == null);
+
+        try {
+            if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                boolean valid = jwt.isValid(token);
+                log.debug("[JwtAuthFilter] token valid={}", valid);
+
+                if (valid) {
+                    String username = jwt.getUsername(token);
+                    log.debug("[JwtAuthFilter] extracted username='{}'", username);
+
+                    if (username != null) {
+                        try {
+                            UserDetails details = uds.loadUserByUsername(username);
+                            log.debug("[JwtAuthFilter] loaded user={} authorities={}", username, details.getAuthorities());
+                            var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
+                            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
+                            SecurityContextHolder.getContext().setAuthentication(auth);
+                            log.info("[JwtAuthFilter] authenticated user={} from {}", username, req.getRemoteAddr());
+                        } catch (UsernameNotFoundException ex) {
+                            log.warn("[JwtAuthFilter] user not found for username={}", username);
+                        }
+                    } else {
+                        log.warn("[JwtAuthFilter] username null inside valid token");
+                    }
                 } else {
-                    log.debug("JWT valid but username claim is null");
+                    log.warn("[JwtAuthFilter] invalid token for {}", req.getRequestURI());
                 }
             }
-        } catch (UsernameNotFoundException e) {
-            log.warn("User not found for JWT: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("Unexpected error in JwtAuthFilter", e);
+            log.error("[JwtAuthFilter] unexpected error", e);
         }
 
         chain.doFilter(req, res);

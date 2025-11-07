@@ -42,12 +42,21 @@ public class SecurityConfig {
                 // обработчик ошибок (401)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
 
-                // разрешаем preflight + публичные endpoints
+                // авторизация
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/", "/index.html",
+                                "/genres", "/genres/**",
+                                "/api/movies", "/api/movies/**",
+                                "/movies", "/movies/**",
+                                "/static/**", "/public/**"
+                        ).permitAll()
                         .requestMatchers("/api/auth/**", "/internal/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+
 
                 // JWT фильтр
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -55,8 +64,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // CORS конфигурация централизованно.
-    // allowedOriginPatterns используется, чтобы поддержать динамические поддомены ngrok/devtunnels.
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
@@ -64,12 +71,12 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "https://*.ngrok-free.app",
-                "https://*.devtunnels.ms",
-                "https://f62652972cbe.ngrok-free.app" // можно добавить конкретные
+                "https://*.devtunnels.ms"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin","X-Requested-With"));
-        cfg.setAllowCredentials(false); // JWT в заголовке — нет необходимости в куки. Поставь true только если используешь cookie-based auth.
+        // JWT в заголовке — cookie не нужны
+        cfg.setAllowCredentials(false);
         cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -77,13 +84,12 @@ public class SecurityConfig {
         return source;
     }
 
-    // простой JSON 401 ответ
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (req, res, ex) -> {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             res.setContentType("application/json");
-            res.getWriter().write("{\"error\":\"Unauthorized\"}");
+            try { res.getWriter().write("{\"error\":\"Unauthorized\"}"); } catch (Exception ignored) {}
         };
     }
 
