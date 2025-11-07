@@ -1,4 +1,4 @@
--- V3__favorites.sql
+-- V1_5__favorites.sql
 CREATE TABLE user_favorites (
                                 user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
                                 movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
