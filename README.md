@@ -114,51 +114,96 @@
 src/
   main/
     java/com/cinema/testcinema/
+      config/
+        AdminSeeder.java
+        SecurityConfig.java
+      security/
+        AppUserDetailsService.java
+        JwtAuthFilter.java
+        JwtService.java
       controller/
+        AdminAnalyticsController.java
         AuthController.java
+        CommentController.java
+        DebugController.java
+        FavoriteController.java
         GenreController.java
-        MerchController.java
+        InternalCheckController.java
         MovieController.java
-        RatingController.java        // WIP: заглушка до JWT
+        ReviewController.java
+        SubscriptionController.java
+        UserProfileController.java
         UserSettingsController.java
       dto/
         AuthResponse.java
+        CommentCreateDto.java
+        CommentDto.java
         LoginRequest.java
-        RegisterRequest.java
         MovieDto.java
-        MerchProductDto.java
+        ReactionToggleDto.java
+        RegisterRequest.java
+        ReviewCreateDto.java
+        ReviewDto.java
+        SubscriptionDto.java
         UserProfileDto.java
         UserSettingsDto.java
-        RatingRequest.java
-        RatingSummaryDto.java
       model/
         Achievement.java
         AnalyticsDaily.java
+        Comment.java
+        CommentReaction.java
         Genre.java
-        MerchOrder.java
-        MerchProduct.java
         Movie.java
         PaymentMethod.java
+        Reaction.java
+        ReactionConverter.java
+        Review.java
+        Role.java
         Subscription.java
         User.java
         UserAchievement.java
         UserProfile.java
         UserSettings.java
-        // + Rating.java (если ещё не добавлен — добавить)
       repository/
-        // JPA-репозитории для сущностей
+        AnalyticsDailyRepository.java
+        CommentReactionRepository.java
+        CommentRepository.java
+        FavoriteRepository.java
+        GenreRepository.java
+        MovieRepository.java
+        ReviewRepository.java
+        SubscriptionRepository.java
+        UserProfileRepository.java
+        UserRepository.java
+        UserSettingsRepository.java
       service/
         AuthService.java
-        MerchService.java
+        CommentService.java
+        FavoriteService.java
         MovieService.java
         OmdbService.java
+        ReviewService.java
+        SubscriptionService.java
+        UserProfileService.java
         UserService.java
         UserSettingsService.java
       TestCinemaApplication.java
     resources/
       application.properties
-      db/migration/                 // Flyway миграции
-  test/                             // модульные и интеграционные тесты
+      db/migration/
+        V1_1__core_settings_profile.sql
+        V1_2__achievements.sql
+        V1_3__subscription_billing.sql
+        V1_4__analytics_merch.sql
+        V1_5__favorites.sql
+        V1_6__history.sql
+        V1_7__user_ratings.sql
+        V1_8__playlists.sql
+        V1_9__news.sql
+        V1_10__user_events.sql
+        V1_11__watch_sessions.sql
+        V2_1__comments_and_reviews.sql
+  test/
 ```
 
 ---
