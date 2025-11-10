@@ -91,6 +91,16 @@ public class WatchService {
     }
 
     private static List<String> extractGenres(Movie m) {
+        // 1) основной источник — связь many-to-many
+        if (m.getGenres() != null && !m.getGenres().isEmpty()) {
+            return m.getGenres().stream()
+                    .map(g -> g.getName() == null ? "" : g.getName().trim())
+                    .filter(s -> !s.isBlank())
+                    .distinct()
+                    .toList();
+        }
+
+        // 2) fallback — старое строковое поле из внешнего API
         String raw = m.getGenreText();
         if (raw == null || raw.isBlank()) return List.of();
         String[] parts = raw.split("[,/|;]");
@@ -101,4 +111,5 @@ public class WatchService {
         }
         return out;
     }
+
 }

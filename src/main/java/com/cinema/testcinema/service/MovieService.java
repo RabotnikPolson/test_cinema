@@ -23,12 +23,14 @@ public class MovieService {
     public Movie addMovie(MovieDto movieDto) {
         Movie movie = new Movie();
         movie.setTitle(movieDto.getTitle());
-        movie.setYear((long) movieDto.getYear()); // преобразование int -> Long
+        movie.setYear((long) movieDto.getYear());
         movie.setImdbId(movieDto.getImdbId());
 
         Optional<Genre> genreOpt = genreRepository.findById(movieDto.getGenreId());
         if (genreOpt.isPresent()) {
-            movie.setGenre(genreOpt.get());
+            Genre genre = genreOpt.get();
+            // добавляем жанр в many-to-many набор
+            movie.getGenres().add(genre);
         } else {
             throw new RuntimeException("Genre not found with id: " + movieDto.getGenreId());
         }

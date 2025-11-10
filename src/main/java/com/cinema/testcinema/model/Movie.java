@@ -1,7 +1,8 @@
 package com.cinema.testcinema.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "movies")
@@ -23,53 +24,40 @@ public class Movie {
     private String description;
 
     private String posterUrl;
-
     private String director;
 
     @Column(length = 1000)
     private String actors;
 
-    @Column
-    private String genreText; // например "Action, Comedy, Drama" из API
+    // строковый кэш жанров из внешнего API (опционально)
+    private String genreText;
 
     private String language;
-
     private String country;
-
     private String imdbRating;
-
     private String runtime;
-
     private String released;
 
-    // 🔥 Новые поля для рейтингов
     private String rottenTomatoesRating;
     private String metacriticRating;
     private String imdbVotes;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "genre_id")
-    @JsonBackReference
-    private Genre genre;
+    // Новая связь many-to-many
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "movie_genres",
+            joinColumns = @JoinColumn(name = "movie_id"),
+            inverseJoinColumns = @JoinColumn(name = "genre_id")
+    )
+    private Set<Genre> genres = new HashSet<>();
 
     public Movie() {}
-
     public Movie(String title, String imdbId, Long year) {
         this.title = title;
         this.imdbId = imdbId;
         this.year = year;
     }
 
-    public Movie(String title, String imdbId, Long year, String description, String posterUrl, Genre genre) {
-        this.title = title;
-        this.imdbId = imdbId;
-        this.year = year;
-        this.description = description;
-        this.posterUrl = posterUrl;
-        this.genre = genre;
-    }
-
-    // --- Геттеры и сеттеры ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -121,6 +109,6 @@ public class Movie {
     public String getImdbVotes() { return imdbVotes; }
     public void setImdbVotes(String imdbVotes) { this.imdbVotes = imdbVotes; }
 
-    public Genre getGenre() { return genre; }
-    public void setGenre(Genre genre) { this.genre = genre; }
+    public Set<Genre> getGenres() { return genres; }
+    public void setGenres(Set<Genre> genres) { this.genres = genres; }
 }

@@ -21,10 +21,6 @@ public class MovieController {
     @Autowired
     private OmdbService omdbService;
 
-    /**
-     * Добавление фильма из OMDb по IMDb ID.
-     * Пример: /movies/addFromImdb?imdbId=tt0468569
-     */
     @PostMapping("/addFromImdb")
     public Movie addFromImdb(@RequestParam String imdbId) {
         Movie movie = omdbService.getMovieFromOmdb(imdbId);
@@ -32,7 +28,7 @@ public class MovieController {
             throw new RuntimeException("Фильм не найден в OMDb API");
         }
 
-        // Достаём первый жанр из поля genreText
+        // достаём первый жанр из genreText (как и раньше)
         String genreText = movie.getGenreText() != null ? movie.getGenreText() : "";
         String firstGenreName = "Unknown";
 
@@ -44,29 +40,25 @@ public class MovieController {
             }
         }
 
-        // Проверяем, есть ли уже жанр с таким именем
+        // берём/создаём жанр
         Genre genre = genreRepository.findByName(firstGenreName);
         if (genre == null) {
             genre = new Genre();
-            genre.setName(firstGenreName); // ✅ ВАЖНО: тут именно название жанра, не описание
+            genre.setName(firstGenreName);
             genre = genreRepository.save(genre);
         }
 
-        movie.setGenre(genre);
+        // вместо movie.setGenre(...) — добавляем в many-to-many набор
+        movie.getGenres().add(genre);
+
         return movieRepository.save(movie);
     }
 
-    /**
-     * Получить все фильмы
-     */
     @GetMapping
     public Iterable<Movie> getAllMovies() {
         return movieRepository.findAll();
     }
 
-    /**
-     * Получить фильм по ID
-     */
     @GetMapping("/{id}")
     public Movie getMovieById(@PathVariable Long id) {
         return movieRepository.findById(id)

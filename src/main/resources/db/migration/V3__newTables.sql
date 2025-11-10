@@ -1,4 +1,4 @@
--- V3__newTables.sql
+-- V3__mvp_expansion.sql
 -- Расширение под похожий поиск
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
