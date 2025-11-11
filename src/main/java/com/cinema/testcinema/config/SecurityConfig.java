@@ -32,48 +32,37 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CORS первым, потом CSRF
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
-
-                // правила доступа
                 .authorizeHttpRequests(auth -> auth
-                        // preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // публичные GET-запросы
-                        .requestMatchers(HttpMethod.GET,
+                        .requestMatchers(
                                 "/",
                                 "/index.html",
-                                "/api/movies/**",
-                                "/api/reviews/**",
-                                "/api/comments/**",
+                                "/api/auth/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/internal/**",
                                 "/genres/**",
                                 "/movies/**",
                                 "/static/**",
                                 "/public/**"
                         ).permitAll()
-
-                        // регистрация, логин, swagger и внутренние проверки
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/internal/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/movies/**",
+                                "/api/reviews/**",
+                                "/api/comments/**"
                         ).permitAll()
-
-                        // админ-зона
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/movies/*/reviews",
+                                "/api/movies/*/comments"
+                        ).authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-                        // всё остальное требует токен
                         .anyRequest().authenticated()
                 )
-
-                // JWT фильтр перед UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 
@@ -88,9 +77,9 @@ public class SecurityConfig {
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
-        cfg.setAllowCredentials(true); // нужно true, иначе браузер не пошлёт Authorization
+        cfg.setExposedHeaders(List.of("Authorization"));
+        cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
@@ -101,9 +90,7 @@ public class SecurityConfig {
         return (req, res, ex) -> {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             res.setContentType("application/json");
-            try {
-                res.getWriter().write("{\"error\":\"Unauthorized\"}");
-            } catch (Exception ignored) {}
+            res.getWriter().write("{\"error\":\"Unauthorized\"}");
         };
     }
 
