@@ -15,12 +15,10 @@ public class AdminSeeder {
     CommandLineRunner seedAdmin(UserRepository repo, PasswordEncoder encoder) {
         return args -> {
             String adminUser = "admin";
-            // простая проверка
             if (repo.existsByUsername(adminUser)) {
                 return;
             }
 
-            // попробуем вставить, на случай гонки — поймаем дубликат и проигнорируем
             try {
                 User admin = new User(adminUser, encoder.encode("ADMIN"), "ROLE_ADMIN");
                 repo.save(admin);
