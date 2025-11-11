@@ -6,7 +6,10 @@ import com.cinema.testcinema.model.Watchlist;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.UserRepository;
 import com.cinema.testcinema.repository.WatchlistRepository;
+import com.cinema.testcinema.security.AuthenticatedUserService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,13 +25,16 @@ public class WatchlistController {
     private final WatchlistRepository watchlistRepository;
     private final UserRepository userRepository;
     private final MovieRepository movieRepository;
+    private final AuthenticatedUserService authenticatedUserService;
 
     public WatchlistController(WatchlistRepository watchlistRepository,
                                UserRepository userRepository,
-                               MovieRepository movieRepository) {
+                               MovieRepository movieRepository,
+                               AuthenticatedUserService authenticatedUserService) {
         this.watchlistRepository = watchlistRepository;
         this.userRepository = userRepository;
         this.movieRepository = movieRepository;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     @GetMapping
@@ -39,14 +45,18 @@ public class WatchlistController {
     }
 
     @GetMapping("/user/{userId}")
-    public List<WatchlistResponse> getByUser(@PathVariable Long userId) {
+    public List<WatchlistResponse> getByUser(@PathVariable Long userId, Authentication authentication) {
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
         return watchlistRepository.findByUserId(userId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     @GetMapping("/{userId}/{movieId}")
-    public WatchlistResponse getOne(@PathVariable Long userId, @PathVariable Long movieId) {
+    public WatchlistResponse getOne(@PathVariable Long userId,
+                                    @PathVariable Long movieId,
+                                    Authentication authentication) {
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
         Watchlist watchlist = watchlistRepository.findById(new Watchlist.WatchlistId(userId, movieId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Фильм не найден в списке пользователя"));
@@ -55,9 +65,11 @@ public class WatchlistController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public WatchlistResponse create(@RequestBody WatchlistRequest request) {
+    public WatchlistResponse create(@Valid @RequestBody WatchlistRequest request, Authentication authentication) {
         Long userId = requireUserId(request.userId());
         Long movieId = requireMovieId(request.movieId());
+
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
 
         if (watchlistRepository.existsByUserIdAndMovieId(userId, movieId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -80,7 +92,9 @@ public class WatchlistController {
     @PutMapping("/{userId}/{movieId}")
     public WatchlistResponse update(@PathVariable Long userId,
                                     @PathVariable Long movieId,
-                                    @RequestBody WatchlistRequest request) {
+                                    @Valid @RequestBody WatchlistRequest request,
+                                    Authentication authentication) {
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
         Watchlist watchlist = watchlistRepository.findById(new Watchlist.WatchlistId(userId, movieId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Фильм не найден в списке пользователя"));
@@ -90,6 +104,9 @@ public class WatchlistController {
         }
 
         if (request.userId() != null && !request.userId().equals(userId)) {
+            if (!authenticatedUserService.hasRole(authentication, "ADMIN")) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
             Long newUserId = request.userId();
             if (watchlistRepository.existsByUserIdAndMovieId(newUserId, movieId)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -114,7 +131,8 @@ public class WatchlistController {
 
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@RequestParam Long userId, @RequestParam Long movieId) {
+    public void delete(@RequestParam Long userId, @RequestParam Long movieId, Authentication authentication) {
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
         if (!watchlistRepository.existsByUserIdAndMovieId(userId, movieId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Запись не найдена в списке пользователя");

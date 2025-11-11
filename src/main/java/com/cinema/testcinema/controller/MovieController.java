@@ -6,6 +6,7 @@ import com.cinema.testcinema.repository.GenreRepository;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.service.OmdbService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,6 +23,7 @@ public class MovieController {
     private OmdbService omdbService;
 
     @PostMapping("/addFromImdb")
+    @PreAuthorize("hasRole('ADMIN')")
     public Movie addFromImdb(@RequestParam String imdbId) {
         Movie movie = omdbService.getMovieFromOmdb(imdbId);
         if (movie == null) {
