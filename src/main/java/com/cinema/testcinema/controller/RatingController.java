@@ -6,7 +6,10 @@ import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.RatingRepository;
 import com.cinema.testcinema.repository.UserRepository;
+import com.cinema.testcinema.security.AuthenticatedUserService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,12 +26,16 @@ public class RatingController {
     private final UserRepository userRepository;
     private final MovieRepository movieRepository;
 
+    private final AuthenticatedUserService authenticatedUserService;
+
     public RatingController(RatingRepository ratingRepository,
                             UserRepository userRepository,
-                            MovieRepository movieRepository) {
+                            MovieRepository movieRepository,
+                            AuthenticatedUserService authenticatedUserService) {
         this.ratingRepository = ratingRepository;
         this.userRepository = userRepository;
         this.movieRepository = movieRepository;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     @GetMapping
@@ -55,10 +62,12 @@ public class RatingController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public RatingResponse create(@RequestBody RatingRequest request) {
+    public RatingResponse create(@Valid @RequestBody RatingRequest request, Authentication authentication) {
         Short score = validateScore(request.score());
         User user = loadUser(request.userId());
         Movie movie = loadMovie(request.movieId());
+
+        authenticatedUserService.assertSameUserOrAdmin(authentication, user.getId());
 
         if (ratingRepository.existsByUserIdAndMovieId(user.getId(), movie.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -78,12 +87,19 @@ public class RatingController {
     }
 
     @PutMapping("/{id}")
-    public RatingResponse update(@PathVariable Long id, @RequestBody RatingRequest request) {
+    public RatingResponse update(@PathVariable Long id,
+                                 @Valid @RequestBody RatingRequest request,
+                                 Authentication authentication) {
         Rating rating = ratingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Рейтинг с ID " + id + " не найден"));
 
+        authenticatedUserService.assertSameUserOrAdmin(authentication, rating.getUser().getId());
+
         if (request.userId() != null && !request.userId().equals(rating.getUser().getId())) {
+            if (!authenticatedUserService.hasRole(authentication, "ADMIN")) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
             User newUser = loadUser(request.userId());
             if (request.movieId() == null) {
                 if (ratingRepository.existsByUserIdAndMovieId(newUser.getId(), rating.getMovie().getId()) &&
@@ -130,10 +146,11 @@ public class RatingController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
+    public void delete(@PathVariable Long id, Authentication authentication) {
         Rating rating = ratingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Рейтинг с ID " + id + " не найден"));
+        authenticatedUserService.assertSameUserOrAdmin(authentication, rating.getUser().getId());
         ratingRepository.delete(rating);
     }
 
