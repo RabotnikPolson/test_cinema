@@ -1,191 +1,114 @@
 package com.cinema.testcinema.controller;
 
-import com.cinema.testcinema.model.Movie;
-import com.cinema.testcinema.model.Rating;
-import com.cinema.testcinema.model.User;
-import com.cinema.testcinema.repository.MovieRepository;
-import com.cinema.testcinema.repository.RatingRepository;
-import com.cinema.testcinema.repository.UserRepository;
-import com.cinema.testcinema.security.AuthenticatedUserService;
+import com.cinema.testcinema.dto.rating.RatingRequest;
+import com.cinema.testcinema.dto.rating.RatingResponse;
+import com.cinema.testcinema.service.RatingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/ratings")
-@PreAuthorize("isAuthenticated()") // страховка: любые методы рейтингов требуют токен
+@Tag(name = "Ratings", description = "Управление пользовательскими оценками фильмов")
 public class RatingController {
 
-    private final RatingRepository ratingRepository;
-    private final UserRepository userRepository;
-    private final MovieRepository movieRepository;
-    private final AuthenticatedUserService authenticatedUserService;
+    private final RatingService ratingService;
 
-    public RatingController(RatingRepository ratingRepository,
-                            UserRepository userRepository,
-                            MovieRepository movieRepository,
-                            AuthenticatedUserService authenticatedUserService) {
-        this.ratingRepository = ratingRepository;
-        this.userRepository = userRepository;
-        this.movieRepository = movieRepository;
-        this.authenticatedUserService = authenticatedUserService;
-    }
-
-    @GetMapping
-    public List<RatingResponse> getAll() {
-        return ratingRepository.findAll().stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public RatingController(RatingService ratingService) {
+        this.ratingService = ratingService;
     }
 
     @GetMapping("/{id}")
-    public RatingResponse getById(@PathVariable Long id) {
-        Rating rating = ratingRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Рейтинг с ID " + id + " не найден"));
-        return toResponse(rating);
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Получить рейтинг по идентификатору")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Рейтинг найден",
+                    content = @Content(schema = @Schema(implementation = RatingResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "404", description = "Рейтинг не найден")
+    })
+    public RatingResponse getById(@PathVariable Long id, Authentication authentication) {
+        return ratingService.getById(id, authentication);
     }
 
     @GetMapping("/movie/{movieId}")
-    public List<RatingResponse> getByMovie(@PathVariable Long movieId) {
-        return ratingRepository.findByMovieId(movieId).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Список рейтингов фильма")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Список рейтингов",
+                    content = @Content(schema = @Schema(implementation = RatingResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "404", description = "Фильм не найден")
+    })
+    public Page<RatingResponse> getByMovie(@PathVariable Long movieId,
+                                           @Parameter(description = "Параметры пагинации")
+                                           @PageableDefault(size = 20) Pageable pageable,
+                                           Authentication authentication) {
+        return ratingService.listByMovie(movieId, pageable, authentication);
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public RatingResponse create(@Valid @RequestBody RatingRequest request, Authentication authentication) {
-        Short score = validateScore(request.score());
-        User user = loadUser(request.userId());
-        Movie movie = loadMovie(request.movieId());
-
-        authenticatedUserService.assertSameUserOrAdmin(authentication, user.getId());
-
-        if (ratingRepository.existsByUserIdAndMovieId(user.getId(), movie.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Пользователь уже поставил оценку этому фильму");
-        }
-
-        Rating rating = new Rating();
-        rating.setUser(user);
-        rating.setMovie(movie);
-        rating.setScore(score);
-        rating.setComment(request.comment());
-        Instant createdAt = Optional.ofNullable(request.createdAt()).orElse(Instant.now());
-        rating.setCreatedAt(createdAt);
-
-        Rating saved = ratingRepository.save(rating);
-        return toResponse(saved);
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Создать или обновить рейтинг",
+            description = "Повторный POST обновляет оценку пользователя для фильма")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Рейтинг создан",
+                    content = @Content(schema = @Schema(implementation = RatingResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Рейтинг обновлён",
+                    content = @Content(schema = @Schema(implementation = RatingResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "404", description = "Пользователь или фильм не найдены")
+    })
+    public ResponseEntity<RatingResponse> create(@Valid @RequestBody RatingRequest request,
+                                                 Authentication authentication) {
+        RatingService.RatingUpsertResult result = ratingService.createOrUpdate(request, authentication);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.response());
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Обновить существующий рейтинг")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Рейтинг обновлён",
+                    content = @Content(schema = @Schema(implementation = RatingResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "403", description = "Недостаточно прав"),
+            @ApiResponse(responseCode = "404", description = "Рейтинг или фильм не найдены"),
+            @ApiResponse(responseCode = "409", description = "Конфликт уникальности")
+    })
     public RatingResponse update(@PathVariable Long id,
                                  @Valid @RequestBody RatingRequest request,
                                  Authentication authentication) {
-        Rating rating = ratingRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Рейтинг с ID " + id + " не найден"));
-
-        authenticatedUserService.assertSameUserOrAdmin(authentication, rating.getUser().getId());
-
-        if (request.userId() != null && !request.userId().equals(rating.getUser().getId())) {
-            if (!authenticatedUserService.hasRole(authentication, "ADMIN")) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
-            }
-            User newUser = loadUser(request.userId());
-            if (request.movieId() == null) {
-                if (ratingRepository.existsByUserIdAndMovieId(newUser.getId(), rating.getMovie().getId()) &&
-                        !newUser.getId().equals(rating.getUser().getId())) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
-                            "Нельзя изменить пользователя на того, кто уже поставил оценку этому фильму");
-                }
-            }
-            rating.setUser(newUser);
-        }
-
-        if (request.movieId() != null && !request.movieId().equals(rating.getMovie().getId())) {
-            Movie newMovie = loadMovie(request.movieId());
-            if (request.userId() == null) {
-                if (ratingRepository.existsByUserIdAndMovieId(rating.getUser().getId(), newMovie.getId()) &&
-                        !newMovie.getId().equals(rating.getMovie().getId())) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
-                            "Пользователь уже поставил оценку выбранному фильму");
-                }
-            } else {
-                Long effectiveUserId = request.userId();
-                Rating existing = ratingRepository.findByUserIdAndMovieId(effectiveUserId, newMovie.getId()).orElse(null);
-                if (existing != null && !existing.getId().equals(rating.getId())) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
-                            "Пользователь уже поставил оценку выбранному фильму");
-                }
-            }
-            rating.setMovie(newMovie);
-        }
-
-        if (request.score() != null) {
-            rating.setScore(validateScore(request.score()));
-        }
-
-        rating.setComment(request.comment());
-        if (request.createdAt() != null) {
-            rating.setCreatedAt(request.createdAt());
-        }
-
-        Rating saved = ratingRepository.save(rating);
-        return toResponse(saved);
+        return ratingService.update(id, request, authentication);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Удалить рейтинг")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Рейтинг удалён"),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "403", description = "Недостаточно прав"),
+            @ApiResponse(responseCode = "404", description = "Рейтинг не найден")
+    })
     public void delete(@PathVariable Long id, Authentication authentication) {
-        Rating rating = ratingRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Рейтинг с ID " + id + " не найден"));
-        authenticatedUserService.assertSameUserOrAdmin(authentication, rating.getUser().getId());
-        ratingRepository.delete(rating);
+        ratingService.delete(id, authentication);
     }
-
-    private RatingResponse toResponse(Rating rating) {
-        return new RatingResponse(
-                rating.getId(),
-                rating.getUser() != null ? rating.getUser().getId() : null,
-                rating.getMovie() != null ? rating.getMovie().getId() : null,
-                rating.getScore(),
-                rating.getComment(),
-                rating.getCreatedAt()
-        );
-    }
-
-    private User loadUser(Long userId) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан userId");
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Пользователь с ID " + userId + " не найден"));
-    }
-
-    private Movie loadMovie(Long movieId) {
-        if (movieId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан movieId");
-        return movieRepository.findById(movieId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Фильм с ID " + movieId + " не найден"));
-    }
-
-    private short validateScore(Short score) {
-        if (score == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указана оценка (score)");
-        if (score < 1 || score > 10)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Оценка должна быть в диапазоне от 1 до 10");
-        return score;
-    }
-
-    public record RatingRequest(Long userId, Long movieId, Short score, String comment, Instant createdAt) {}
-    public record RatingResponse(Long id, Long userId, Long movieId, Short score, String comment, Instant createdAt) {}
 }
