@@ -43,9 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                     if (userDetails.isEnabled() && jwtService.isTokenValid(jwt, userDetails)) {
                         var authToken = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
+                                userDetails, null, userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
@@ -61,20 +59,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        if (path == null) {
-            return false;
-        }
-        if (path.startsWith("/auth")) {
-            return true;
-        }
-        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) {
-            return true;
-        }
-        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
-            return true;
-        }
+        if (path == null) return false;
+
+        if (path.startsWith("/auth")) return true;
+        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) return true;
+
+        // ПУБЛИЧНЫЕ GET — только movies и genres. ratings убран.
         if (HttpMethod.GET.matches(request.getMethod())) {
-            return path.startsWith("/movies") || path.startsWith("/genres") || path.startsWith("/ratings");
+            return path.startsWith("/movies") || path.startsWith("/genres");
         }
         return false;
     }

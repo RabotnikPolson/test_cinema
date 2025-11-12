@@ -19,15 +19,18 @@ public class Rating {
     @Column(nullable = false)
     private Short score; // 1..10
 
-    @Column
-    private String comment;
-
-    @Column(nullable = false)
-    private Instant createdAt = Instant.now();
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     public Rating() {}
     public Rating(User user, Movie movie, Short score) {
         this.user = user; this.movie = movie; this.score = score;
+    }
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
     }
     public Long getId() { return id; }
     public User getUser() { return user; }
@@ -36,8 +39,6 @@ public class Rating {
     public void setMovie(Movie movie) { this.movie = movie; }
     public Short getScore() { return score; }
     public void setScore(Short score) { this.score = score; }
-    public String getComment() { return comment; }
-    public void setComment(String comment) { this.comment = comment; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }
