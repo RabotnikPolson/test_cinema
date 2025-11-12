@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class UserPrincipal implements UserDetails {
 
@@ -13,9 +14,10 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final boolean enabled;
-    private final List<GrantedAuthority> authorities;
+    private final Collection<? extends GrantedAuthority> authorities; // <— тут
 
-    public UserPrincipal(Long id, String email, String password, boolean enabled, List<GrantedAuthority> authorities) {
+    public UserPrincipal(Long id, String email, String password, boolean enabled,
+                         Collection<? extends GrantedAuthority> authorities) {   // <— и тут
         this.id = id;
         this.email = email;
         this.password = password;
@@ -23,55 +25,33 @@ public class UserPrincipal implements UserDetails {
         this.authorities = authorities;
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
-    }
+    public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
 
-    @Override
-    public String getPassword() {
-        return password;
-    }
+    @Override public String getPassword() { return password; }
 
-    @Override
-    public String getUsername() {
-        return email;
-    }
+    @Override public String getUsername() { return email; }
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    @Override public boolean isAccountNonExpired() { return true; }
 
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    @Override public boolean isAccountNonLocked() { return true; }
 
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    @Override public boolean isCredentialsNonExpired() { return true; }
 
-    @Override
-    public boolean isEnabled() {
-        return enabled;
-    }
+    @Override public boolean isEnabled() { return enabled; }
 
     public boolean hasRole(String role) {
         String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        return authorities.stream().anyMatch(auth -> auth.getAuthority().equals(roleName));
+        return authorities.stream().anyMatch(a -> a.getAuthority().equals(roleName));
     }
 
     public static UserPrincipal from(Long id, String email, String password, boolean enabled, List<String> roles) {
-        List<GrantedAuthority> authorities = roles.stream()
-                .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+        List<SimpleGrantedAuthority> auths = roles.stream()
+                .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
                 .map(SimpleGrantedAuthority::new)
-                .toList();
-        return new UserPrincipal(id, email, password, enabled, authorities);
+                .collect(Collectors.toList()); // не .toList(), чтобы совместимо с JDK <16
+        return new UserPrincipal(id, email, password, enabled, auths);
     }
 }

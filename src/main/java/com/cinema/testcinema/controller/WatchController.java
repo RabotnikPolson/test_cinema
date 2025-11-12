@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("")
 public class WatchController {
     private final WatchService watchService;
     private final UserRepository userRepository;

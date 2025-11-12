@@ -31,7 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @Validated
 public class AuthController {
 

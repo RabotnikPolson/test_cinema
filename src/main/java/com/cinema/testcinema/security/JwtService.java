@@ -2,11 +2,7 @@ package com.cinema.testcinema.security;
 
 import com.cinema.testcinema.config.JwtProperties;
 import com.cinema.testcinema.model.User;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -14,13 +10,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,7 +24,7 @@ public class JwtService {
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     private final JwtProperties properties;
-    private final Key signingKey;
+    private final SecretKey signingKey;
 
     public JwtService(JwtProperties properties) {
         this.properties = properties;
@@ -69,10 +64,24 @@ public class JwtService {
                 .compact();
     }
 
+//    public boolean isTokenValid(String token, UserDetails userDetails) {
+//        String email = extractEmail(token);
+//        return email.equalsIgnoreCase(userDetails.getUsername()) && !isTokenExpired(token);
+//    }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        String email = extractEmail(token);
-        return email.equalsIgnoreCase(userDetails.getUsername()) && !isTokenExpired(token);
+        try {
+            var jws = Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build()
+                    .parseClaimsJws(token);
+            Date exp = jws.getBody().getExpiration();
+            return exp != null && exp.after(new Date());
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
+
 
     public String extractEmail(String token) {
         return extractAllClaims(token).get("email", String.class);
@@ -109,24 +118,46 @@ public class JwtService {
     }
 
     private Claims extractAllClaims(String token) {
-        Jws<Claims> claimsJws = Jwts.parserBuilder()
+        return Jwts.parserBuilder()
                 .setSigningKey(signingKey)
                 .build()
-                .parseClaimsJws(token);
-        return claimsJws.getBody();
+                .parseClaimsJws(token)
+                .getBody();
     }
 
-    private Key buildKey(String secret) {
+    private SecretKey buildKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret is empty or missing");
+        }
+
         byte[] keyBytes;
+
+        // 1) Base64
         try {
             keyBytes = Decoders.BASE64.decode(secret);
-        } catch (IllegalArgumentException ex) {
-            log.debug("JWT secret is not Base64 encoded, falling back to raw bytes");
-            keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        } catch (Exception ignore1) {
+            // 2) Base64URL
+            try {
+                keyBytes = Decoders.BASE64URL.decode(secret);
+            } catch (Exception ignore2) {
+                // 3) Обычная строка — усилим через SHA-256 чтобы получить 32 байта
+                keyBytes = hashTo32Bytes(secret.getBytes(StandardCharsets.UTF_8));
+            }
         }
+
+        // Если вдруг ключ < 32 байт — усиливаем
         if (keyBytes.length < 32) {
-            throw new IllegalStateException("JWT secret must be at least 256 bits");
+            keyBytes = hashTo32Bytes(keyBytes);
         }
+
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private byte[] hashTo32Bytes(byte[] input) {
+        try {
+            return Arrays.copyOf(MessageDigest.getInstance("SHA-256").digest(input), 32);
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to create JWT signing key", e);
+        }
     }
 }
