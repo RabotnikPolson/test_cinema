@@ -58,7 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/ratings/**").permitAll()
+                        // УБРАНО: .requestMatchers(HttpMethod.GET, "/ratings/**").permitAll()
+                        .requestMatchers("/ratings/**").authenticated() // явно требуем токен
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider())

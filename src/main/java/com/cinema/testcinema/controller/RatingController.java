@@ -9,6 +9,7 @@ import com.cinema.testcinema.repository.UserRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,12 +21,12 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/ratings")
+@PreAuthorize("isAuthenticated()") // страховка: любые методы рейтингов требуют токен
 public class RatingController {
 
     private final RatingRepository ratingRepository;
     private final UserRepository userRepository;
     private final MovieRepository movieRepository;
-
     private final AuthenticatedUserService authenticatedUserService;
 
     public RatingController(RatingRepository ratingRepository,
@@ -121,8 +122,7 @@ public class RatingController {
                 }
             } else {
                 Long effectiveUserId = request.userId();
-                Rating existing = ratingRepository.findByUserIdAndMovieId(effectiveUserId, newMovie.getId())
-                        .orElse(null);
+                Rating existing = ratingRepository.findByUserIdAndMovieId(effectiveUserId, newMovie.getId()).orElse(null);
                 if (existing != null && !existing.getId().equals(rating.getId())) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                             "Пользователь уже поставил оценку выбранному фильму");
@@ -166,40 +166,26 @@ public class RatingController {
     }
 
     private User loadUser(Long userId) {
-        if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан userId");
-        }
+        if (userId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан userId");
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Пользователь с ID " + userId + " не найден"));
     }
 
     private Movie loadMovie(Long movieId) {
-        if (movieId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан movieId");
-        }
+        if (movieId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан movieId");
         return movieRepository.findById(movieId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Фильм с ID " + movieId + " не найден"));
     }
 
     private short validateScore(Short score) {
-        if (score == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указана оценка (score)");
-        }
-        if (score < 1 || score > 10) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Оценка должна быть в диапазоне от 1 до 10");
-        }
+        if (score == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указана оценка (score)");
+        if (score < 1 || score > 10)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Оценка должна быть в диапазоне от 1 до 10");
         return score;
     }
 
     public record RatingRequest(Long userId, Long movieId, Short score, String comment, Instant createdAt) {}
-
-    public record RatingResponse(Long id,
-                                 Long userId,
-                                 Long movieId,
-                                 Short score,
-                                 String comment,
-                                 Instant createdAt) {}
+    public record RatingResponse(Long id, Long userId, Long movieId, Short score, String comment, Instant createdAt) {}
 }
