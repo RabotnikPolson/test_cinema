@@ -32,37 +32,30 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
+                .cors(c -> c.configurationSource(corsConfigurationSource()))
+                .csrf(c -> c.disable())
+                .sessionManagement(c -> c.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(c -> c.authenticationEntryPoint(unauthorizedEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/",
-                                "/index.html",
-                                "/api/auth/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/internal/**",
-                                "/genres/**",
-                                "/movies/**",
-                                "/static/**",
-                                "/public/**"
-                        ).permitAll()
+
+                        .requestMatchers("/hls", "/hls/").permitAll()
+                        .requestMatchers("/hls/**").permitAll()
+
+                        .requestMatchers("/api/auth/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET,
                                 "/api/movies/**",
                                 "/api/reviews/**",
                                 "/api/comments/**"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.POST,
-                                "/api/movies/*/reviews",
-                                "/api/movies/*/comments"
-                        ).authenticated()
+
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
@@ -76,13 +69,13 @@ public class SecurityConfig {
                 "https://*.devtunnels.ms"
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
-        cfg.setMaxAge(3600L);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", cfg);
-        return source;
+
+        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", cfg);
+        return src;
     }
 
     @Bean
