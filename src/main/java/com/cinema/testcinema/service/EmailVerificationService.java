@@ -45,10 +45,6 @@ public class EmailVerificationService {
     public void requestEmailChange(User user, String newEmail) {
         UserProfile profile = ensureProfile(user);
 
-        if (!canEditNicknameOrEmail(profile)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
-        }
-
         if (userRepository.existsByEmail(newEmail) && !newEmail.equalsIgnoreCase(user.getEmail())) {
             throw new BusinessException(HttpStatus.CONFLICT, "Email уже зарегистрирован");
         }

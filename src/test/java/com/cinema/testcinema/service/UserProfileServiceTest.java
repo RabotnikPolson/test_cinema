@@ -166,14 +166,22 @@ class UserProfileServiceTest {
         }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
 
         emailVerificationService.requestEmailChange(user, "first-verified@test.local");
-        emailVerificationService.verifyCode(user, codeRef.get());
+        String firstCode = codeRef.get();
+        emailVerificationService.verifyCode(user, firstCode);
 
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getLastProfileEditAt()).isNotNull();
+        Instant lastEdit = profile.getLastProfileEditAt();
+        assertThat(lastEdit).isNotNull();
 
-        assertThatThrownBy(() -> emailVerificationService.requestEmailChange(user, "second-try@test.local"))
+        emailVerificationService.requestEmailChange(user, "second-try@test.local");
+        String secondCode = codeRef.get();
+
+        assertThatThrownBy(() -> emailVerificationService.verifyCode(user, secondCode))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("7 дней");
+
+        UserProfile afterAttempt = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(afterAttempt.getLastProfileEditAt()).isEqualTo(lastEdit);
     }
 
     private User createUser(String email, String username) {
