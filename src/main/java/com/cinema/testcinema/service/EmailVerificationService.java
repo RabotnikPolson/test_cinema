@@ -61,7 +61,6 @@ public class EmailVerificationService {
         token.setExpiresAt(Instant.now().plus(TOKEN_TTL));
         tokenRepository.save(token);
 
-        profile.setEmail(newEmail);
         profile.setEmailVerified(false);
         userProfileRepository.save(profile);
 
