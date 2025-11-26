@@ -22,14 +22,11 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
-    private final EmailVerificationService emailVerificationService;
 
     public UserProfileService(UserRepository userRepository,
-                              UserProfileRepository userProfileRepository,
-                              EmailVerificationService emailVerificationService) {
+                              UserProfileRepository userProfileRepository) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
-        this.emailVerificationService = emailVerificationService;
     }
 
     @Transactional
@@ -67,8 +64,11 @@ public class UserProfileService {
         UserProfile profile = ensureProfile(user);
 
         boolean nicknameChanged = request.nickname() != null && !request.nickname().equals(profile.getNickname());
+        String currentEmail = profile.getEmail();
+        boolean emailChanged = request.email() != null && (currentEmail == null || !request.email().equalsIgnoreCase(currentEmail));
+        boolean requiresEditWindowCheck = nicknameChanged || emailChanged;
 
-        if (nicknameChanged && !canEditNicknameOrEmail(profile)) {
+        if (requiresEditWindowCheck && !canEditNicknameOrEmail(profile)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
         }
 
@@ -87,11 +87,16 @@ public class UserProfileService {
             profile.setPrivate(request.isPrivate());
         }
 
-        if (request.email() != null) {
-            emailVerificationService.requestEmailChange(user, request.email());
+        if (emailChanged) {
+            if ((userRepository.existsByEmail(request.email()) && !request.email().equalsIgnoreCase(user.getEmail()))
+                    || (userProfileRepository.existsByEmail(request.email()) && (currentEmail == null || !request.email().equalsIgnoreCase(currentEmail)))) {
+                throw new BusinessException(HttpStatus.CONFLICT, "Email уже зарегистрирован");
+            }
+            user.setEmail(request.email());
+            profile.setEmail(request.email());
         }
 
-        if (nicknameChanged) {
+        if (requiresEditWindowCheck) {
             profile.setLastProfileEditAt(Instant.now());
         }
 
@@ -103,7 +108,6 @@ public class UserProfileService {
         return new ProfileMeDto(
                 profile.getNickname(),
                 profile.getEmail(),
-                profile.isEmailVerified(),
                 profile.getAvatarUrl(),
                 profile.isPrivate(),
                 user.getCreatedAt()

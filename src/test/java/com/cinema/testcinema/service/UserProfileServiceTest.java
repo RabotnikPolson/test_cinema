@@ -10,19 +10,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -30,9 +26,6 @@ class UserProfileServiceTest {
 
     @Autowired
     private UserProfileService userProfileService;
-
-    @Autowired
-    private EmailVerificationService emailVerificationService;
 
     @Autowired
     private UserRepository userRepository;
@@ -45,9 +38,6 @@ class UserProfileServiceTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @MockBean
-    private EmailService emailService;
 
     @BeforeEach
     void cleanTables() {
@@ -71,46 +61,43 @@ class UserProfileServiceTest {
     }
 
     @Test
-    void emailVerificationSuccessFlow() {
-        User user = createUser("verify@test.local", "verify-user");
+    void emailChangeBlockedWithinSevenDays() {
+        User user = createUser("limit@test.local", "limit-user");
+        UserProfile profile = userProfileService.ensureProfile(user);
+        profile.setLastProfileEditAt(Instant.now().minus(Duration.ofDays(1)));
+        userProfileRepository.save(profile);
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "new-email@test.local", null);
+
+        assertThatThrownBy(() -> userProfileService.updateProfile(user.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("7 дней");
+    }
+
+    @Test
+    void emailChangeSyncsUserAndProfileAndUpdatesTimestamp() {
+        User user = createUser("sync@test.local", "sync-user");
         userProfileService.ensureProfile(user);
 
-        AtomicReference<String> codeRef = new AtomicReference<>();
-        doAnswer(invocation -> {
-            codeRef.set(invocation.getArgument(1));
-            return null;
-        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "updated@test.local", null);
 
-        emailVerificationService.requestEmailChange(user, "new-email@test.local");
-        UserProfile pendingProfile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(pendingProfile.isEmailVerified()).isFalse();
-        assertThat(pendingProfile.getLastProfileEditAt()).isNull();
+        userProfileService.updateProfile(user.getId(), request);
 
-        String code = codeRef.get();
-        emailVerificationService.verifyCode(user, code);
-
-        User updated = userRepository.findById(user.getId()).orElseThrow();
+        User updatedUser = userRepository.findById(user.getId()).orElseThrow();
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
 
-        assertThat(updated.getEmail()).isEqualTo("new-email@test.local");
-        assertThat(profile.getEmail()).isEqualTo("new-email@test.local");
-        assertThat(profile.isEmailVerified()).isTrue();
+        assertThat(updatedUser.getEmail()).isEqualTo("updated@test.local");
+        assertThat(profile.getEmail()).isEqualTo("updated@test.local");
         assertThat(profile.getLastProfileEditAt()).isNotNull();
     }
 
     @Test
-    void newProfileEmailIsUnverifiedByDefault() {
-        User user = createUser("fresh@test.local", "fresh-user");
-
-        UserProfile profile = userProfileService.ensureProfile(user);
-
-        assertThat(profile.isEmailVerified()).isFalse();
-    }
-
-    @Test
-    void updateProfileWithoutEmailDoesNotVerifyEmailOrUpdateTimestamp() {
+    void avatarChangeDoesNotUpdateTimestamp() {
         User user = createUser("avatar@test.local", "avatar-user");
         UserProfile profile = userProfileService.ensureProfile(user);
+        Instant baseline = Instant.now().minus(Duration.ofDays(3));
+        profile.setLastProfileEditAt(baseline);
+        userProfileRepository.save(profile);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, "http://avatar.local/img.png", null, null);
 
@@ -118,62 +105,23 @@ class UserProfileServiceTest {
 
         UserProfile updated = userProfileRepository.findByUserId(user.getId()).orElseThrow();
 
-        assertThat(updated.isEmailVerified()).isFalse();
-        assertThat(updated.getLastProfileEditAt()).isNull();
-        assertThat(updated.getEmail()).isEqualTo("avatar@test.local");
         assertThat(updated.getAvatarUrl()).isEqualTo("http://avatar.local/img.png");
+        assertThat(updated.getLastProfileEditAt()).isEqualTo(baseline);
+        assertThat(updated.getEmail()).isEqualTo("avatar@test.local");
     }
 
     @Test
-    void emailVerificationFailsWithWrongCode() {
-        User user = createUser("fail@test.local", "fail-user");
+    void nicknameChangeUpdatesTimestampWhenAllowed() {
+        User user = createUser("change@test.local", "change-user");
         userProfileService.ensureProfile(user);
 
-        doAnswer(invocation -> null).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+        ProfileUpdateRequest request = new ProfileUpdateRequest("changed-nick", null, null, null);
 
-        emailVerificationService.requestEmailChange(user, "fail-new@test.local");
-
-        assertThatThrownBy(() -> emailVerificationService.verifyCode(user, "000000"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("код");
-    }
-
-    @Test
-    void emailChangeRequestsAllowedUntilVerified() {
-        User user = createUser("multi@test.local", "multi-user");
-        userProfileService.ensureProfile(user);
-
-        doAnswer(invocation -> null).when(emailService).sendEmailVerificationCode(anyString(), anyString());
-
-        emailVerificationService.requestEmailChange(user, "first@test.local");
-        emailVerificationService.requestEmailChange(user, "second@test.local");
+        userProfileService.updateProfile(user.getId(), request);
 
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getEmail()).isEqualTo("second@test.local");
-        assertThat(profile.isEmailVerified()).isFalse();
-        assertThat(profile.getLastProfileEditAt()).isNull();
-    }
-
-    @Test
-    void emailChangeBlockedAfterRecentVerifiedChange() {
-        User user = createUser("limit@test.local", "limit-user");
-        userProfileService.ensureProfile(user);
-
-        AtomicReference<String> codeRef = new AtomicReference<>();
-        doAnswer(invocation -> {
-            codeRef.set(invocation.getArgument(1));
-            return null;
-        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
-
-        emailVerificationService.requestEmailChange(user, "first-verified@test.local");
-        emailVerificationService.verifyCode(user, codeRef.get());
-
-        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(profile.getNickname()).isEqualTo("changed-nick");
         assertThat(profile.getLastProfileEditAt()).isNotNull();
-
-        assertThatThrownBy(() -> emailVerificationService.requestEmailChange(user, "second-try@test.local"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("7 дней");
     }
 
     private User createUser(String email, String username) {
