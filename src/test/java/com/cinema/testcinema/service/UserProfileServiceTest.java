@@ -72,7 +72,8 @@ class UserProfileServiceTest {
 
     @Test
     void emailVerificationSuccessFlow() {
-        User user = createUser("verify@test.local", "verify-user");
+        String originalEmail = "verify@test.local";
+        User user = createUser(originalEmail, "verify-user");
         userProfileService.ensureProfile(user);
 
         AtomicReference<String> codeRef = new AtomicReference<>();
@@ -85,6 +86,7 @@ class UserProfileServiceTest {
         UserProfile pendingProfile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
         assertThat(pendingProfile.isEmailVerified()).isFalse();
         assertThat(pendingProfile.getLastProfileEditAt()).isNull();
+        assertThat(pendingProfile.getEmail()).isEqualTo(originalEmail);
 
         String code = codeRef.get();
         emailVerificationService.verifyCode(user, code);
@@ -105,6 +107,7 @@ class UserProfileServiceTest {
         UserProfile profile = userProfileService.ensureProfile(user);
 
         assertThat(profile.isEmailVerified()).isFalse();
+        assertThat(profile.getLastProfileEditAt()).isNull();
     }
 
     @Test
@@ -149,7 +152,7 @@ class UserProfileServiceTest {
         emailVerificationService.requestEmailChange(user, "second@test.local");
 
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getEmail()).isEqualTo("second@test.local");
+        assertThat(profile.getEmail()).isEqualTo("multi@test.local");
         assertThat(profile.isEmailVerified()).isFalse();
         assertThat(profile.getLastProfileEditAt()).isNull();
     }
@@ -166,14 +169,22 @@ class UserProfileServiceTest {
         }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
 
         emailVerificationService.requestEmailChange(user, "first-verified@test.local");
-        emailVerificationService.verifyCode(user, codeRef.get());
+        String firstCode = codeRef.get();
+        emailVerificationService.verifyCode(user, firstCode);
 
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getLastProfileEditAt()).isNotNull();
+        Instant lastEdit = profile.getLastProfileEditAt();
+        assertThat(lastEdit).isNotNull();
 
-        assertThatThrownBy(() -> emailVerificationService.requestEmailChange(user, "second-try@test.local"))
+        emailVerificationService.requestEmailChange(user, "second-try@test.local");
+        String secondCode = codeRef.get();
+
+        assertThatThrownBy(() -> emailVerificationService.verifyCode(user, secondCode))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("7 дней");
+
+        UserProfile afterAttempt = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(afterAttempt.getLastProfileEditAt()).isEqualTo(lastEdit);
     }
 
     private User createUser(String email, String username) {

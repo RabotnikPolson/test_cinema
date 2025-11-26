@@ -122,6 +122,12 @@ class ProfileControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("код отправлен на почту"));
 
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("public@test.local"))
+                .andExpect(jsonPath("$.emailVerified").value(false));
+
         String code = codeRef.get();
         assertThat(code).isNotBlank();
 
@@ -130,6 +136,12 @@ class ProfileControllerIntegrationTest {
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(verifyRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("updated@test.local"))
+                .andExpect(jsonPath("$.emailVerified").value(true));
+
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("updated@test.local"))
                 .andExpect(jsonPath("$.emailVerified").value(true));
@@ -147,12 +159,24 @@ class ProfileControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(firstRequest)))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("public@test.local"))
+                .andExpect(jsonPath("$.emailVerified").value(false));
+
         EmailChangeRequest secondRequest = new EmailChangeRequest("second-controller@test.local");
         mockMvc.perform(post("/profile/me/email/change")
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(secondRequest)))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("public@test.local"))
+                .andExpect(jsonPath("$.emailVerified").value(false));
     }
 
     @Test
@@ -183,8 +207,21 @@ class ProfileControllerIntegrationTest {
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isOk());
+
+        EmailVerificationRequest secondVerifyRequest = new EmailVerificationRequest(codeRef.get());
+        mockMvc.perform(post("/profile/me/email/verify")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(secondVerifyRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Изменять никнейм или email можно раз в 7 дней"));
+
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("verify-controller@test.local"))
+                .andExpect(jsonPath("$.emailVerified").value(true));
     }
 
     private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate) {
