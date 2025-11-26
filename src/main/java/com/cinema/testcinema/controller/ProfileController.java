@@ -1,7 +1,6 @@
 package com.cinema.testcinema.controller;
 
 import com.cinema.testcinema.dto.profile.*;
-import com.cinema.testcinema.exception.BusinessException;
 import com.cinema.testcinema.model.Rating;
 import com.cinema.testcinema.model.Review;
 import com.cinema.testcinema.model.User;
@@ -10,13 +9,11 @@ import com.cinema.testcinema.repository.RatingRepository;
 import com.cinema.testcinema.repository.ReviewRepository;
 import com.cinema.testcinema.repository.UserRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
-import com.cinema.testcinema.service.EmailVerificationService;
 import com.cinema.testcinema.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,20 +32,17 @@ public class ProfileController {
     private final UserRepository userRepository;
     private final RatingRepository ratingRepository;
     private final ReviewRepository reviewRepository;
-    private final EmailVerificationService emailVerificationService;
 
     public ProfileController(UserProfileService userProfileService,
                              AuthenticatedUserService authenticatedUserService,
                              UserRepository userRepository,
                              RatingRepository ratingRepository,
-                             ReviewRepository reviewRepository,
-                             EmailVerificationService emailVerificationService) {
+                             ReviewRepository reviewRepository) {
         this.userProfileService = userProfileService;
         this.authenticatedUserService = authenticatedUserService;
         this.userRepository = userRepository;
         this.ratingRepository = ratingRepository;
         this.reviewRepository = reviewRepository;
-        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping("/me")
@@ -122,24 +116,6 @@ public class ProfileController {
                 ratingPage.getTotalElements(),
                 ratingPage.getTotalPages()
         );
-    }
-
-    @PostMapping("/me/email/change")
-    public ResponseEntity<Map<String, String>> changeEmail(@Valid @RequestBody EmailChangeRequest request,
-                                                           Authentication authentication) {
-        Long userId = authenticatedUserService.requireCurrentUserId(authentication);
-        userProfileService.updateProfile(userId, new ProfileUpdateRequest(null, null, request.email(), null));
-        return ResponseEntity.ok(Map.of("message", "код отправлен на почту"));
-    }
-
-    @PostMapping("/me/email/verify")
-    public ProfileMeDto verifyEmail(@Valid @RequestBody EmailVerificationRequest request, Authentication authentication) {
-        Long userId = authenticatedUserService.requireCurrentUserId(authentication);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
-        emailVerificationService.verifyCode(user, request.code());
-        UserProfile profile = userProfileService.ensureProfile(user);
-        return userProfileService.toOwnerDto(user, profile);
     }
 
     private boolean isOwner(Authentication authentication, User user) {

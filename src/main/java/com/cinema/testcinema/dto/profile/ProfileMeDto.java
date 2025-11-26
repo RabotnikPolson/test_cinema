@@ -5,7 +5,6 @@ import java.time.Instant;
 public record ProfileMeDto(
         String nickname,
         String email,
-        boolean emailVerified,
         String avatarUrl,
         boolean isPrivate,
         Instant memberSince

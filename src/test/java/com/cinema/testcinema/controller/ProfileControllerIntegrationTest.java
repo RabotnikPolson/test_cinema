@@ -1,7 +1,5 @@
 package com.cinema.testcinema.controller;
 
-import com.cinema.testcinema.dto.profile.EmailChangeRequest;
-import com.cinema.testcinema.dto.profile.EmailVerificationRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
@@ -17,13 +14,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,9 +39,6 @@ class ProfileControllerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @MockBean
-    private com.cinema.testcinema.service.EmailService emailService;
 
     @BeforeEach
     void setUp() {
@@ -79,149 +70,92 @@ class ProfileControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Новый профиль не верифицирован по умолчанию")
-    void newProfileIsUnverifiedByDefault() throws Exception {
-        long newUserId = 503L;
-        jdbcTemplate.update("INSERT INTO users (id, email, username, password_hash, created_at, enabled) VALUES (?, ?, ?, ?, ?, TRUE)",
-                newUserId, "newuser@test.local", "new-user", "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
+    @DisplayName("Смена никнейма и email ограничена 7 днями")
+    void nicknameAndEmailChangesRespectSevenDayLimit() throws Exception {
+        String firstUpdate = objectMapper.writeValueAsString(
+                new UpdatePayload("fresh-nick", null, "updated@test.local", null)
+        );
 
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(newUserId)).roles("USER")))
+        mockMvc.perform(put("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstUpdate))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.emailVerified").value(false));
-    }
+                .andExpect(jsonPath("$.nickname").value("fresh-nick"))
+                .andExpect(jsonPath("$.email").value("updated@test.local"));
 
-    @Test
-    @DisplayName("PUT /profile/me без email не меняет флаг верификации")
-    void updateProfileWithoutEmailKeepsVerificationFlag() throws Exception {
-        String payload = "{\"avatarUrl\":\"http://img.local/avatar.png\"}";
+        Instant lastEdit = jdbcTemplate.queryForObject(
+                "SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?",
+                Instant.class,
+                PUBLIC_USER_ID
+        );
+        assertThat(lastEdit).isNotNull();
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/profile/me")
+        String secondUpdate = objectMapper.writeValueAsString(
+                new UpdatePayload("second-nick", null, "second@test.local", null)
+        );
+
+        mockMvc.perform(put("/profile/me")
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.emailVerified").value(false))
-                .andExpect(jsonPath("$.email").value("public@test.local"));
-    }
-
-    @Test
-    @DisplayName("Смена и подтверждение email через контроллер")
-    void changeAndVerifyEmailFlow() throws Exception {
-        AtomicReference<String> codeRef = new AtomicReference<>();
-        doAnswer(invocation -> {
-            codeRef.set(invocation.getArgument(1));
-            return null;
-        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
-
-        EmailChangeRequest changeRequest = new EmailChangeRequest("updated@test.local");
-        mockMvc.perform(post("/profile/me/email/change")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(changeRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("код отправлен на почту"));
-
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("public@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(false));
-
-        String code = codeRef.get();
-        assertThat(code).isNotBlank();
-
-        EmailVerificationRequest verifyRequest = new EmailVerificationRequest(code);
-        mockMvc.perform(post("/profile/me/email/verify")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(verifyRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("updated@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(true));
-
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("updated@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(true));
-    }
-
-    @Test
-    @DisplayName("Запрос смены email не ограничен до подтверждения")
-    void emailChangeRequestsNotLimitedUntilVerified() throws Exception {
-        doAnswer(invocation -> null).when(emailService).sendEmailVerificationCode(anyString(), anyString());
-
-        EmailChangeRequest firstRequest = new EmailChangeRequest("first-controller@test.local");
-        mockMvc.perform(post("/profile/me/email/change")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(firstRequest)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("public@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(false));
-
-        EmailChangeRequest secondRequest = new EmailChangeRequest("second-controller@test.local");
-        mockMvc.perform(post("/profile/me/email/change")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(secondRequest)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("public@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(false));
-    }
-
-    @Test
-    @DisplayName("Лимит 7 дней применяется после подтвержденной смены email")
-    void emailChangeBlockedAfterVerificationWithinSevenDays() throws Exception {
-        AtomicReference<String> codeRef = new AtomicReference<>();
-        doAnswer(invocation -> {
-            codeRef.set(invocation.getArgument(1));
-            return null;
-        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
-
-        EmailChangeRequest changeRequest = new EmailChangeRequest("verify-controller@test.local");
-        mockMvc.perform(post("/profile/me/email/change")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(changeRequest)))
-                .andExpect(status().isOk());
-
-        EmailVerificationRequest verifyRequest = new EmailVerificationRequest(codeRef.get());
-        mockMvc.perform(post("/profile/me/email/verify")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(verifyRequest)))
-                .andExpect(status().isOk());
-
-        EmailChangeRequest secondRequest = new EmailChangeRequest("second-try-controller@test.local");
-        mockMvc.perform(post("/profile/me/email/change")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(secondRequest)))
-                .andExpect(status().isOk());
-
-        EmailVerificationRequest secondVerifyRequest = new EmailVerificationRequest(codeRef.get());
-        mockMvc.perform(post("/profile/me/email/verify")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(secondVerifyRequest)))
+                        .content(secondUpdate))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Изменять никнейм или email можно раз в 7 дней"));
 
         mockMvc.perform(get("/profile/me")
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("verify-controller@test.local"))
-                .andExpect(jsonPath("$.emailVerified").value(true));
+                .andExpect(jsonPath("$.email").value("updated@test.local"))
+                .andExpect(jsonPath("$.nickname").value("fresh-nick"));
+    }
+
+    @Test
+    @DisplayName("Изменения аватара и приватности не блокируются по времени")
+    void avatarAndPrivacyChangesBypassEditWindow() throws Exception {
+        Instant lockedEdit = Instant.now();
+        jdbcTemplate.update("UPDATE user_profiles SET last_profile_edit_at = ? WHERE user_id = ?", lockedEdit, PRIVATE_USER_ID);
+
+        String updatePayload = objectMapper.writeValueAsString(
+                new UpdatePayload(null, "http://img.local/new.png", null, true)
+        );
+
+        mockMvc.perform(put("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PRIVATE_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl").value("http://img.local/new.png"))
+                .andExpect(jsonPath("$.isPrivate").value(true));
+
+        Instant lastEdit = jdbcTemplate.queryForObject(
+                "SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?",
+                Instant.class,
+                PRIVATE_USER_ID
+        );
+        assertThat(lastEdit).isEqualTo(lockedEdit);
+    }
+
+    @Test
+    @DisplayName("Смена email через PUT /profile/me синхронизирует User и UserProfile")
+    void emailChangeUpdatesUserAndProfile() throws Exception {
+        String payload = objectMapper.writeValueAsString(
+                new UpdatePayload(null, null, "sync@test.local", null)
+        );
+
+        mockMvc.perform(put("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("sync@test.local"));
+
+        String userEmail = jdbcTemplate.queryForObject("SELECT email FROM users WHERE id = ?", String.class, PUBLIC_USER_ID);
+        String profileEmail = jdbcTemplate.queryForObject("SELECT email FROM user_profiles WHERE user_id = ?", String.class, PUBLIC_USER_ID);
+        Instant lastEdit = jdbcTemplate.queryForObject("SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?", Instant.class, PUBLIC_USER_ID);
+
+        assertThat(userEmail).isEqualTo("sync@test.local");
+        assertThat(profileEmail).isEqualTo("sync@test.local");
+        assertThat(lastEdit).isNotNull();
     }
 
     private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate) {
@@ -229,5 +163,8 @@ class ProfileControllerIntegrationTest {
                 userId, email, username, "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
         jdbcTemplate.update("INSERT INTO user_profiles (user_id, nickname, email, email_verified, is_private) VALUES (?, ?, ?, FALSE, ?)",
                 userId, username + "-nick", email, isPrivate);
+    }
+
+    private record UpdatePayload(String nickname, String avatarUrl, String email, Boolean isPrivate) {
     }
 }
