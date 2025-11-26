@@ -183,6 +183,13 @@ class ProfileControllerIntegrationTest {
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isOk());
+
+        EmailVerificationRequest secondVerifyRequest = new EmailVerificationRequest(codeRef.get());
+        mockMvc.perform(post("/profile/me/email/verify")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(secondVerifyRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Изменять никнейм или email можно раз в 7 дней"));
     }
