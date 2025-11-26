@@ -2,6 +2,7 @@ package com.cinema.testcinema.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import com.cinema.testcinema.exception.BusinessException;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -83,6 +84,13 @@ public class RestExceptionHandler {
         }
         String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
         return buildResponse(status, message, request);
+    }
+
+    // бизнес-ошибки со своим статусом
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException ex, HttpServletRequest request) {
+        HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST;
+        return buildResponse(status, ex.getMessage(), request);
     }
 
     // 500 — общие ошибки

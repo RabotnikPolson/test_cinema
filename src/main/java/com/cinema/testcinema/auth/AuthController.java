@@ -12,6 +12,7 @@ import com.cinema.testcinema.repository.UserRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
 import com.cinema.testcinema.security.JwtService;
 import com.cinema.testcinema.security.RefreshTokenService;
+import com.cinema.testcinema.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,14 +45,16 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final AuthenticatedUserService authenticatedUserService;
+    private final UserProfileService userProfileService;
 
     public AuthController(UserRepository userRepository,
                           RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder,
-                          AuthenticationManager authenticationManager,
-                          JwtService jwtService,
-                          RefreshTokenService refreshTokenService,
-                          AuthenticatedUserService authenticatedUserService) {
+                         PasswordEncoder passwordEncoder,
+                         AuthenticationManager authenticationManager,
+                         JwtService jwtService,
+                         RefreshTokenService refreshTokenService,
+                         AuthenticatedUserService authenticatedUserService,
+                         UserProfileService userProfileService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -59,6 +62,7 @@ public class AuthController {
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.authenticatedUserService = authenticatedUserService;
+        this.userProfileService = userProfileService;
     }
 
     @PostMapping("/register")
@@ -85,6 +89,7 @@ public class AuthController {
         user.setRoles(roles);
 
         User savedUser = userRepository.save(user);
+        userProfileService.ensureProfile(savedUser);
         refreshTokenService.revokeAllForUser(savedUser.getId());
         refreshTokenService.purgeExpired();
         RefreshToken refreshToken = refreshTokenService.create(savedUser);

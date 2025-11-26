@@ -42,6 +42,17 @@ public class AuthenticatedUserService {
         return false;
     }
 
+    public Long getCurrentUserIdIfAuthenticated(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        try {
+            return requireCurrentUserId(authentication);
+        } catch (ResponseStatusException ex) {
+            return null;
+        }
+    }
+
     public void assertSameUserOrAdmin(Authentication authentication, Long userId) {
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не указан userId");
