@@ -50,6 +50,8 @@ class RatingReviewIntegrationTest {
         jdbcTemplate.update("DELETE FROM reviews");
         jdbcTemplate.update("DELETE FROM ratings");
         jdbcTemplate.update("DELETE FROM movies WHERE id = ?", MOVIE_ID);
+        jdbcTemplate.update("DELETE FROM email_verification_tokens");
+        jdbcTemplate.update("DELETE FROM user_profiles");
         jdbcTemplate.update("DELETE FROM user_roles WHERE user_id IN (?,?,?)", USER_ID, SECOND_USER_ID, ADMIN_ID);
         jdbcTemplate.update("DELETE FROM users WHERE id IN (?,?,?)", USER_ID, SECOND_USER_ID, ADMIN_ID);
 
