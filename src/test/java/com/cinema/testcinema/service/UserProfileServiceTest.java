@@ -91,6 +91,7 @@ class UserProfileServiceTest {
         assertThat(updated.getEmail()).isEqualTo("new-email@test.local");
         assertThat(profile.getEmail()).isEqualTo("new-email@test.local");
         assertThat(profile.isEmailVerified()).isTrue();
+        assertThat(profile.getLastProfileEditAt()).isNotNull();
     }
 
     @Test
@@ -105,6 +106,40 @@ class UserProfileServiceTest {
         assertThatThrownBy(() -> emailVerificationService.verifyCode(user, "000000"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("код");
+    }
+
+    @Test
+    void emailChangeRequestsAllowedUntilVerified() {
+        User user = createUser("multi@test.local", "multi-user");
+        userProfileService.ensureProfile(user);
+
+        doAnswer(invocation -> null).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+
+        emailVerificationService.requestEmailChange(user, "first@test.local");
+        emailVerificationService.requestEmailChange(user, "second@test.local");
+
+        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(profile.getEmail()).isEqualTo("second@test.local");
+        assertThat(profile.getLastProfileEditAt()).isNull();
+    }
+
+    @Test
+    void emailChangeBlockedAfterRecentVerifiedChange() {
+        User user = createUser("limit@test.local", "limit-user");
+        userProfileService.ensureProfile(user);
+
+        AtomicReference<String> codeRef = new AtomicReference<>();
+        doAnswer(invocation -> {
+            codeRef.set(invocation.getArgument(1));
+            return null;
+        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+
+        emailVerificationService.requestEmailChange(user, "first-verified@test.local");
+        emailVerificationService.verifyCode(user, codeRef.get());
+
+        assertThatThrownBy(() -> emailVerificationService.requestEmailChange(user, "second-try@test.local"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("7 дней");
     }
 
     private User createUser(String email, String username) {

@@ -68,10 +68,8 @@ public class UserProfileService {
         UserProfile profile = ensureProfile(user);
 
         boolean nicknameChanged = request.nickname() != null && !request.nickname().equals(profile.getNickname());
-        String currentEmail = profile.getEmail();
-        boolean emailChanged = request.email() != null && (currentEmail == null || !currentEmail.equalsIgnoreCase(request.email()));
 
-        if ((nicknameChanged || emailChanged) && !canEditNicknameOrEmail(profile)) {
+        if (nicknameChanged && !canEditNicknameOrEmail(profile)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
         }
 
@@ -90,13 +88,11 @@ public class UserProfileService {
             profile.setPrivate(request.isPrivate());
         }
 
-        if (emailChanged) {
+        if (request.email() != null) {
             emailVerificationService.requestEmailChange(user, request.email());
-            profile.setEmail(request.email());
-            profile.setEmailVerified(false);
         }
 
-        if (nicknameChanged || emailChanged) {
+        if (nicknameChanged) {
             profile.setLastProfileEditAt(Instant.now());
         }
 
@@ -124,7 +120,7 @@ public class UserProfileService {
         );
     }
 
-    private boolean canEditNicknameOrEmail(UserProfile profile) {
+    boolean canEditNicknameOrEmail(UserProfile profile) {
         Instant lastEdit = profile.getLastProfileEditAt();
         if (lastEdit == null) {
             return true;

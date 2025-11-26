@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class EmailVerificationService {
 
     private static final Duration TOKEN_TTL = Duration.ofMinutes(15);
+    private static final Duration EDIT_WINDOW = Duration.ofDays(7);
 
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserProfileRepository userProfileRepository;
@@ -42,6 +43,12 @@ public class EmailVerificationService {
 
     @Transactional
     public void requestEmailChange(User user, String newEmail) {
+        UserProfile profile = ensureProfile(user);
+
+        if (!canEditNicknameOrEmail(profile)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
+        }
+
         if (userRepository.existsByEmail(newEmail) && !newEmail.equalsIgnoreCase(user.getEmail())) {
             throw new BusinessException(HttpStatus.CONFLICT, "Email уже зарегистрирован");
         }
@@ -58,7 +65,6 @@ public class EmailVerificationService {
         token.setExpiresAt(Instant.now().plus(TOKEN_TTL));
         tokenRepository.save(token);
 
-        UserProfile profile = ensureProfile(user);
         profile.setEmail(newEmail);
         profile.setEmailVerified(false);
         userProfileRepository.save(profile);
@@ -83,8 +89,14 @@ public class EmailVerificationService {
         }
 
         UserProfile profile = ensureProfile(user);
+
+        if (!canEditNicknameOrEmail(profile)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
+        }
+
         profile.setEmail(token.getNewEmail());
         profile.setEmailVerified(true);
+        profile.setLastProfileEditAt(Instant.now());
         userProfileRepository.save(profile);
 
         user.setEmail(token.getNewEmail());
@@ -97,6 +109,14 @@ public class EmailVerificationService {
     private String generateCode() {
         int number = ThreadLocalRandom.current().nextInt(0, 1_000_000);
         return String.format("%06d", number);
+    }
+
+    private boolean canEditNicknameOrEmail(UserProfile profile) {
+        Instant lastEdit = profile.getLastProfileEditAt();
+        if (lastEdit == null) {
+            return true;
+        }
+        return !lastEdit.plus(EDIT_WINDOW).isAfter(Instant.now());
     }
 
     private UserProfile ensureProfile(User user) {

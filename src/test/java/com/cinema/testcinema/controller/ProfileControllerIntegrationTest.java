@@ -108,6 +108,58 @@ class ProfileControllerIntegrationTest {
                 .andExpect(jsonPath("$.emailVerified").value(true));
     }
 
+    @Test
+    @DisplayName("Запрос смены email не ограничен до подтверждения")
+    void emailChangeRequestsNotLimitedUntilVerified() throws Exception {
+        doAnswer(invocation -> null).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+
+        EmailChangeRequest firstRequest = new EmailChangeRequest("first-controller@test.local");
+        mockMvc.perform(post("/profile/me/email/change")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(firstRequest)))
+                .andExpect(status().isOk());
+
+        EmailChangeRequest secondRequest = new EmailChangeRequest("second-controller@test.local");
+        mockMvc.perform(post("/profile/me/email/change")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Лимит 7 дней применяется после подтвержденной смены email")
+    void emailChangeBlockedAfterVerificationWithinSevenDays() throws Exception {
+        AtomicReference<String> codeRef = new AtomicReference<>();
+        doAnswer(invocation -> {
+            codeRef.set(invocation.getArgument(1));
+            return null;
+        }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
+
+        EmailChangeRequest changeRequest = new EmailChangeRequest("verify-controller@test.local");
+        mockMvc.perform(post("/profile/me/email/change")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changeRequest)))
+                .andExpect(status().isOk());
+
+        EmailVerificationRequest verifyRequest = new EmailVerificationRequest(codeRef.get());
+        mockMvc.perform(post("/profile/me/email/verify")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(verifyRequest)))
+                .andExpect(status().isOk());
+
+        EmailChangeRequest secondRequest = new EmailChangeRequest("second-try-controller@test.local");
+        mockMvc.perform(post("/profile/me/email/change")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Изменять никнейм или email можно раз в 7 дней"));
+    }
+
     private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate) {
         jdbcTemplate.update("INSERT INTO users (id, email, username, password_hash, created_at, enabled) VALUES (?, ?, ?, ?, ?, TRUE)",
                 userId, email, username, "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
