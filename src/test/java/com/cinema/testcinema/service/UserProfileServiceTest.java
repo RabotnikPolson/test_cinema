@@ -82,6 +82,10 @@ class UserProfileServiceTest {
         }).when(emailService).sendEmailVerificationCode(anyString(), anyString());
 
         emailVerificationService.requestEmailChange(user, "new-email@test.local");
+        UserProfile pendingProfile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(pendingProfile.isEmailVerified()).isFalse();
+        assertThat(pendingProfile.getLastProfileEditAt()).isNull();
+
         String code = codeRef.get();
         emailVerificationService.verifyCode(user, code);
 
@@ -92,6 +96,32 @@ class UserProfileServiceTest {
         assertThat(profile.getEmail()).isEqualTo("new-email@test.local");
         assertThat(profile.isEmailVerified()).isTrue();
         assertThat(profile.getLastProfileEditAt()).isNotNull();
+    }
+
+    @Test
+    void newProfileEmailIsUnverifiedByDefault() {
+        User user = createUser("fresh@test.local", "fresh-user");
+
+        UserProfile profile = userProfileService.ensureProfile(user);
+
+        assertThat(profile.isEmailVerified()).isFalse();
+    }
+
+    @Test
+    void updateProfileWithoutEmailDoesNotVerifyEmailOrUpdateTimestamp() {
+        User user = createUser("avatar@test.local", "avatar-user");
+        UserProfile profile = userProfileService.ensureProfile(user);
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, "http://avatar.local/img.png", null, null);
+
+        userProfileService.updateProfile(user.getId(), request);
+
+        UserProfile updated = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+
+        assertThat(updated.isEmailVerified()).isFalse();
+        assertThat(updated.getLastProfileEditAt()).isNull();
+        assertThat(updated.getEmail()).isEqualTo("avatar@test.local");
+        assertThat(updated.getAvatarUrl()).isEqualTo("http://avatar.local/img.png");
     }
 
     @Test
@@ -120,6 +150,7 @@ class UserProfileServiceTest {
 
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
         assertThat(profile.getEmail()).isEqualTo("second@test.local");
+        assertThat(profile.isEmailVerified()).isFalse();
         assertThat(profile.getLastProfileEditAt()).isNull();
     }
 
@@ -136,6 +167,9 @@ class UserProfileServiceTest {
 
         emailVerificationService.requestEmailChange(user, "first-verified@test.local");
         emailVerificationService.verifyCode(user, codeRef.get());
+
+        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(profile.getLastProfileEditAt()).isNotNull();
 
         assertThatThrownBy(() -> emailVerificationService.requestEmailChange(user, "second-try@test.local"))
                 .isInstanceOf(BusinessException.class)

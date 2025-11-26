@@ -79,6 +79,33 @@ class ProfileControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Новый профиль не верифицирован по умолчанию")
+    void newProfileIsUnverifiedByDefault() throws Exception {
+        long newUserId = 503L;
+        jdbcTemplate.update("INSERT INTO users (id, email, username, password_hash, created_at, enabled) VALUES (?, ?, ?, ?, ?, TRUE)",
+                newUserId, "newuser@test.local", "new-user", "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
+
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(newUserId)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(false));
+    }
+
+    @Test
+    @DisplayName("PUT /profile/me без email не меняет флаг верификации")
+    void updateProfileWithoutEmailKeepsVerificationFlag() throws Exception {
+        String payload = "{\"avatarUrl\":\"http://img.local/avatar.png\"}";
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(false))
+                .andExpect(jsonPath("$.email").value("public@test.local"));
+    }
+
+    @Test
     @DisplayName("Смена и подтверждение email через контроллер")
     void changeAndVerifyEmailFlow() throws Exception {
         AtomicReference<String> codeRef = new AtomicReference<>();
@@ -163,7 +190,7 @@ class ProfileControllerIntegrationTest {
     private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate) {
         jdbcTemplate.update("INSERT INTO users (id, email, username, password_hash, created_at, enabled) VALUES (?, ?, ?, ?, ?, TRUE)",
                 userId, email, username, "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
-        jdbcTemplate.update("INSERT INTO user_profiles (user_id, nickname, email, email_verified, is_private) VALUES (?, ?, ?, TRUE, ?)",
+        jdbcTemplate.update("INSERT INTO user_profiles (user_id, nickname, email, email_verified, is_private) VALUES (?, ?, ?, FALSE, ?)",
                 userId, username + "-nick", email, isPrivate);
     }
 }

@@ -38,7 +38,6 @@ public class UserProfileService {
             UserProfile profile = new UserProfile();
             profile.setUser(user);
             profile.setEmail(user.getEmail());
-            profile.setEmailVerified(true);
             return userProfileRepository.save(profile);
         });
     }
