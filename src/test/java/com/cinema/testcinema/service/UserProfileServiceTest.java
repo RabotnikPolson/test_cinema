@@ -41,23 +41,8 @@ class UserProfileServiceTest {
 
     @BeforeEach
     void cleanTables() {
-        jdbcTemplate.update("DELETE FROM email_verification_tokens");
         jdbcTemplate.update("DELETE FROM user_profiles");
         jdbcTemplate.update("DELETE FROM users");
-    }
-
-    @Test
-    void nicknameChangeBlockedWithinSevenDays() {
-        User user = createUser("profile@test.local", "profile-user");
-        UserProfile profile = userProfileService.ensureProfile(user);
-        profile.setLastProfileEditAt(Instant.now().minus(Duration.ofDays(2)));
-        userProfileRepository.save(profile);
-
-        ProfileUpdateRequest request = new ProfileUpdateRequest("newNick", null, null, null);
-
-        assertThatThrownBy(() -> userProfileService.updateProfile(user.getId(), request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("7 дней");
     }
 
     @Test
@@ -67,7 +52,7 @@ class UserProfileServiceTest {
         profile.setLastProfileEditAt(Instant.now().minus(Duration.ofDays(1)));
         userProfileRepository.save(profile);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "new-email@test.local", null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, "new-email@test.local", null, null);
 
         assertThatThrownBy(() -> userProfileService.updateProfile(user.getId(), request))
                 .isInstanceOf(BusinessException.class)
@@ -79,7 +64,7 @@ class UserProfileServiceTest {
         User user = createUser("sync@test.local", "sync-user");
         userProfileService.ensureProfile(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "updated@test.local", null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, "updated@test.local", null, null);
 
         userProfileService.updateProfile(user.getId(), request);
 
@@ -87,7 +72,6 @@ class UserProfileServiceTest {
         UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
 
         assertThat(updatedUser.getEmail()).isEqualTo("updated@test.local");
-        assertThat(profile.getEmail()).isEqualTo("updated@test.local");
         assertThat(profile.getLastProfileEditAt()).isNotNull();
     }
 
@@ -99,7 +83,7 @@ class UserProfileServiceTest {
         profile.setLastProfileEditAt(baseline);
         userProfileRepository.save(profile);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, "http://avatar.local/img.png", null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest("http://avatar.local/img.png", null, null, null);
 
         userProfileService.updateProfile(user.getId(), request);
 
@@ -107,21 +91,23 @@ class UserProfileServiceTest {
 
         assertThat(updated.getAvatarUrl()).isEqualTo("http://avatar.local/img.png");
         assertThat(updated.getLastProfileEditAt()).isEqualTo(baseline);
-        assertThat(updated.getEmail()).isEqualTo("avatar@test.local");
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getEmail()).isEqualTo("avatar@test.local");
     }
 
     @Test
-    void nicknameChangeUpdatesTimestampWhenAllowed() {
-        User user = createUser("change@test.local", "change-user");
-        userProfileService.ensureProfile(user);
+    void bioChangeDoesNotAffectEditWindow() {
+        User user = createUser("bio@test.local", "bio-user");
+        UserProfile profile = userProfileService.ensureProfile(user);
+        profile.setLastProfileEditAt(Instant.now());
+        userProfileRepository.save(profile);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest("changed-nick", null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, "New bio");
 
         userProfileService.updateProfile(user.getId(), request);
 
-        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getNickname()).isEqualTo("changed-nick");
-        assertThat(profile.getLastProfileEditAt()).isNotNull();
+        UserProfile updated = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(updated.getBio()).isEqualTo("New bio");
+        assertThat(updated.getLastProfileEditAt()).isEqualTo(profile.getLastProfileEditAt());
     }
 
     private User createUser(String email, String username) {

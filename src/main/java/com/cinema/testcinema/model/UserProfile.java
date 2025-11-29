@@ -15,23 +15,17 @@ public class UserProfile {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(unique = true)
-    private String nickname;
-
     @Column(name = "avatar_url")
     private String avatarUrl;
-
-    @Column(unique = true)
-    private String email;
-
-    @Column(nullable = false)
-    private boolean emailVerified = false;
 
     @Column(nullable = false, name = "is_private")
     private boolean isPrivate = false;
 
     @Column(name = "last_profile_edit_at")
     private Instant lastProfileEditAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
 
     public Long getId() {
         return id;
@@ -45,36 +39,12 @@ public class UserProfile {
         this.user = user;
     }
 
-    public String getNickname() {
-        return nickname;
-    }
-
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-
     public String getAvatarUrl() {
         return avatarUrl;
     }
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public boolean isEmailVerified() {
-        return emailVerified;
-    }
-
-    public void setEmailVerified(boolean emailVerified) {
-        this.emailVerified = emailVerified;
     }
 
     public boolean isPrivate() {
@@ -91,5 +61,13 @@ public class UserProfile {
 
     public void setLastProfileEditAt(Instant lastProfileEditAt) {
         this.lastProfileEditAt = lastProfileEditAt;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
     }
 }
