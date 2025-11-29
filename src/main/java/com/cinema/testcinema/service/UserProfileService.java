@@ -12,13 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.Instant;
-
 @Service
 public class UserProfileService {
-
-    private static final Duration EDIT_WINDOW = Duration.ofDays(7);
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
@@ -62,13 +57,6 @@ public class UserProfileService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
         UserProfile profile = ensureProfile(user);
 
-        boolean emailChanged = request.email() != null && !request.email().equalsIgnoreCase(user.getEmail());
-        boolean requiresEditWindowCheck = emailChanged;
-
-        if (requiresEditWindowCheck && !canEditEmail(profile)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
-        }
-
         if (request.avatarUrl() != null) {
             profile.setAvatarUrl(request.avatarUrl());
         }
@@ -77,19 +65,8 @@ public class UserProfileService {
             profile.setPrivate(request.isPrivate());
         }
 
-        if (emailChanged) {
-            if (userRepository.existsByEmail(request.email()) && !request.email().equalsIgnoreCase(user.getEmail())) {
-                throw new BusinessException(HttpStatus.CONFLICT, "Email уже зарегистрирован");
-            }
-            user.setEmail(request.email());
-        }
-
         if (request.bio() != null) {
             profile.setBio(request.bio());
-        }
-
-        if (requiresEditWindowCheck) {
-            profile.setLastProfileEditAt(Instant.now());
         }
 
         UserProfile saved = userProfileRepository.save(profile);
@@ -115,13 +92,5 @@ public class UserProfileService {
                 user.getCreatedAt(),
                 profile.isPrivate() ? null : profile.getBio()
         );
-    }
-
-    boolean canEditEmail(UserProfile profile) {
-        Instant lastEdit = profile.getLastProfileEditAt();
-        if (lastEdit == null) {
-            return true;
-        }
-        return !lastEdit.plus(EDIT_WINDOW).isAfter(Instant.now());
     }
 }
