@@ -64,10 +64,10 @@ public class ProfileController {
         boolean isOwner = isOwner(authentication, user);
         boolean isAdmin = authenticatedUserService.hasRole(authentication, "ADMIN");
 
-        if (profile.isPrivate() && !isOwner && !isAdmin) {
-            return userProfileService.toPublicDto(user, profile);
+        if (isOwner || isAdmin) {
+            return userProfileService.toOwnerDto(user, profile);
         }
-        return userProfileService.toOwnerDto(user, profile);
+        return userProfileService.toPublicDto(user, profile);
     }
 
     @GetMapping("/{username}/ratings")

@@ -1,7 +1,6 @@
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.dto.profile.ProfileUpdateRequest;
-import com.cinema.testcinema.exception.BusinessException;
 import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.model.UserProfile;
 import com.cinema.testcinema.repository.UserProfileRepository;
@@ -18,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -41,54 +39,9 @@ class UserProfileServiceTest {
 
     @BeforeEach
     void cleanTables() {
-        jdbcTemplate.update("DELETE FROM email_verification_tokens");
         jdbcTemplate.update("DELETE FROM user_profiles");
+        jdbcTemplate.update("DELETE FROM user_settings");
         jdbcTemplate.update("DELETE FROM users");
-    }
-
-    @Test
-    void nicknameChangeBlockedWithinSevenDays() {
-        User user = createUser("profile@test.local", "profile-user");
-        UserProfile profile = userProfileService.ensureProfile(user);
-        profile.setLastProfileEditAt(Instant.now().minus(Duration.ofDays(2)));
-        userProfileRepository.save(profile);
-
-        ProfileUpdateRequest request = new ProfileUpdateRequest("newNick", null, null, null);
-
-        assertThatThrownBy(() -> userProfileService.updateProfile(user.getId(), request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("7 дней");
-    }
-
-    @Test
-    void emailChangeBlockedWithinSevenDays() {
-        User user = createUser("limit@test.local", "limit-user");
-        UserProfile profile = userProfileService.ensureProfile(user);
-        profile.setLastProfileEditAt(Instant.now().minus(Duration.ofDays(1)));
-        userProfileRepository.save(profile);
-
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "new-email@test.local", null);
-
-        assertThatThrownBy(() -> userProfileService.updateProfile(user.getId(), request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("7 дней");
-    }
-
-    @Test
-    void emailChangeSyncsUserAndProfileAndUpdatesTimestamp() {
-        User user = createUser("sync@test.local", "sync-user");
-        userProfileService.ensureProfile(user);
-
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "updated@test.local", null);
-
-        userProfileService.updateProfile(user.getId(), request);
-
-        User updatedUser = userRepository.findById(user.getId()).orElseThrow();
-        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-
-        assertThat(updatedUser.getEmail()).isEqualTo("updated@test.local");
-        assertThat(profile.getEmail()).isEqualTo("updated@test.local");
-        assertThat(profile.getLastProfileEditAt()).isNotNull();
     }
 
     @Test
@@ -99,7 +52,7 @@ class UserProfileServiceTest {
         profile.setLastProfileEditAt(baseline);
         userProfileRepository.save(profile);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, "http://avatar.local/img.png", null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest("http://avatar.local/img.png", null, null);
 
         userProfileService.updateProfile(user.getId(), request);
 
@@ -107,21 +60,44 @@ class UserProfileServiceTest {
 
         assertThat(updated.getAvatarUrl()).isEqualTo("http://avatar.local/img.png");
         assertThat(updated.getLastProfileEditAt()).isEqualTo(baseline);
-        assertThat(updated.getEmail()).isEqualTo("avatar@test.local");
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getEmail()).isEqualTo("avatar@test.local");
     }
 
     @Test
-    void nicknameChangeUpdatesTimestampWhenAllowed() {
-        User user = createUser("change@test.local", "change-user");
-        userProfileService.ensureProfile(user);
+    void bioChangeDoesNotAffectEditWindow() {
+        User user = createUser("bio@test.local", "bio-user");
+        UserProfile profile = userProfileService.ensureProfile(user);
+        profile.setLastProfileEditAt(Instant.now());
+        userProfileRepository.save(profile);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest("changed-nick", null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "New bio");
 
         userProfileService.updateProfile(user.getId(), request);
 
-        UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
-        assertThat(profile.getNickname()).isEqualTo("changed-nick");
-        assertThat(profile.getLastProfileEditAt()).isNotNull();
+        UserProfile updated = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(updated.getBio()).isEqualTo("New bio");
+        assertThat(updated.getLastProfileEditAt()).isEqualTo(profile.getLastProfileEditAt());
+    }
+
+    @Test
+    void profileUpdatesDoNotModifyEmailOrTimestamp() {
+        User user = createUser("unchanged@test.local", "keep-user");
+        UserProfile profile = userProfileService.ensureProfile(user);
+        Instant originalTimestamp = Instant.now().minus(Duration.ofDays(2));
+        profile.setLastProfileEditAt(originalTimestamp);
+        userProfileRepository.save(profile);
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, true, "Updated bio");
+
+        userProfileService.updateProfile(user.getId(), request);
+
+        User updatedUser = userRepository.findById(user.getId()).orElseThrow();
+        UserProfile updatedProfile = userProfileRepository.findByUserId(user.getId()).orElseThrow();
+
+        assertThat(updatedUser.getEmail()).isEqualTo("unchanged@test.local");
+        assertThat(updatedProfile.getLastProfileEditAt()).isEqualTo(originalTimestamp);
+        assertThat(updatedProfile.getBio()).isEqualTo("Updated bio");
+        assertThat(updatedProfile.isPrivate()).isTrue();
     }
 
     private User createUser(String email, String username) {
