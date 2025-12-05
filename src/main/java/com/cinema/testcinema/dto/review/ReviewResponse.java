@@ -35,6 +35,15 @@ public class ReviewResponse {
     @Schema(description = "Был ли отзыв изменён")
     private boolean edited;
 
+    @Schema(description = "Оценка пользователя фильму", example = "8", nullable = true)
+    private Short score;
+
+    @Schema(description = "Количество положительных реакций")
+    private long upVotes;
+
+    @Schema(description = "Количество отрицательных реакций")
+    private long downVotes;
+
     @ArraySchema(arraySchema = @Schema(description = "Список прямых ответов"))
     private List<ReviewResponse> replies = new ArrayList<>();
 
@@ -42,7 +51,8 @@ public class ReviewResponse {
     }
 
     public ReviewResponse(Long id, Long userId, Long movieId, Long parentId, String content,
-                          Instant createdAt, Instant updatedAt, boolean edited) {
+                          Instant createdAt, Instant updatedAt, boolean edited,
+                          Short score, long upVotes, long downVotes) {
         this.id = id;
         this.userId = userId;
         this.movieId = movieId;
@@ -51,6 +61,9 @@ public class ReviewResponse {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.edited = edited;
+        this.score = score;
+        this.upVotes = upVotes;
+        this.downVotes = downVotes;
     }
 
     public Long getId() {
@@ -83,6 +96,30 @@ public class ReviewResponse {
 
     public boolean isEdited() {
         return edited;
+    }
+
+    public Short getScore() {
+        return score;
+    }
+
+    public void setScore(Short score) {
+        this.score = score;
+    }
+
+    public long getUpVotes() {
+        return upVotes;
+    }
+
+    public void setUpVotes(long upVotes) {
+        this.upVotes = upVotes;
+    }
+
+    public long getDownVotes() {
+        return downVotes;
+    }
+
+    public void setDownVotes(long downVotes) {
+        this.downVotes = downVotes;
     }
 
     public List<ReviewResponse> getReplies() {

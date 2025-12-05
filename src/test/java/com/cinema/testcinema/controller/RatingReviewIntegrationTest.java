@@ -47,6 +47,9 @@ class RatingReviewIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update("DELETE FROM comment_reactions");
+        jdbcTemplate.update("DELETE FROM comments");
+        jdbcTemplate.update("DELETE FROM review_reactions");
         jdbcTemplate.update("DELETE FROM reviews");
         jdbcTemplate.update("DELETE FROM ratings");
         jdbcTemplate.update("DELETE FROM movies WHERE id = ?", MOVIE_ID);
@@ -149,33 +152,20 @@ class RatingReviewIntegrationTest {
     }
 
     @Test
-    @DisplayName("Создание отзыва и ответа")
-    void createReviewAndReply() throws Exception {
+    @DisplayName("Создание ответа на отзыв теперь возвращает 400")
+    void creatingReplyToReviewIsBadRequest() throws Exception {
         long reviewId = createReview(USER_ID, "Первый отзыв", null);
-        long replyId = createReview(SECOND_USER_ID, "Ответ на отзыв", reviewId);
 
-        assertThat(replyId).isPositive();
-
-        mockMvc.perform(get("/reviews/" + reviewId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.replies.length()").value(1))
-                .andExpect(jsonPath("$.replies[0].parentId").value(reviewId));
-    }
-
-    @Test
-    @DisplayName("Шестой ответ на узел запрещён")
-    void reviewReplyLimit() throws Exception {
-        long reviewId = createReview(USER_ID, "Корневой", null);
-        for (int i = 0; i < 5; i++) {
-            createReview(SECOND_USER_ID, "Ответ №" + i, reviewId);
-        }
-
-        ReviewCreateRequest request = new ReviewCreateRequest(MOVIE_ID, "Ещё ответ", reviewId);
+        ReviewCreateRequest replyRequest = new ReviewCreateRequest(MOVIE_ID, "Ответ", reviewId);
         mockMvc.perform(post("/reviews")
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(SECOND_USER_ID)).roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict());
+                        .content(objectMapper.writeValueAsString(replyRequest)))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/reviews/" + reviewId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.replies.length()").value(0));
     }
 
     @Test
@@ -209,25 +199,37 @@ class RatingReviewIntegrationTest {
     }
 
     @Test
-    @DisplayName("Удаление узла удаляет его поддерево")
-    void deleteReviewRemovesSubtree() throws Exception {
-        long rootId = createReview(USER_ID, "Корневой", null);
-        long firstReply = createReview(SECOND_USER_ID, "Первый ответ", rootId);
-        long secondReply = createReview(SECOND_USER_ID, "Второй ответ", rootId);
-        long nestedReply = createReview(SECOND_USER_ID, "Вложенный", secondReply);
-        createReview(USER_ID, "Третий ответ", rootId);
+    @DisplayName("Реакции на отзывы переключаются и подсчитываются")
+    void reviewReactionsToggle() throws Exception {
+        long reviewId = createReview(USER_ID, "Корневой отзыв", null);
 
-        mockMvc.perform(delete("/reviews/" + secondReply)
+        mockMvc.perform(post("/reviews/" + reviewId + "/reactions")
+                        .param("type", "UP")
                         .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(SECOND_USER_ID)).roles("USER")))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/reviews/" + rootId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.replies[*].id").value(org.hamcrest.Matchers.hasItem((int) firstReply)))
-                .andExpect(jsonPath("$.replies[*].id").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem((int) secondReply))));
+                .andExpect(jsonPath("$.upVotes").value(1))
+                .andExpect(jsonPath("$.downVotes").value(0));
 
-        mockMvc.perform(get("/reviews/" + nestedReply))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/reviews/" + reviewId + "/reactions")
+                        .param("type", "UP")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(SECOND_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.upVotes").value(0))
+                .andExpect(jsonPath("$.downVotes").value(0));
+
+        mockMvc.perform(post("/reviews/" + reviewId + "/reactions")
+                        .param("type", "DOWN")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(SECOND_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.upVotes").value(0))
+                .andExpect(jsonPath("$.downVotes").value(1));
+
+        mockMvc.perform(post("/reviews/" + reviewId + "/reactions")
+                        .param("type", "UP")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(SECOND_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.upVotes").value(1))
+                .andExpect(jsonPath("$.downVotes").value(0));
     }
 
     private long createReview(long userId, String content, Long parentId) throws Exception {
