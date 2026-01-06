@@ -3,6 +3,8 @@ package com.cinema.testcinema.controller;
 import com.cinema.testcinema.dto.review.ReviewCreateRequest;
 import com.cinema.testcinema.dto.review.ReviewResponse;
 import com.cinema.testcinema.dto.review.ReviewUpdateRequest;
+import com.cinema.testcinema.model.ReviewReactionType;
+import com.cinema.testcinema.service.ReviewReactionService;
 import com.cinema.testcinema.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,9 +30,11 @@ import org.springframework.web.bind.annotation.*;
 public class ReviewController {
 
     private final ReviewService reviewService;
+    private final ReviewReactionService reviewReactionService;
 
-    public ReviewController(ReviewService reviewService) {
+    public ReviewController(ReviewService reviewService, ReviewReactionService reviewReactionService) {
         this.reviewService = reviewService;
+        this.reviewReactionService = reviewReactionService;
     }
 
     @GetMapping("/movie/{movieId}")
@@ -116,5 +120,21 @@ public class ReviewController {
     })
     public void delete(@PathVariable Long id, Authentication authentication) {
         reviewService.delete(id, authentication);
+    }
+
+    @PostMapping("/{id}/reactions")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Поставить/сменить реакцию (up/down) на отзыв")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Реакция обновлена"),
+            @ApiResponse(responseCode = "401", description = "Необходима авторизация"),
+            @ApiResponse(responseCode = "404", description = "Отзыв не найден")
+    })
+    public ReviewReactionService.ReviewReactionSummaryResponse react(
+            @PathVariable Long id,
+            @RequestParam("type") ReviewReactionType type,
+            Authentication authentication
+    ) {
+        return reviewReactionService.toggleReaction(id, type, authentication);
     }
 }

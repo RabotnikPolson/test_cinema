@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -42,13 +43,13 @@ class ProfileControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.update("DELETE FROM email_verification_tokens");
         jdbcTemplate.update("DELETE FROM user_profiles");
+        jdbcTemplate.update("DELETE FROM user_settings");
         jdbcTemplate.update("DELETE FROM user_roles WHERE user_id IN (?, ?)", PUBLIC_USER_ID, PRIVATE_USER_ID);
         jdbcTemplate.update("DELETE FROM users WHERE id IN (?, ?)", PUBLIC_USER_ID, PRIVATE_USER_ID);
 
-        insertUserWithProfile(PUBLIC_USER_ID, "public@test.local", PUBLIC_USERNAME, false);
-        insertUserWithProfile(PRIVATE_USER_ID, "private@test.local", PRIVATE_USERNAME, true);
+        insertUserWithProfile(PUBLIC_USER_ID, "public@test.local", PUBLIC_USERNAME, false, "Public bio");
+        insertUserWithProfile(PRIVATE_USER_ID, "private@test.local", PRIVATE_USERNAME, true, "Private bio");
     }
 
     @Test
@@ -56,8 +57,9 @@ class ProfileControllerIntegrationTest {
     void publicProfileAccessibleAnonymously() throws Exception {
         mockMvc.perform(get("/profile/" + PUBLIC_USERNAME))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("public@test.local"))
-                .andExpect(jsonPath("$.nickname").value("public-nick"));
+                .andExpect(jsonPath("$.username").value(PUBLIC_USERNAME))
+                .andExpect(jsonPath("$.bio").value("Public bio"))
+                .andExpect(jsonPath("$.email").doesNotExist());
     }
 
     @Test
@@ -66,47 +68,8 @@ class ProfileControllerIntegrationTest {
         mockMvc.perform(get("/profile/" + PRIVATE_USERNAME))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").doesNotExist())
-                .andExpect(jsonPath("$.nickname").value("private-nick"));
-    }
-
-    @Test
-    @DisplayName("Смена никнейма и email ограничена 7 днями")
-    void nicknameAndEmailChangesRespectSevenDayLimit() throws Exception {
-        String firstUpdate = objectMapper.writeValueAsString(
-                new UpdatePayload("fresh-nick", null, "updated@test.local", null)
-        );
-
-        mockMvc.perform(put("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(firstUpdate))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("fresh-nick"))
-                .andExpect(jsonPath("$.email").value("updated@test.local"));
-
-        Instant lastEdit = jdbcTemplate.queryForObject(
-                "SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?",
-                Instant.class,
-                PUBLIC_USER_ID
-        );
-        assertThat(lastEdit).isNotNull();
-
-        String secondUpdate = objectMapper.writeValueAsString(
-                new UpdatePayload("second-nick", null, "second@test.local", null)
-        );
-
-        mockMvc.perform(put("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(secondUpdate))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Изменять никнейм или email можно раз в 7 дней"));
-
-        mockMvc.perform(get("/profile/me")
-                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("updated@test.local"))
-                .andExpect(jsonPath("$.nickname").value("fresh-nick"));
+                .andExpect(jsonPath("$.username").value(PRIVATE_USERNAME))
+                .andExpect(jsonPath("$.bio").value(nullValue()));
     }
 
     @Test
@@ -116,7 +79,7 @@ class ProfileControllerIntegrationTest {
         jdbcTemplate.update("UPDATE user_profiles SET last_profile_edit_at = ? WHERE user_id = ?", lockedEdit, PRIVATE_USER_ID);
 
         String updatePayload = objectMapper.writeValueAsString(
-                new UpdatePayload(null, "http://img.local/new.png", null, true)
+                new UpdatePayload("http://img.local/new.png", true, null)
         );
 
         mockMvc.perform(put("/profile/me")
@@ -136,10 +99,13 @@ class ProfileControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Смена email через PUT /profile/me синхронизирует User и UserProfile")
-    void emailChangeUpdatesUserAndProfile() throws Exception {
+    @DisplayName("Bio можно менять без ограничений по времени")
+    void bioChangesAreUnlimited() throws Exception {
+        Instant lockedEdit = Instant.now();
+        jdbcTemplate.update("UPDATE user_profiles SET last_profile_edit_at = ? WHERE user_id = ?", lockedEdit, PUBLIC_USER_ID);
+
         String payload = objectMapper.writeValueAsString(
-                new UpdatePayload(null, null, "sync@test.local", null)
+                new UpdatePayload(null, null, "Updated bio")
         );
 
         mockMvc.perform(put("/profile/me")
@@ -147,24 +113,64 @@ class ProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("sync@test.local"));
+                .andExpect(jsonPath("$.bio").value("Updated bio"));
+
+        Instant lastEdit = jdbcTemplate.queryForObject(
+                "SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?",
+                Instant.class,
+                PUBLIC_USER_ID
+        );
+
+        assertThat(lastEdit).isEqualTo(lockedEdit);
+    }
+
+    @Test
+    @DisplayName("Email меняется только через настройки, профиль его не трогает")
+    void profileUpdatesDoNotAffectEmail() throws Exception {
+        String payload = objectMapper.writeValueAsString(
+                new UpdatePayload(null, true, "New bio")
+        );
+
+        mockMvc.perform(put("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("public@test.local"));
 
         String userEmail = jdbcTemplate.queryForObject("SELECT email FROM users WHERE id = ?", String.class, PUBLIC_USER_ID);
-        String profileEmail = jdbcTemplate.queryForObject("SELECT email FROM user_profiles WHERE user_id = ?", String.class, PUBLIC_USER_ID);
-        Instant lastEdit = jdbcTemplate.queryForObject("SELECT last_profile_edit_at FROM user_profiles WHERE user_id = ?", Instant.class, PUBLIC_USER_ID);
-
-        assertThat(userEmail).isEqualTo("sync@test.local");
-        assertThat(profileEmail).isEqualTo("sync@test.local");
-        assertThat(lastEdit).isNotNull();
+        assertThat(userEmail).isEqualTo("public@test.local");
     }
 
-    private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate) {
+    @Test
+    @DisplayName("Email, измененный через настройки, отображается в профиле")
+    void profileReflectsSettingsEmailChange() throws Exception {
+        String settingsPayload = objectMapper.writeValueAsString(new SettingsUpdate("DARK", "en", "updated@test.local"));
+
+        mockMvc.perform(put("/settings/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settingsPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("updated@test.local"));
+
+        mockMvc.perform(get("/profile/me")
+                        .with(SecurityMockMvcRequestPostProcessors.user(String.valueOf(PUBLIC_USER_ID)).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("updated@test.local"))
+                .andExpect(jsonPath("$.username").value(PUBLIC_USERNAME));
+    }
+
+    private void insertUserWithProfile(long userId, String email, String username, boolean isPrivate, String bio) {
         jdbcTemplate.update("INSERT INTO users (id, email, username, password_hash, created_at, enabled) VALUES (?, ?, ?, ?, ?, TRUE)",
                 userId, email, username, "$2a$10$abcdefghijklmnopqrstuv", Instant.now());
-        jdbcTemplate.update("INSERT INTO user_profiles (user_id, nickname, email, email_verified, is_private) VALUES (?, ?, ?, FALSE, ?)",
-                userId, username + "-nick", email, isPrivate);
+        jdbcTemplate.update("INSERT INTO user_profiles (user_id, avatar_url, is_private, bio) VALUES (?, ?, ?, ?)",
+                userId, null, isPrivate, bio);
     }
 
-    private record UpdatePayload(String nickname, String avatarUrl, String email, Boolean isPrivate) {
+    private record UpdatePayload(String avatarUrl, Boolean isPrivate, String bio) {
+    }
+
+    private record SettingsUpdate(String theme, String language, String email) {
     }
 }

@@ -3,8 +3,9 @@ package com.cinema.testcinema.dto.profile;
 import java.time.Instant;
 
 public record PublicProfileDto(
-        String nickname,
+        String username,
         String avatarUrl,
-        Instant memberSince
+        Instant memberSince,
+        String bio
 ) {
 }
