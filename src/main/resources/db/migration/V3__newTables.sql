@@ -68,9 +68,22 @@ CREATE TABLE IF NOT EXISTS movie_genres (
                                             PRIMARY KEY (movie_id, genre_id)
 );
 
-INSERT INTO movie_genres (movie_id, genre_id)
-SELECT id, genre_id FROM movies WHERE genre_id IS NOT NULL
-ON CONFLICT DO NOTHING;
+DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name   = 'movies'
+              AND column_name  = 'genre_id'
+        ) THEN
+            INSERT INTO movie_genres (movie_id, genre_id)
+            SELECT id, genre_id
+            FROM movies
+            WHERE genre_id IS NOT NULL
+            ON CONFLICT DO NOTHING;
+        END IF;
+    END$$;
 
 -- (опционально, после миграции можно удалить старый столбец)
 -- ALTER TABLE movies DROP COLUMN IF EXISTS genre_id;
