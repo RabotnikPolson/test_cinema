@@ -67,8 +67,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // ПУБЛИЧНЫЕ GET — только movies и genres. ratings убран.
         if (HttpMethod.GET.matches(request.getMethod())) {
-            return path.startsWith("/movies") || path.startsWith("/genres");
+            return path.startsWith("/movies")
+                    || path.startsWith("/genres")
+                    || path.startsWith("/stream");
         }
+
         return false;
     }
 }
