@@ -11,12 +11,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -65,7 +63,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         if (HttpMethod.OPTIONS.matches(request.getMethod())) return true;
 
-        // ПУБЛИЧНЫЕ GET — только movies и genres. ratings убран.
         if (HttpMethod.GET.matches(request.getMethod())) {
             return path.startsWith("/movies") || path.startsWith("/genres");
         }
