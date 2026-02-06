@@ -42,6 +42,9 @@ public class Movie {
     private String metacriticRating;
     private String imdbVotes;
 
+    @Transient
+    private String streamUrl;
+
     // Новая связь many-to-many
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

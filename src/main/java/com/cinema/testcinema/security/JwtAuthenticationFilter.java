@@ -64,8 +64,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (HttpMethod.OPTIONS.matches(request.getMethod())) return true;
 
         if (HttpMethod.GET.matches(request.getMethod())) {
-            return path.startsWith("/movies") || path.startsWith("/genres");
+            return path.startsWith("/movies")
+                    || path.startsWith("/genres")
+                    || path.startsWith("/stream");
         }
+
         return false;
     }
 }

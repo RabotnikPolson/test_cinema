@@ -63,6 +63,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                        .requestMatchers("/stream/**").permitAll()
+                        .requestMatchers("/movies/*/stream").permitAll()
+
+
                         .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()

@@ -1,5 +1,6 @@
 package com.cinema.testcinema.controller;
 
+import com.cinema.testcinema.dto.comment.CommentCountResponse;
 import com.cinema.testcinema.dto.comment.CommentCreateRequest;
 import com.cinema.testcinema.dto.comment.CommentReactionRequest;
 import com.cinema.testcinema.dto.comment.CommentReactionSummary;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,9 +47,21 @@ public class CommentController {
             @ApiResponse(responseCode = "404", description = "Фильм не найден")
     })
     public Page<CommentResponse> getByMovie(@PathVariable Long movieId,
+                                            @RequestParam(name = "order", defaultValue = "new") String order,
                                             @Parameter(description = "Параметры пагинации")
-                                            @PageableDefault(size = 20) Pageable pageable) {
-        return commentService.listByMovie(movieId, pageable);
+                                            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return commentService.listByMovie(movieId, pageable, order);
+    }
+
+    @GetMapping("/movie/{movieId}/count")
+    @Operation(summary = "Получить количество комментариев по фильму (root и total)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Счётчики комментариев",
+                    content = @Content(schema = @Schema(implementation = CommentCountResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Фильм не найден")
+    })
+    public CommentCountResponse getCounts(@PathVariable Long movieId) {
+        return commentService.getCountsByMovie(movieId);
     }
 
     @GetMapping("/{id}")

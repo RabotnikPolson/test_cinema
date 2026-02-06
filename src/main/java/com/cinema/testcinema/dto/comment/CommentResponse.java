@@ -35,6 +35,26 @@ public class CommentResponse {
     @Schema(description = "Был ли комментарий отредактирован")
     private boolean edited;
 
+    @Schema(description = "Количество прямых ответов (replies)", example = "3")
+    private long repliesCount;
+
+    @Schema(description = "Популярность комментария (общее количество реакций)", example = "12")
+    private long totalReactions;
+
+    /**
+     * Имя автора комментария (username). Заполняется на сервере и может быть {@code null},
+     * если пользователь был удалён.
+     */
+    @Schema(description = "Имя автора комментария", example = "jane.doe", nullable = true)
+    private String authorUsername;
+
+    /**
+     * Ссылка на аватар автора комментария. Может быть {@code null}, если аватар отсутствует
+     * или профиль не создан. Фронт должен корректно обрабатывать отсутствие значения.
+     */
+    @Schema(description = "URL аватара автора", example = "https://cdn.example.com/avatars/456.png", nullable = true)
+    private String authorAvatarUrl;
+
     @ArraySchema(arraySchema = @Schema(description = "Список прямых ответов"))
     private List<CommentResponse> replies = new ArrayList<>();
 
@@ -120,6 +140,22 @@ public class CommentResponse {
         this.edited = edited;
     }
 
+    public long getRepliesCount() {
+        return repliesCount;
+    }
+
+    public void setRepliesCount(long repliesCount) {
+        this.repliesCount = repliesCount;
+    }
+
+    public long getTotalReactions() {
+        return totalReactions;
+    }
+
+    public void setTotalReactions(long totalReactions) {
+        this.totalReactions = totalReactions;
+    }
+
     public List<CommentResponse> getReplies() {
         return Collections.unmodifiableList(replies);
     }
@@ -134,5 +170,21 @@ public class CommentResponse {
 
     public void setReactions(List<CommentReactionSummary> reactions) {
         this.reactions = new ArrayList<>(reactions);
+    }
+
+    public String getAuthorUsername() {
+        return authorUsername;
+    }
+
+    public void setAuthorUsername(String authorUsername) {
+        this.authorUsername = authorUsername;
+    }
+
+    public String getAuthorAvatarUrl() {
+        return authorAvatarUrl;
+    }
+
+    public void setAuthorAvatarUrl(String authorAvatarUrl) {
+        this.authorAvatarUrl = authorAvatarUrl;
     }
 }
