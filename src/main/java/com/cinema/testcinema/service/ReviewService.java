@@ -12,6 +12,7 @@ import com.cinema.testcinema.repository.ReviewRepository;
 import com.cinema.testcinema.repository.RatingRepository;
 import com.cinema.testcinema.repository.ReviewReactionRepository;
 import com.cinema.testcinema.repository.UserRepository;
+import com.cinema.testcinema.repository.UserProfileRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +39,7 @@ public class ReviewService {
     private final RatingRepository ratingRepository;
     private final ReviewReactionRepository reviewReactionRepository;
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final AuthenticatedUserService authenticatedUserService;
 
     public ReviewService(ReviewRepository reviewRepository,
@@ -45,12 +47,14 @@ public class ReviewService {
                          RatingRepository ratingRepository,
                          ReviewReactionRepository reviewReactionRepository,
                          UserRepository userRepository,
+                         UserProfileRepository userProfileRepository,
                          AuthenticatedUserService authenticatedUserService) {
         this.reviewRepository = reviewRepository;
         this.movieRepository = movieRepository;
         this.ratingRepository = ratingRepository;
         this.reviewReactionRepository = reviewReactionRepository;
         this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
         this.authenticatedUserService = authenticatedUserService;
     }
 
@@ -186,6 +190,13 @@ public class ReviewService {
                 downVotes
         );
         response.setReplies(replies);
+
+        // Заполняем поля автора. В случае отсутствия пользователя или профиля значения будут null.
+        userRepository.findById(review.getUserId()).ifPresent(user -> {
+            response.setAuthorUsername(user.getUsername());
+            userProfileRepository.findByUserId(user.getId())
+                    .ifPresent(profile -> response.setAuthorAvatarUrl(profile.getAvatarUrl()));
+        });
         return response;
     }
 }

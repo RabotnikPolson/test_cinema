@@ -44,6 +44,20 @@ public class ReviewResponse {
     @Schema(description = "Количество отрицательных реакций")
     private long downVotes;
 
+    /**
+     * Имя автора отзыва (username). Это поле заполняется сервером и используется на фронте
+     * для отображения подписи к отзыву. Может быть {@code null}, если пользователь удалён.
+     */
+    @Schema(description = "Имя автора отзыва", example = "john.doe", nullable = true)
+    private String authorUsername;
+
+    /**
+     * Ссылка на аватар автора. Может быть {@code null}, если у пользователя не задан аватар
+     * или профиль отсутствует. Фронт должен корректно обрабатывать отсутствие URL.
+     */
+    @Schema(description = "URL аватара автора", example = "https://cdn.example.com/avatars/123.png", nullable = true)
+    private String authorAvatarUrl;
+
     @ArraySchema(arraySchema = @Schema(description = "Список прямых ответов"))
     private List<ReviewResponse> replies = new ArrayList<>();
 
@@ -128,5 +142,27 @@ public class ReviewResponse {
 
     public void setReplies(List<ReviewResponse> replies) {
         this.replies = new ArrayList<>(replies);
+    }
+
+    /**
+     * Имя автора отзыва (username).
+     */
+    public String getAuthorUsername() {
+        return authorUsername;
+    }
+
+    public void setAuthorUsername(String authorUsername) {
+        this.authorUsername = authorUsername;
+    }
+
+    /**
+     * URL аватара автора.
+     */
+    public String getAuthorAvatarUrl() {
+        return authorAvatarUrl;
+    }
+
+    public void setAuthorAvatarUrl(String authorAvatarUrl) {
+        this.authorAvatarUrl = authorAvatarUrl;
     }
 }
