@@ -12,9 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.regex.Pattern;
+
 @RestController
 @RequestMapping("/movies")
 public class MovieController {
+
+    private static final Pattern IMDB_ID_PATTERN = Pattern.compile("^tt\\d{7,8}$");
 
     @Autowired
     private MovieRepository movieRepository;
@@ -31,10 +35,11 @@ public class MovieController {
     @PostMapping("/addFromImdb")
     @PreAuthorize("hasRole('ADMIN')")
     public Movie addFromImdb(@RequestParam String imdbId) {
-        Movie movie = omdbService.getMovieFromOmdb(imdbId);
-        if (movie == null) {
-            throw new RuntimeException("Фильм не найден в OMDb API");
+        if (imdbId == null || !IMDB_ID_PATTERN.matcher(imdbId).matches()) {
+            throw new IllegalArgumentException("Некорректный imdbId. Ожидается формат tt1234567 или tt12345678");
         }
+
+        Movie movie = omdbService.fetchMovieOrThrow(imdbId);
 
         // достаём первый жанр из genreText (как и раньше)
         String genreText = movie.getGenreText() != null ? movie.getGenreText() : "";
