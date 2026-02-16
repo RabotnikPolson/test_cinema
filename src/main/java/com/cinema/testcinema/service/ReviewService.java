@@ -8,11 +8,11 @@ import com.cinema.testcinema.model.Review;
 import com.cinema.testcinema.model.ReviewReactionType;
 import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.repository.MovieRepository;
-import com.cinema.testcinema.repository.ReviewRepository;
 import com.cinema.testcinema.repository.RatingRepository;
 import com.cinema.testcinema.repository.ReviewReactionRepository;
-import com.cinema.testcinema.repository.UserRepository;
+import com.cinema.testcinema.repository.ReviewRepository;
 import com.cinema.testcinema.repository.UserProfileRepository;
+import com.cinema.testcinema.repository.UserRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -87,7 +87,7 @@ public class ReviewService {
     public Page<ReviewResponse> listByMovie(Long movieId, Pageable pageable) {
         ensureMovieExists(movieId);
         Page<Review> roots = reviewRepository.findByMovieIdAndParentIdIsNull(movieId, pageable);
-        List<Long> rootIds = roots.stream().map(Review::getId).toList();
+        List<Long> rootIds = roots.stream().map(Review::getId).filter(Objects::nonNull).toList();
         Map<Long, List<ReviewResponse>> repliesMap = loadReplies(rootIds);
         return roots.map(review -> toResponse(review, repliesMap.getOrDefault(review.getId(), List.of())));
     }
@@ -118,7 +118,7 @@ public class ReviewService {
 
         Long currentUserId = authenticatedUserService.requireCurrentUserId(authentication);
         boolean isAdmin = authenticatedUserService.hasRole(authentication, "ADMIN");
-        if (!isAdmin && !Objects.equals(review.getUserId(), currentUserId)) {
+        if (!isAdmin && !Objects.equals(getUserIdSafe(review), currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
 
@@ -145,7 +145,7 @@ public class ReviewService {
 
         Long currentUserId = authenticatedUserService.requireCurrentUserId(authentication);
         boolean isAdmin = authenticatedUserService.hasRole(authentication, "ADMIN");
-        if (!isAdmin && !Objects.equals(review.getUserId(), currentUserId)) {
+        if (!isAdmin && !Objects.equals(getUserIdSafe(review), currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
 
@@ -153,9 +153,7 @@ public class ReviewService {
     }
 
     private Map<Long, List<ReviewResponse>> loadReplies(List<Long> parentIds) {
-        if (parentIds.isEmpty()) {
-            return Map.of();
-        }
+        if (parentIds.isEmpty()) return Map.of();
         List<Review> replies = reviewRepository.findByParentIdIn(parentIds);
         replies.sort(Comparator.comparing(Review::getCreatedAt));
         return replies.stream()
@@ -170,16 +168,37 @@ public class ReviewService {
         }
     }
 
+    private Long getUserIdSafe(Review review) {
+        if (review.getUser() != null && review.getUser().getId() != null) return review.getUser().getId();
+        return review.getUserId();
+    }
+
+    private Long getMovieIdSafe(Review review) {
+        if (review.getMovie() != null && review.getMovie().getId() != null) return review.getMovie().getId();
+        return review.getMovieId();
+    }
+
     private ReviewResponse toResponse(Review review, List<ReviewResponse> replies) {
-        Short score = ratingRepository.findByUserIdAndMovieId(review.getUserId(), review.getMovieId())
-                .map(rating -> rating.getScore())
-                .orElse(null);
-        long upVotes = reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.UP);
-        long downVotes = reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.DOWN);
+        Long userId = getUserIdSafe(review);
+        Long movieId = getMovieIdSafe(review);
+
+        Short score = (userId != null && movieId != null)
+                ? ratingRepository.findByUserIdAndMovieId(userId, movieId)
+                .map(r -> r.getScore()).orElse(null)
+                : null;
+
+        long upVotes = (review.getId() != null)
+                ? reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.UP)
+                : 0;
+
+        long downVotes = (review.getId() != null)
+                ? reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.DOWN)
+                : 0;
+
         ReviewResponse response = new ReviewResponse(
                 review.getId(),
-                review.getUserId(),
-                review.getMovieId(),
+                userId,
+                movieId,
                 review.getParentId(),
                 review.getContent(),
                 review.getCreatedAt(),
@@ -189,14 +208,17 @@ public class ReviewService {
                 upVotes,
                 downVotes
         );
+
         response.setReplies(replies);
 
-        // Заполняем поля автора. В случае отсутствия пользователя или профиля значения будут null.
-        userRepository.findById(review.getUserId()).ifPresent(user -> {
-            response.setAuthorUsername(user.getUsername());
-            userProfileRepository.findByUserId(user.getId())
-                    .ifPresent(profile -> response.setAuthorAvatarUrl(profile.getAvatarUrl()));
-        });
+        if (review.getUser() != null) {
+            response.setAuthorUsername(review.getUser().getUsername());
+            if (userId != null) {
+                userProfileRepository.findByUserId(userId)
+                        .ifPresent(profile -> response.setAuthorAvatarUrl(profile.getAvatarUrl()));
+            }
+        }
+
         return response;
     }
 }
