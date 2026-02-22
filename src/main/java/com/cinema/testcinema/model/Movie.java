@@ -20,6 +20,9 @@ public class Movie {
     @Column(unique = true)
     private String imdbId;
 
+    @Column(name = "kinopoisk_id")
+    private String kinopoiskId;
+
     @Column(length = 2000)
     private String description;
 
@@ -47,71 +50,167 @@ public class Movie {
 
     // Новая связь many-to-many
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "movie_genres",
-            joinColumns = @JoinColumn(name = "movie_id"),
-            inverseJoinColumns = @JoinColumn(name = "genre_id")
-    )
+    @JoinTable(name = "movie_genres", joinColumns = @JoinColumn(name = "movie_id"), inverseJoinColumns = @JoinColumn(name = "genre_id"))
     private Set<Genre> genres = new HashSet<>();
 
-    public Movie() {}
+    public Movie() {
+    }
+
     public Movie(String title, String imdbId, Long year) {
         this.title = title;
         this.imdbId = imdbId;
         this.year = year;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public Long getYear() { return year; }
-    public void setYear(Long year) { this.year = year; }
+    public String getTitle() {
+        return title;
+    }
 
-    public String getImdbId() { return imdbId; }
-    public void setImdbId(String imdbId) { this.imdbId = imdbId; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public Long getYear() {
+        return year;
+    }
 
-    public String getPosterUrl() { return posterUrl; }
-    public void setPosterUrl(String posterUrl) { this.posterUrl = posterUrl; }
+    public void setYear(Long year) {
+        this.year = year;
+    }
 
-    public String getDirector() { return director; }
-    public void setDirector(String director) { this.director = director; }
+    public String getImdbId() {
+        return imdbId;
+    }
 
-    public String getActors() { return actors; }
-    public void setActors(String actors) { this.actors = actors; }
+    public void setImdbId(String imdbId) {
+        this.imdbId = imdbId;
+    }
 
-    public String getGenreText() { return genreText; }
-    public void setGenreText(String genreText) { this.genreText = genreText; }
+    public String getKinopoiskId() {
+        return kinopoiskId;
+    }
 
-    public String getLanguage() { return language; }
-    public void setLanguage(String language) { this.language = language; }
+    public void setKinopoiskId(String kinopoiskId) {
+        this.kinopoiskId = kinopoiskId;
+    }
 
-    public String getCountry() { return country; }
-    public void setCountry(String country) { this.country = country; }
+    public String getDescription() {
+        return description;
+    }
 
-    public String getImdbRating() { return imdbRating; }
-    public void setImdbRating(String imdbRating) { this.imdbRating = imdbRating; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public String getRuntime() { return runtime; }
-    public void setRuntime(String runtime) { this.runtime = runtime; }
+    public String getPosterUrl() {
+        return posterUrl;
+    }
 
-    public String getReleased() { return released; }
-    public void setReleased(String released) { this.released = released; }
+    public void setPosterUrl(String posterUrl) {
+        this.posterUrl = posterUrl;
+    }
 
-    public String getRottenTomatoesRating() { return rottenTomatoesRating; }
-    public void setRottenTomatoesRating(String rottenTomatoesRating) { this.rottenTomatoesRating = rottenTomatoesRating; }
+    public String getDirector() {
+        return director;
+    }
 
-    public String getMetacriticRating() { return metacriticRating; }
-    public void setMetacriticRating(String metacriticRating) { this.metacriticRating = metacriticRating; }
+    public void setDirector(String director) {
+        this.director = director;
+    }
 
-    public String getImdbVotes() { return imdbVotes; }
-    public void setImdbVotes(String imdbVotes) { this.imdbVotes = imdbVotes; }
+    public String getActors() {
+        return actors;
+    }
 
-    public Set<Genre> getGenres() { return genres; }
-    public void setGenres(Set<Genre> genres) { this.genres = genres; }
+    public void setActors(String actors) {
+        this.actors = actors;
+    }
+
+    public String getGenreText() {
+        return genreText;
+    }
+
+    public void setGenreText(String genreText) {
+        this.genreText = genreText;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public String getImdbRating() {
+        return imdbRating;
+    }
+
+    public void setImdbRating(String imdbRating) {
+        this.imdbRating = imdbRating;
+    }
+
+    public String getRuntime() {
+        return runtime;
+    }
+
+    public void setRuntime(String runtime) {
+        this.runtime = runtime;
+    }
+
+    public String getReleased() {
+        return released;
+    }
+
+    public void setReleased(String released) {
+        this.released = released;
+    }
+
+    public String getRottenTomatoesRating() {
+        return rottenTomatoesRating;
+    }
+
+    public void setRottenTomatoesRating(String rottenTomatoesRating) {
+        this.rottenTomatoesRating = rottenTomatoesRating;
+    }
+
+    public String getMetacriticRating() {
+        return metacriticRating;
+    }
+
+    public void setMetacriticRating(String metacriticRating) {
+        this.metacriticRating = metacriticRating;
+    }
+
+    public String getImdbVotes() {
+        return imdbVotes;
+    }
+
+    public void setImdbVotes(String imdbVotes) {
+        this.imdbVotes = imdbVotes;
+    }
+
+    public Set<Genre> getGenres() {
+        return genres;
+    }
+
+    public void setGenres(Set<Genre> genres) {
+        this.genres = genres;
+    }
 }

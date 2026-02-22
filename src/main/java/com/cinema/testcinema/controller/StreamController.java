@@ -27,7 +27,7 @@ public class StreamController {
     private final String vidsrcBaseUrl;
 
     public StreamController(MovieRepository movieRepository,
-                            @Value("${vidsrc.base-url}") String vidsrcBaseUrl) {
+            @Value("${vidsrc.base-url}") String vidsrcBaseUrl) {
         this.movieRepository = movieRepository;
         this.vidsrcBaseUrl = vidsrcBaseUrl;
     }
@@ -35,15 +35,24 @@ public class StreamController {
     @GetMapping("/{id}")
     @PermitAll
     public Map<String, String> stream(@PathVariable Long id,
-                                      @RequestParam(value = "ds_lang", required = false) String dsLang,
-                                      @RequestParam(value = "autoplay", required = false) String autoplay,
-                                      @RequestParam(value = "sub_url", required = false) String subUrl) {
+            @RequestParam(value = "ds_lang", required = false) String dsLang,
+            @RequestParam(value = "autoplay", required = false) String autoplay,
+            @RequestParam(value = "sub_url", required = false) String subUrl) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм с ID " + id + " не найден"));
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм с ID " + id + " не найден"));
+
+        String kinopoiskId = movie.getKinopoiskId();
+        if (kinopoiskId != null && !kinopoiskId.isBlank()) {
+            return Map.of(
+                    "type", "embed",
+                    "url", "https://vbdkv.com/api/short/" + kinopoiskId);
+        }
 
         String imdbId = movie.getImdbId();
         if (imdbId == null || imdbId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "У фильма отсутствует imdbId для построения embed URL");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "У фильма отсутствует imdbId или kinopoiskId для построения embed URL");
         }
 
         validateDsLang(dsLang);
@@ -53,8 +62,7 @@ public class StreamController {
         String embedUrl = buildEmbedUrl(imdbId, dsLang, autoplay, subUrl);
         return Map.of(
                 "type", "embed",
-                "url", embedUrl
-        );
+                "url", embedUrl);
     }
 
     private String buildEmbedUrl(String imdbId, String dsLang, String autoplay, String subUrl) {
