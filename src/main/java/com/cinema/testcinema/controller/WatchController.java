@@ -30,9 +30,7 @@ public class WatchController {
 
     @PostMapping("/watch-history/beat")
     public ResponseEntity<Void> beat(@RequestBody WatchBeatDto dto, Authentication authentication) {
-        Long userId = authenticatedUserService.requireCurrentUserId(authentication);
-        User user = loadUser(userId);
-        watchService.beat(user, dto);
+        watchService.beat(dto);
         return ResponseEntity.ok().build();
     }
 

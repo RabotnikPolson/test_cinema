@@ -11,43 +11,65 @@ import java.util.UUID;
         @Index(name="idx_wh_session", columnList = "session_id")
 })
 public class WatchHistory {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="movie_id", nullable=false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "movie_id", nullable = false)
     private Movie movie;
 
-    @Column(name="session_id", nullable=false)
+    @Column(name = "session_id", nullable = false)
     private UUID sessionId;
 
-    @Column(name="started_at", nullable=false)
+    @Column(name = "started_at", nullable = false)
     private Instant startedAt;
 
-    @Column(name="seconds_watched", nullable=false)
-    private int secondsWatched;
+    @Column(name = "seconds_watched", nullable = false)
+    private int secondsWatched = 0;
 
-    @Column(name="completed", nullable=false)
+    @Column(name = "completed", nullable = false)
     private boolean completed = false;
 
-    @Column(name="last_beat_at", nullable=false)
+    @Column(name = "last_position_sec", nullable = false)
+    private int lastPositionSec = 0;
+
+    @Column(name = "last_beat_at", nullable = false)
     private Instant lastBeatAt = Instant.now();
 
-    public Long getId(){return id;}
-    public User getUser(){return user;}
-    public void setUser(User user){this.user=user;}
-    public Movie getMovie(){return movie;}
-    public void setMovie(Movie movie){this.movie=movie;}
-    public UUID getSessionId(){return sessionId;}
-    public void setSessionId(UUID sessionId){this.sessionId=sessionId;}
-    public Instant getStartedAt(){return startedAt;}
-    public void setStartedAt(Instant startedAt){this.startedAt=startedAt;}
-    public int getSecondsWatched(){return secondsWatched;}
-    public void setSecondsWatched(int secondsWatched){this.secondsWatched=secondsWatched;}
-    public boolean isCompleted(){return completed;}
-    public void setCompleted(boolean completed){this.completed=completed;}
-    public Instant getLastBeatAt(){return lastBeatAt;}
-    public void setLastBeatAt(Instant lastBeatAt){this.lastBeatAt=lastBeatAt;}
+    public WatchHistory() {}
+
+    public WatchHistory(User user, Movie movie, UUID sessionId) {
+        this.user = user;
+        this.movie = movie;
+        this.sessionId = sessionId;
+        this.startedAt = Instant.now();
+        this.lastBeatAt = Instant.now();
+        this.secondsWatched = 0;
+        this.completed = false;
+        this.lastPositionSec = 0;
+    }
+
+    public Long getId() { return id; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    public Movie getMovie() { return movie; }
+    public void setMovie(Movie movie) { this.movie = movie; }
+    public UUID getSessionId() { return sessionId; }
+    public void setSessionId(UUID sessionId) { this.sessionId = sessionId; }
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
+    public int getSecondsWatched() { return secondsWatched; }
+    public void setSecondsWatched(int secondsWatched) { this.secondsWatched = secondsWatched; }
+    public boolean isCompleted() { return completed; }
+    public void setCompleted(boolean completed) { this.completed = completed; }
+    public int getLastPositionSec() { return lastPositionSec; }
+    public void setLastPositionSec(int lastPositionSec) { this.lastPositionSec = lastPositionSec; }
+    public Instant getLastBeatAt() { return lastBeatAt; }
+    public void setLastBeatAt(Instant lastBeatAt) { this.lastBeatAt = lastBeatAt; }
 }

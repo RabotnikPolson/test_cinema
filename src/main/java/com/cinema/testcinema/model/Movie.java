@@ -29,9 +29,7 @@ public class Movie {
     @Column(length = 1000)
     private String actors;
 
-    // строковый кэш жанров из внешнего API (опционально)
     private String genreText;
-
     private String language;
     private String country;
     private String imdbRating;
@@ -42,10 +40,12 @@ public class Movie {
     private String metacriticRating;
     private String imdbVotes;
 
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds;
+
     @Transient
     private String streamUrl;
 
-    // Новая связь many-to-many
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "movie_genres",
@@ -55,6 +55,7 @@ public class Movie {
     private Set<Genre> genres = new HashSet<>();
 
     public Movie() {}
+
     public Movie(String title, String imdbId, Long year) {
         this.title = title;
         this.imdbId = imdbId;
@@ -111,6 +112,12 @@ public class Movie {
 
     public String getImdbVotes() { return imdbVotes; }
     public void setImdbVotes(String imdbVotes) { this.imdbVotes = imdbVotes; }
+
+    public Integer getDurationSeconds() { return durationSeconds; }
+    public void setDurationSeconds(Integer durationSeconds) { this.durationSeconds = durationSeconds; }
+
+    public String getStreamUrl() { return streamUrl; }
+    public void setStreamUrl(String streamUrl) { this.streamUrl = streamUrl; }
 
     public Set<Genre> getGenres() { return genres; }
     public void setGenres(Set<Genre> genres) { this.genres = genres; }
