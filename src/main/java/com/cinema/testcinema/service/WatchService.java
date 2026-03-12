@@ -7,7 +7,7 @@ import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.model.WatchHistory;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.WatchHistoryRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -51,65 +51,36 @@ public class WatchService {
         whRepo.save(wh);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public AnalyticsSummaryDto mySummary(Long userId) {
         // total
-        long total = whRepo.findAll().stream()
-                .filter(w -> w.getUser()!=null && Objects.equals(w.getUser().getId(), userId))
-                .mapToLong(WatchHistory::getSecondsWatched)
-                .sum();
+        Long totalWatches = whRepo.getTotalSecondsWatched(userId);
+        long total = totalWatches != null ? totalWatches : 0L;
 
-        // genres pie (через Movie.genreText)
-        Map<String, Long> byGenre = new HashMap<>();
-        whRepo.findAll().stream()
-                .filter(w -> w.getUser()!=null && Objects.equals(w.getUser().getId(), userId))
-                .forEach(w -> {
-                    for (String g : extractGenres(w.getMovie())) {
-                        byGenre.merge(g, (long) w.getSecondsWatched(), Long::sum);
-                    }
-                });
-        List<AnalyticsSummaryDto.Item> genresPie = byGenre.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(8)
-                .map(e -> new AnalyticsSummaryDto.Item(e.getKey(), e.getValue()))
-                .toList();
+        // genres pie (using Native SQL for top 8 genres)
+        List<Object[]> genresRaw = whRepo.getTopGenresWatched(userId);
+        List<AnalyticsSummaryDto.Item> genresPie = new ArrayList<>();
+        if (genresRaw != null) {
+            for (Object[] row : genresRaw) {
+                String genre = (String) row[0];
+                Number seconds = (Number) row[1];
+                genresPie.add(new AnalyticsSummaryDto.Item(genre, seconds != null ? seconds.longValue() : 0L));
+            }
+        }
 
-        // activity by day
-        Map<LocalDate, Long> byDay = new HashMap<>();
-        whRepo.findAll().stream()
-                .filter(w -> w.getUser()!=null && Objects.equals(w.getUser().getId(), userId))
-                .forEach(w -> {
-                    LocalDate d = w.getStartedAt().atZone(ZoneOffset.UTC).toLocalDate();
-                    byDay.merge(d, (long) w.getSecondsWatched(), Long::sum);
-                });
-        List<AnalyticsSummaryDto.Point> points = byDay.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> new AnalyticsSummaryDto.Point(e.getKey().toString(), e.getValue()))
-                .toList();
+        // activity by day (using Native SQL grouping by date)
+        List<Object[]> daysRaw = whRepo.getActivityByDay(userId);
+        List<AnalyticsSummaryDto.Point> points = new ArrayList<>();
+        if (daysRaw != null) {
+            for (Object[] row : daysRaw) {
+                java.sql.Date sqlDate = (java.sql.Date) row[0];
+                Number seconds = (Number) row[1];
+                points.add(new AnalyticsSummaryDto.Point(
+                        sqlDate.toString(),
+                        seconds != null ? seconds.longValue() : 0L));
+            }
+        }
 
         return new AnalyticsSummaryDto(total, genresPie, points);
     }
-
-    private static List<String> extractGenres(Movie m) {
-        // 1) основной источник — связь many-to-many
-        if (m.getGenres() != null && !m.getGenres().isEmpty()) {
-            return m.getGenres().stream()
-                    .map(g -> g.getName() == null ? "" : g.getName().trim())
-                    .filter(s -> !s.isBlank())
-                    .distinct()
-                    .toList();
-        }
-
-        // 2) fallback — старое строковое поле из внешнего API
-        String raw = m.getGenreText();
-        if (raw == null || raw.isBlank()) return List.of();
-        String[] parts = raw.split("[,/|;]");
-        List<String> out = new ArrayList<>(parts.length);
-        for (String p : parts) {
-            String s = p.trim();
-            if (!s.isBlank()) out.add(s);
-        }
-        return out;
-    }
-
 }
