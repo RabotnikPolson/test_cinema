@@ -10,15 +10,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Синхронизирует метаданные из Kinopoisk Unofficial API в локальную БД.
- * Выполняет два запроса:
- *  1. GET /api/v2.2/films/{id}         — основные данные фильма
- *  2. GET /api/v1/staff?filmId={id}    — режиссёр + топ-5 актёров
- */
 @Service
 public class KinopoiskSyncService {
 
@@ -36,157 +31,155 @@ public class KinopoiskSyncService {
         this.genreRepository = genreRepository;
     }
 
-    /**
-     * Получает данные фильма из КП API и сохраняет/обновляет в БД.
-     *
-     * @param kinopoiskId числовой ID фильма в Кинопоиске
-     * @return сохранённая сущность Movie
-     */
     @Transactional
     public Movie fetchAndSave(String kinopoiskId) {
-        // ── Запрос 1: Основные данные ─────────────────────────────────────
         JsonNode data = client.fetchFilm(kinopoiskId);
 
         Movie movie = movieRepository.findByKinopoiskId(kinopoiskId)
                 .orElse(new Movie());
 
+        // -- Identifiers ---------------------------------------------------
         movie.setKinopoiskId(kinopoiskId);
+        movie.setKinopoiskHdId(textOf(data, "kinopoiskHDId"));
+        String imdbId = textOf(data, "imdbId");
+        if (imdbId != null && movie.getImdbId() == null) movie.setImdbId(imdbId);
 
-        // Название: приоритет RU → EN → Original
-        String title = firstNonBlank(
+        // -- Titles --------------------------------------------------------
+        movie.setTitle(firstNonBlank(
                 textOf(data, "nameRu"),
                 textOf(data, "nameEn"),
                 textOf(data, "nameOriginal"),
-                "Без названия"
-        );
-        movie.setTitle(title);
+                "Bez nazvaniya"
+        ));
+        movie.setNameEn(textOf(data, "nameEn"));
+        movie.setNameOriginal(textOf(data, "nameOriginal"));
 
-        // Оригинальное название — сохраняем в отдельное поле (если оно отличается)
-        // пока сохраним в actors как временный workaround до рефакторинга Movie
-        String nameOriginal = textOf(data, "nameOriginal");
-
-        // Описание
-        movie.setDescription(textOf(data, "description"));
-
-        // Постер
+        // -- Media ---------------------------------------------------------
         movie.setPosterUrl(textOf(data, "posterUrl"));
+        movie.setCoverUrl(textOf(data, "coverUrl"));
+        movie.setLogoUrl(textOf(data, "logoUrl"));
 
-        // Год
+        // -- Descriptions --------------------------------------------------
+        movie.setDescription(textOf(data, "description"));
+        movie.setShortDescription(textOf(data, "shortDescription"));
+        movie.setSlogan(textOf(data, "slogan"));
+        movie.setEditorAnnotation(textOf(data, "editorAnnotation"));
+
+        // -- Year ----------------------------------------------------------
         if (data.hasNonNull("year")) {
             movie.setYear(data.get("year").asLong());
+        } else if (data.hasNonNull("startYear")) {
+            movie.setYear(data.get("startYear").asLong());
         }
 
-        // imdbId
-        String imdbId = textOf(data, "imdbId");
-        if (imdbId != null && movie.getImdbId() == null) {
-            movie.setImdbId(imdbId);
-        }
-
-        // Рейтинг КП → imdbRating (временно используем это поле, пока нет kpRating)
-        // Формат: "7.9" (КП) или "7.5" (IMDB)
-        if (data.hasNonNull("ratingKinopoisk")) {
-            movie.setImdbRating(data.get("ratingKinopoisk").asText());
-        } else if (data.hasNonNull("ratingImdb")) {
-            movie.setImdbRating(data.get("ratingImdb").asText());
-        }
-
-        // Голосов на КП
-        if (data.hasNonNull("ratingKinopoiskVoteCount")) {
-            movie.setImdbVotes(data.get("ratingKinopoiskVoteCount").asText());
-        }
-
-        // Хронометраж (filmLength) — API возвращает число (минуты) или строку "2:17"
+        // -- Runtime -------------------------------------------------------
         if (data.hasNonNull("filmLength")) {
             JsonNode fl = data.get("filmLength");
-            if (fl.isNumber()) {
-                movie.setRuntime(fl.asInt() + " мин");
-            } else {
-                movie.setRuntime(fl.asText());
-            }
+            movie.setRuntime(fl.isNumber() ? fl.asInt() + " min" : fl.asText());
         }
 
-        // Слоган → released (временно, нет отдельного поля)
-        String slogan = textOf(data, "slogan");
-        if (slogan != null) {
-            movie.setReleased(slogan);
+        // -- Content type --------------------------------------------------
+        movie.setContentType(textOf(data, "type"));
+
+        // -- Ratings -------------------------------------------------------
+        if (data.hasNonNull("ratingKinopoisk"))
+            movie.setRatingKinopoisk(BigDecimal.valueOf(data.get("ratingKinopoisk").asDouble()));
+        if (data.hasNonNull("ratingKinopoiskVoteCount"))
+            movie.setRatingKinopoiskVoteCount(data.get("ratingKinopoiskVoteCount").asInt());
+        if (data.hasNonNull("ratingImdb"))
+            movie.setImdbRating(data.get("ratingImdb").asText());
+        if (data.hasNonNull("ratingImdbVoteCount"))
+            movie.setRatingImdbVoteCount(data.get("ratingImdbVoteCount").asInt());
+
+        // -- Age ratings ---------------------------------------------------
+        movie.setRatingMpaa(textOf(data, "ratingMpaa"));
+        String ageLimit = textOf(data, "ratingAgeLimits");
+        if (ageLimit != null) {
+            String digits = ageLimit.replaceAll("[^0-9]", "");
+            movie.setRatingAge(digits.isEmpty() ? ageLimit : digits + "+");
         }
 
-        // Тип (FILM / TV_SERIES / MINI_SERIES...)
-        String type = textOf(data, "type");
-        if (type != null) {
-            movie.setLanguage(type); // временно пишем тип в language
-        }
-
-        // Страна — первая из массива
-        if (data.hasNonNull("countries") && data.get("countries").isArray() && data.get("countries").size() > 0) {
+        // -- Country -------------------------------------------------------
+        if (data.hasNonNull("countries") && data.get("countries").isArray()
+                && !data.get("countries").isEmpty()) {
             movie.setCountry(data.get("countries").get(0).path("country").asText(null));
         }
 
-        // Жанры — синхронизируем с таблицей genres
+        // -- Production flags ----------------------------------------------
+        movie.setProductionStatus(textOf(data, "productionStatus"));
+        movie.setSerial(boolOf(data, "serial"));
+        movie.setShortFilm(boolOf(data, "shortFilm"));
+        movie.setHasImax(boolOf(data, "hasImax"));
+        movie.setHas3d(boolOf(data, "has3D"));
+
+        // -- Domestic flag (KZ) -------------------------------------------
+        String country = movie.getCountry();
+        if (country != null) {
+            String countryLower = country.toLowerCase();
+            // Ищем все вариации, включая русский язык и КазССР
+            boolean domestic = countryLower.contains("казахстан")
+                    || countryLower.contains("kazakhstan")
+                    || countryLower.contains("казсср")
+                    || countryLower.contains("kazssr");
+
+            movie.setDomestic(domestic);
+            movie.setKzCulturalWeight(domestic ? 5 : 1);
+        }
+
+        // -- Genres --------------------------------------------------------
         if (data.hasNonNull("genres") && data.get("genres").isArray()) {
             StringBuilder genreText = new StringBuilder();
             for (JsonNode g : data.get("genres")) {
-                String genreName = g.path("genre").asText("").trim();
+                String genreName = capitalize(g.path("genre").asText("").trim());
                 if (genreName.isBlank()) continue;
-
-                genreName = capitalize(genreName);
                 if (!genreText.isEmpty()) genreText.append(", ");
                 genreText.append(genreName);
-
                 Genre genre = genreRepository.findByName(genreName);
-                if (genre == null) {
-                    genre = genreRepository.save(new Genre(genreName));
-                }
+                if (genre == null) genre = genreRepository.save(new Genre(genreName));
                 movie.getGenres().add(genre);
             }
             movie.setGenreText(genreText.toString());
         }
 
-        // ── Запрос 2: Съёмочная группа (/api/v1/staff) ───────────────────
+        // -- Staff (2nd API call) ------------------------------------------
         try {
             JsonNode staffArray = client.fetchStaff(kinopoiskId);
             if (staffArray != null && staffArray.isArray()) {
                 List<String> directors = new ArrayList<>();
                 List<String> actors = new ArrayList<>();
-
                 for (JsonNode person : staffArray) {
                     String profKey = person.path("professionKey").asText("");
-                    String nameRu  = person.path("nameRu").asText("").trim();
-                    if (nameRu.isBlank()) {
-                        nameRu = person.path("nameEn").asText("").trim();
-                    }
-                    if (nameRu.isBlank()) continue;
-
-                    if ("DIRECTOR".equalsIgnoreCase(profKey)) {
-                        directors.add(nameRu);
-                    } else if ("ACTOR".equalsIgnoreCase(profKey) && actors.size() < 7) {
-                        actors.add(nameRu);
-                    }
+                    String name = firstNonBlank(
+                            person.path("nameRu").asText("").trim(),
+                            person.path("nameEn").asText("").trim()
+                    );
+                    if (name == null || name.isBlank()) continue;
+                    if ("DIRECTOR".equalsIgnoreCase(profKey)) directors.add(name);
+                    else if ("ACTOR".equalsIgnoreCase(profKey) && actors.size() < 7) actors.add(name);
                 }
-
-                if (!directors.isEmpty()) {
-                    movie.setDirector(String.join(", ", directors));
-                }
-                if (!actors.isEmpty()) {
-                    movie.setActors(String.join(", ", actors));
-                }
+                if (!directors.isEmpty()) movie.setDirector(String.join(", ", directors));
+                if (!actors.isEmpty()) movie.setActors(String.join(", ", actors));
             }
         } catch (Exception e) {
-            // Staff не критично — продолжаем без неё
-            log.warn("Не удалось загрузить staff для kinopoiskId={}: {}", kinopoiskId, e.getMessage());
+            log.warn("Could not load staff for kinopoiskId={}: {}", kinopoiskId, e.getMessage());
         }
 
         Movie saved = movieRepository.save(movie);
-        log.info("Синхронизирован фильм: '{}' (kinopoiskId={})", saved.getTitle(), kinopoiskId);
+        log.info("Synced: {} | kpRating={} | isDomestic={} | dir={}",
+                saved.getTitle(), saved.getRatingKinopoisk(), saved.isDomestic(), saved.getDirector());
         return saved;
     }
 
-    // ── Утилиты ───────────────────────────────────────────────────────────────
+    // -- Utilities ---------------------------------------------------------
 
     private String textOf(JsonNode node, String field) {
         if (node == null || !node.hasNonNull(field)) return null;
         String val = node.get(field).asText("").trim();
         return val.isEmpty() ? null : val;
+    }
+
+    private boolean boolOf(JsonNode node, String field) {
+        return node != null && node.has(field) && node.get(field).asBoolean(false);
     }
 
     private String firstNonBlank(String... candidates) {
