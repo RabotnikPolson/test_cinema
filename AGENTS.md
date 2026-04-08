@@ -12,6 +12,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Services** (`/service/`): Business logic, external integrations, scheduled workers
 - **JPA Repositories** (`/repository/`): Spring Data JPA for database operations
 - **Models** (`/model/`): JPA entities with rich relationships (movies, users, genres, ratings, reviews, watch history, profiles, settings)
+- **Infrastructure** (`/client/`, `/config/`, `/security/`, `/user/`): HTTP clients, Spring config, JWT/security adapters, `UserPrincipal` mapping
 
 **Critical add-on:** Async Python AI worker (`/python-ai/`) for subtitle vectorization using `sentence-transformers`; currently standalone from Java request flow.
 
@@ -25,10 +26,10 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Caching:** All movie data persisted in DB after first API call; subsequent requests return cached data
 
 ### 2. Stream Embed Integration
-- **Files:** `StreamController.java`, `application.properties` (`vidsrc.base-url`)
-- **Pattern:** Resolve movie by internal ID → if `kinopoiskId` exists return `https://vbdkv.com/api/short/{kinopoiskId}` → otherwise build `vidsrc` embed URL by `imdbId`
-- **Validation:** Optional params `ds_lang`, `autoplay`, `sub_url` are validated in controller before URL construction
-- **Security:** `/stream/**` is public in `SecurityConfig`
+- **Files:** `controller/StreamController.java` (currently fully commented out), `config/SecurityConfig.java`
+- **Pattern:** Historical implementation resolved movie by internal ID → if `kinopoiskId` exists returned `https://vbdkv.com/api/short/{kinopoiskId}` → otherwise built a `vidsrc` embed URL by `imdbId`
+- **Validation:** The commented implementation validated optional params `ds_lang`, `autoplay`, `sub_url` before URL construction
+- **Security:** `SecurityConfig` still whitelists `/stream/**` and `/movies/*/stream`, but there is no active stream controller in `src/main/java`
 
 ### 3. Subtitle Vectorization Pipeline (Python → Java Bridge)
 - **Java side:** No active subtitle queueing pipeline in `src/main/java` (no `SubtitleDownloadWorker`/`SubtitleSyncService` classes)
@@ -38,11 +39,17 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Dependencies:** `/python-ai/requirements.txt` includes `fastapi`, `asyncpg`, `pgvector`, `sentence-transformers`, `APScheduler`
 
 ### 4. User Authentication (JWT)
-- **Files:** `JwtAuthenticationFilter.java`, `JwtService.java`, `JwtProperties.java` (config)
+- **Files:** `security/JwtAuthenticationFilter.java`, `security/JwtService.java`, `security/RefreshTokenService.java`, `security/CustomUserDetailsService.java`, `user/UserDetailsMapper.java`, `config/JwtProperties.java`, `auth/AuthController.java`
 - **Pattern:** Extract token from `Authorization: Bearer <jwt>` header → validate → load UserDetails → set SecurityContext
-- **Config:** `app.jwt.secret` (env var `JWT_SECRET`), `app.jwt.access-ttl-min` (default 30), `app.jwt.refresh-ttl-days` (default 30)
+- **Config:** `app.jwt.secret` (env var `JWT_SECRET`), `app.jwt.access-ttl-min` (default 30), `app.jwt.refresh-ttl-days` (default 30); `V12__security_jwt.sql` adds `users.enabled` and the `refresh_tokens` table
 - **Roles:** Stored in `user_roles` table (M2M with User); use `@PreAuthorize("hasRole('ADMIN')")` on restricted endpoints
-- **Refresh tokens:** RefreshToken entity + refresh token rotation in auth flow
+- **Refresh tokens:** RefreshToken entity + refresh token rotation in auth flow; disabled users are rejected by `CustomUserDetailsService`
+
+### 5. OMDb IMDb Lookup
+- **Files:** `client/OmdbClient.java`
+- **Pattern:** Lookup by movie title (and optional year) against OMDb `?t=...` → return `imdbID` when present, otherwise `null`
+- **Config:** `omdb.api.url` and `omdb.api.key` in `application.properties`; the client builds requests with `RestClient`
+- **Usage note:** This client is currently present as a reusable adapter; it is not wired into a controller flow yet
 
 ## Database Schema Patterns
 
@@ -52,8 +59,11 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **V5__users_roles.sql**: User roles table
 - **V7__ratings_watchlists.sql**: Ratings and watchlist support
 - **V8__watch_history.sql**: Watch history tracking
+- **V12__security_jwt.sql**: JWT/auth support (`users.enabled`, `refresh_tokens`, seed admin roles)
 - **V13__reviews_and_rating_cleanup.sql**: Review system refinements
 - **V14__user_profiles.sql**: User profile table
+- **V15__email_verification_tokens.sql**: Email verification token table for email-change flows
+- **V16__remove_nickname_email_add_bio.sql**: Profile cleanup (`nickname`, `email`, `email_verified` removed; `bio` added)
 - **V17__user_settings.sql**: User settings table
 - **V18__comments_and_reactions.sql**: Comment threads with reactions
 - **V19__add_kinopoisk_id.sql**: Kinopoisk ID column for movies
@@ -73,8 +83,9 @@ Comment (1:N) ← CommentReaction
 **Properties file:** `src/main/resources/application.properties`
 - Database: PostgreSQL at `localhost:5432/testdb` (user: `test_user`, pass: `pass1`)
 - Kinopoisk API key: env var `KINOPOISK_API_KEY` (example key provided in props)
+- OMDb lookup: `omdb.api.url` and `omdb.api.key` are configured for `client/OmdbClient.java`
 - JWT secret: env var `JWT_SECRET` (required for production)
-- Stream base URL: `vidsrc.base-url` (used by `StreamController`)
+- Stream base URL: no longer configured in current `application.properties`; the legacy `StreamController` source is commented out
 - Swagger UI: auto-enabled at `http://localhost:8080/swagger-ui.html`
 
 **Docker setup:** Run `docker-compose up` to start PostgreSQL (see `docker-compose.yml`)
@@ -86,7 +97,7 @@ Comment (1:N) ← CommentReaction
 ./gradlew test          # Run tests (integration tests in /src/test/java/)
 ```
 
-**Key tests:** `MovieControllerAddFromKinopoiskTest`, `StreamControllerTest`, `ReviewSmokeTest`
+**Key tests:** `MovieControllerAddFromKinopoiskTest`, `ReviewSmokeTest`; `StreamControllerTest.java` is commented out and not part of the active suite
 
 ## Common Workflows for Agents
 
@@ -105,10 +116,10 @@ Comment (1:N) ← CommentReaction
 5. Embeddings (384-dim) are generated and saved as `SubtitleChunk` records
 
 ### User Registration & JWT Flow
-1. POST `/auth/register` → create User entity, hash password, set roles
+1. POST `/auth/register` → create User entity, hash password, set `ROLE_USER`, and create an empty `UserProfile`
 2. POST `/auth/login` → validate credentials, generate JWT (access + refresh tokens)
 3. Client includes JWT in `Authorization: Bearer <token>` header
-4. `JwtAuthenticationFilter` validates token on each request; if expired, client calls `/auth/refresh` to get new access token
+4. `JwtAuthenticationFilter` validates token on each request; `/auth/refresh` rotates the stored refresh token and returns a new access token
 5. Roles checked via `@PreAuthorize` annotations on controllers
 
 ## Conventions & Patterns
@@ -116,10 +127,11 @@ Comment (1:N) ← CommentReaction
 ### Service Layer
 - **Separation:** Service handles business logic; Controller receives HTTP requests and delegates
 - **Example:** `MovieService.addMovie()` takes `MovieDto`, builds Movie entity, handles genre assignment
-- **No direct DB in controllers:** Always use @Service beans for repository access
+- **No direct DB in controllers:** Prefer services for business logic, but a few simple endpoints still hit repositories directly (for example `MovieController.getMovieById()` and `GenreController.createGenre()`)
 
 ### DTO Usage
 - Located in `/dto/` and subdirectories (`/dto/comment/`, `/dto/review/`, `/dto/settings/`, `/dto/profile/`, `/dto/rating/`)
+- Auth request/response DTOs live under `/auth/dto/` (`LoginRequest`, `RegisterRequest`, `RefreshRequest`, `AuthResponse`)
 - Used for most request/response contracts (`review`, `rating`, `comment`, `profile`, `settings`)
 - Note: some endpoints (for example `MovieController`) still return JPA entities directly
 - Example: `MovieDto` transfers movie data in API contracts
@@ -146,11 +158,15 @@ Comment (1:N) ← CommentReaction
 | `build.gradle` | Gradle dependencies, Java 17, plugins (Flyway, Spring Boot 3.5.6) |
 | `src/main/resources/db/migration/V*.sql` | Flyway SQL migrations; always name correctly (V1, V2, V3, ...) |
 | `TestCinemaApplication.java` | Entry point; enables `@ConfigurationProperties(JwtProperties)` |
+| `config/*.java` | Spring configuration: security, OpenAPI, JPA repository/entity scanning |
 | `controller/*.java` | REST endpoints with `@RestController`, `@RequestMapping`, OpenAPI docs |
 | `auth/AuthController.java` | JWT auth endpoints (`/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`) |
-| `controller/StreamController.java` | Public stream URL resolver (`/stream/{id}`) for `kinopoiskId`/`imdbId` |
+| `controller/StreamController.java` | Legacy stream resolver scaffold; currently commented out, but `/stream/**` and `/movies/*/stream` remain whitelisted in `SecurityConfig` |
+| `client/OmdbClient.java` | OMDb lookup client for IMDb ID enrichment by movie title/year |
+| `security/CustomUserDetailsService.java` + `user/UserDetailsMapper.java` | Loads enabled users by email and maps roles into `UserPrincipal` |
 | `service/*.java` | Business logic, API clients, scheduled workers |
 | `security/JwtAuthenticationFilter.java` | Validates JWT tokens on incoming requests |
+| `auth/dto/*.java` | Request/response DTOs for the auth flow |
 | `model/*.java` | JPA entities with `@Entity`, relationships (`@OneToMany`, `@ManyToMany`), Flyway must match schema |
 | `repository/*.java` | Spring Data JPA interfaces; extend `JpaRepository<Entity, ID>` |
 | `dto/**/*.java` | DTOs for request/response serialization |
@@ -166,7 +182,7 @@ Comment (1:N) ← CommentReaction
 
 **Pattern:** Use `@SpringBootTest` with H2 (`MODE=PostgreSQL`) and Flyway (`src/test/resources/application-test.properties`)
 
-**Example test:** `MovieControllerAddFromKinopoiskTest` tests the full flow: POST /addFromKinopoisk → verify Movie persisted → check genres synced
+**Example tests:** `MovieControllerAddFromKinopoiskTest` covers the Kinopoisk import flow; `ReviewSmokeTest` covers authenticated review creation. `StreamControllerTest.java` is currently commented out and not part of the active suite.
 
 ## Performance & Debugging Tips
 
@@ -189,5 +205,5 @@ Comment (1:N) ← CommentReaction
 
 ---
 
-**Updated:** 2026-03-31 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
+**Updated:** 2026-04-08 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
 
