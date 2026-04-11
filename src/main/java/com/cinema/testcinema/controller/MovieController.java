@@ -6,6 +6,7 @@ import com.cinema.testcinema.service.KinopoiskSyncService;
 import com.cinema.testcinema.service.MovieService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -67,5 +68,13 @@ public class MovieController {
     public Movie getMovieById(@PathVariable Long id) {
         return movieRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Фильм с ID " + id + " не найден"));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Удалить фильм по ID (ADMIN)")
+    public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
+        movieRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 }

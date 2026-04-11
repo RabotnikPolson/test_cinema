@@ -16,49 +16,95 @@ public class SubtitleMetadataService {
 
     private static final Logger log = LoggerFactory.getLogger(SubtitleMetadataService.class);
 
+    private static final List<String> CIS_KEYWORDS = List.of(
+            "росс", "ссср", "казах", "украин", "беларус", "киргиз", "узбек",
+            "таджик", "туркмен", "молдав", "грузи", "армен", "азербайджан", "латви", "литв", "эстон"
+    );
+
     private final OpenSubtitlesClient openSubtitlesClient;
     private final MovieSubtitleRepository subtitleRepository;
 
-    public SubtitleMetadataService(OpenSubtitlesClient openSubtitlesClient, MovieSubtitleRepository subtitleRepository) {
+    public SubtitleMetadataService(OpenSubtitlesClient openSubtitlesClient,
+                                   MovieSubtitleRepository subtitleRepository) {
         this.openSubtitlesClient = openSubtitlesClient;
         this.subtitleRepository = subtitleRepository;
     }
 
     /**
-     * Finds subtitle metadata via API but does not download the file!
-     * Protects the 20 downloads/day limit.
+     * Каскадный поиск субтитров (Waterfall Fallback).
+     * Порядок: kk → ru (если СНГ) → en.
+     * Сохраняет метаданные в БД, НЕ скачивает файл (бережём лимит 20/день).
      */
     @Transactional
     public void discoverForMovie(Movie movie) {
-        if (movie.getImdbId() == null || movie.getImdbId().isEmpty()) {
-            log.debug("Movie {} has no IMDB ID to search subtitles.", movie.getId());
+        Long movieId = movie.getId();
+        String title = movie.getTitle();
+        String imdbId = movie.getImdbId();
+        Long tmdbId = movie.getTmdbId();
+
+        log.info("╔══════════════════════════════════════════════════════════════");
+        log.info("║ Каскадный поиск субтитров для: '{}' (ID: {}, IMDB: {}, TMDB: {})", title, movieId, imdbId, tmdbId);
+        log.info("║ Страна: {}", movie.getCountry());
+        log.info("╚══════════════════════════════════════════════════════════════");
+
+        // ── Шаг 1: Казахские субтитры (kk) — высший приоритет ─────────────
+        log.info("[Cascade Step 1/3] Ищем казахские субтитры (kk)...");
+        if (tryDiscoverAndSave(movie, imdbId, tmdbId, "kk")) {
             return;
         }
+        log.info("[Cascade Step 1/3] Казахские субтитры не найдены.");
 
-        String targetLang = determineLanguageByCountry(movie.getCountry());
-
-        if (subtitleRepository.existsByMovieIdAndLanguage(movie.getId(), targetLang)) {
-            log.debug("Subtitle info for movie {} with lang {} already exists.", movie.getId(), targetLang);
-            return;
-        }
-
-        String fileId = openSubtitlesClient.searchSubtitles(movie.getImdbId(), targetLang);
-        if (fileId != null) {
-            MovieSubtitle subtitle = new MovieSubtitle(movie, targetLang, fileId);
-            subtitle.setDownloaded(false);
-            subtitleRepository.save(subtitle);
-            log.info("Found {} subtitle for movie '{}' (ID: {}). Enqueued for download.", targetLang, movie.getTitle(), movie.getId());
+        // ── Шаг 2: Определяем регион и ищем русские (ru) ──────────────────
+        boolean isCis = isCisCountry(movie.getCountry());
+        if (isCis) {
+            log.info("[Cascade Step 2/3] Страна '{}' определена как СНГ. Ищем русские субтитры (ru)...",
+                    movie.getCountry());
+            if (tryDiscoverAndSave(movie, imdbId, tmdbId, "ru")) {
+                return;
+            }
+            log.info("[Cascade Step 2/3] Русские субтитры не найдены.");
         } else {
-            log.warn("No {} subtitles found for movie '{}' (ID: {})", targetLang, movie.getTitle(), movie.getId());
+            log.info("[Cascade Step 2/3] Страна '{}' — не СНГ. Пропускаем поиск ru.", movie.getCountry());
         }
+
+        // ── Шаг 3: Английские субтитры (en) — последний фоллбэк ──────────
+        log.info("[Cascade Step 3/3] Ищем английские субтитры (en)...");
+        if (tryDiscoverAndSave(movie, imdbId, tmdbId, "en")) {
+            return;
+        }
+        log.info("[Cascade Step 3/3] Английские субтитры не найдены.");
+
+        // ── Ничего не найдено ─────────────────────────────────────────────
+        log.warn("⚠ No suitable base subtitles (kk, ru, en) found for movie '{}' (ID: {}). " +
+                "Subtitle queue is empty for this movie.", title, movieId);
     }
 
-    private String determineLanguageByCountry(String countryStr) {
-        if (countryStr == null) return "en";
-        String country = countryStr.toLowerCase();
-        List<String> cisKeywords = List.of("росс", "ссср", "казах", "украин", "беларус", "киргиз", "узбек");
+    /**
+     * Пытается найти субтитры на указанном языке и сохранить метаданные в БД.
+     *
+     * @return true если субтитры найдены и сохранены, false если ничего нет
+     */
+    private boolean tryDiscoverAndSave(Movie movie, String imdbId, Long tmdbId, String lang) {
+        // Проверяем дубликат
+        if (subtitleRepository.existsByMovieIdAndLanguage(movie.getId(), lang)) {
+            log.info("  → Субтитры ({}) для этого фильма уже есть в БД. Пропускаем.", lang);
+            return true; // Уже есть — считаем успехом
+        }
 
-        boolean isCis = cisKeywords.stream().anyMatch(country::contains);
-        return isCis ? "ru" : "en";
+        String fileId = openSubtitlesClient.searchSubtitles(imdbId, tmdbId, lang);
+        if (fileId != null) {
+            MovieSubtitle subtitle = new MovieSubtitle(movie, lang, fileId);
+            subtitle.setDownloaded(false);
+            subtitleRepository.save(subtitle);
+            log.info("  ✓ Найдены {} субтитры (osFileId: {}). Поставлены в очередь на скачивание.", lang, fileId);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isCisCountry(String countryStr) {
+        if (countryStr == null || countryStr.isBlank()) return false;
+        String lower = countryStr.toLowerCase();
+        return CIS_KEYWORDS.stream().anyMatch(lower::contains);
     }
 }

@@ -1,5 +1,6 @@
 package com.cinema.testcinema.service;
 
+import com.cinema.testcinema.client.TmdbClient;
 import com.cinema.testcinema.model.Genre;
 import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.repository.GenreRepository;
@@ -20,13 +21,16 @@ public class KinopoiskSyncService {
     private static final Logger log = LoggerFactory.getLogger(KinopoiskSyncService.class);
 
     private final KinopoiskClient client;
+    private final TmdbClient tmdbClient;
     private final MovieRepository movieRepository;
     private final GenreRepository genreRepository;
 
     public KinopoiskSyncService(KinopoiskClient client,
+                                 TmdbClient tmdbClient,
                                  MovieRepository movieRepository,
                                  GenreRepository genreRepository) {
         this.client = client;
+        this.tmdbClient = tmdbClient;
         this.movieRepository = movieRepository;
         this.genreRepository = genreRepository;
     }
@@ -43,6 +47,15 @@ public class KinopoiskSyncService {
         movie.setKinopoiskHdId(textOf(data, "kinopoiskHDId"));
         String imdbId = textOf(data, "imdbId");
         if (imdbId != null && movie.getImdbId() == null) movie.setImdbId(imdbId);
+
+        // -- TMDB Enrichment (если Кинопоиск не дал imdbId) ----------------
+        if (movie.getImdbId() == null) {
+            log.info("No IMDb ID from Kinopoisk for '{}'. Searching in TMDB...", movie.getTitle() != null ? movie.getTitle() : textOf(data, "nameRu"));
+            String searchTitle = firstNonBlank(textOf(data, "nameEn"), textOf(data, "nameOriginal"), textOf(data, "nameRu"));
+            Integer searchYear = data.hasNonNull("year") ? data.get("year").asInt() : null;
+            Long tmdbId = tmdbClient.searchMovieId(searchTitle, searchYear);
+            movie.setTmdbId(tmdbId);
+        }
 
         // -- Titles --------------------------------------------------------
         movie.setTitle(firstNonBlank(
@@ -99,10 +112,20 @@ public class KinopoiskSyncService {
             movie.setRatingAge(digits.isEmpty() ? ageLimit : digits + "+");
         }
 
-        // -- Country -------------------------------------------------------
+        // -- Country (все страны копродукции через запятую) ------------------
         if (data.hasNonNull("countries") && data.get("countries").isArray()
                 && !data.get("countries").isEmpty()) {
-            movie.setCountry(data.get("countries").get(0).path("country").asText(null));
+            StringBuilder countryBuilder = new StringBuilder();
+            for (JsonNode c : data.get("countries")) {
+                String name = c.path("country").asText("").trim();
+                if (!name.isEmpty()) {
+                    if (!countryBuilder.isEmpty()) countryBuilder.append(", ");
+                    countryBuilder.append(name);
+                }
+            }
+            if (!countryBuilder.isEmpty()) {
+                movie.setCountry(countryBuilder.toString());
+            }
         }
 
         // -- Production flags ----------------------------------------------
@@ -120,6 +143,8 @@ public class KinopoiskSyncService {
             boolean domestic = countryLower.contains("казахстан")
                     || countryLower.contains("kazakhstan")
                     || countryLower.contains("казсср")
+                    || countryLower.contains("қазсср")
+                    || countryLower.contains("қазақстан")
                     || countryLower.contains("kazssr");
 
             movie.setDomestic(domestic);

@@ -23,7 +23,6 @@ public class OpenSubtitlesClient {
     @Value("${opensubtitles.api.url:https://api.opensubtitles.com/api/v1}")
     private String apiUrl;
 
-    // ВНИМАНИЕ: Проверьте, чтобы в properties было opensubtitles.api.key
     @Value("${opensubtitles.api.key}")
     private String apiKey;
 
@@ -37,11 +36,12 @@ public class OpenSubtitlesClient {
     private Instant tokenExpiresAt = Instant.MIN;
 
     public OpenSubtitlesClient(RestClient.Builder restClientBuilder) {
-        // Добавляем обязательный User-Agent
         this.restClient = restClientBuilder
                 .defaultHeader("User-Agent", "TestCinemaApp v1.0")
                 .build();
     }
+
+    // ── Аутентификация ────────────────────────────────────────────────────
 
     private synchronized void refreshTokenIfNeeded() {
         if (currentToken == null || Instant.now().isAfter(tokenExpiresAt)) {
@@ -62,12 +62,13 @@ public class OpenSubtitlesClient {
 
                 if (response != null && response.has("token")) {
                     this.currentToken = response.get("token").asText();
-                    // Токен обычно живет 24 часа, ставим запас
-                    this.tokenExpiresAt = Instant.now().plusSeconds(80000);
+                    this.tokenExpiresAt = Instant.now().plusSeconds(80000); // ~22 часа
                     log.info("OpenSubtitles token successfully refreshed.");
                 } else {
                     throw new RuntimeException("Login response does not contain a token");
                 }
+            } catch (OpenSubtitlesQuotaExceededException e) {
+                throw e;
             } catch (Exception e) {
                 log.error("Failed to refresh OpenSubtitles token: {}", e.getMessage());
                 throw new RuntimeException("Could not login to OpenSubtitles API", e);
@@ -75,14 +76,40 @@ public class OpenSubtitlesClient {
         }
     }
 
-    public String searchSubtitles(String imdbId, String language) {
+    // ── Поиск субтитров (по imdbId ИЛИ по tmdbId) ────────────────────────
+
+    /**
+     * Ищет субтитры на OpenSubtitles.
+     * <p>
+     * Стратегия:
+     * 1. Если imdbId не пустой → ищем по imdb_id (самый точный).
+     * 2. Если imdbId пустой, но tmdbId != null → ищем по tmdb_id (фоллбэк).
+     * 3. Если оба пусты → возвращаем null (нечего искать).
+     *
+     * @param imdbId IMDB ID фильма (может быть null/пустым)
+     * @param tmdbId TMDB ID фильма (может быть null)
+     * @param lang   Код языка субтитров ('kk', 'ru', 'en')
+     * @return os_file_id найденного файла субтитров, или null если ничего нет
+     */
+    public String searchSubtitles(String imdbId, Long tmdbId, String lang) {
+        // Определяем параметр поиска
+        String searchParam;
+        if (imdbId != null && !imdbId.isBlank()) {
+            searchParam = "imdb_id=" + parseImdbId(imdbId);
+        } else if (tmdbId != null) {
+            searchParam = "tmdb_id=" + tmdbId;
+        } else {
+            log.debug("Movie has no IMDB ID and no TMDB ID — skipping OpenSubtitles search.");
+            return null;
+        }
+
         refreshTokenIfNeeded();
         try {
-            Long numericImdbId = parseImdbId(imdbId);
-            log.info("Searching subtitles for IMDB: {}, Lang: {}", numericImdbId, language);
+            String uri = apiUrl + "/subtitles?" + searchParam + "&languages=" + lang;
+            log.info("OS Search request: {}", uri);
 
             JsonNode response = restClient.get()
-                    .uri(apiUrl + "/subtitles?imdb_id=" + numericImdbId + "&languages=" + language)
+                    .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .header("Api-Key", apiKey)
                     .header("Authorization", "Bearer " + currentToken)
@@ -93,23 +120,32 @@ public class OpenSubtitlesClient {
                     })
                     .body(JsonNode.class);
 
-            if (response != null && response.has("data") && response.get("data").isArray() && !response.get("data").isEmpty()) {
-                JsonNode firstElement = response.get("data").get(0);
-                if (firstElement.has("attributes") && firstElement.get("attributes").has("files")) {
-                    JsonNode files = firstElement.get("attributes").get("files");
-                    if (files.isArray() && !files.isEmpty()) {
-                        return files.get(0).get("file_id").asText();
-                    }
-                }
-            }
-            return null;
+            return extractFileId(response);
         } catch (OpenSubtitlesQuotaExceededException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error searching subtitles for IMDb {} : {}", imdbId, e.getMessage());
+            log.error("Error searching subtitles (imdb={}, tmdb={}, lang={}): {}",
+                    imdbId, tmdbId, lang, e.getMessage());
             return null;
         }
     }
+
+    private String extractFileId(JsonNode response) {
+        if (response != null && response.has("data")
+                && response.get("data").isArray()
+                && !response.get("data").isEmpty()) {
+            JsonNode firstResult = response.get("data").get(0);
+            if (firstResult.has("attributes") && firstResult.get("attributes").has("files")) {
+                JsonNode files = firstResult.get("attributes").get("files");
+                if (files.isArray() && !files.isEmpty()) {
+                    return files.get(0).get("file_id").asText();
+                }
+            }
+        }
+        return null;
+    }
+
+    // ── Скачивание (расходует квоту 20/день!) ────────────────────────────
 
     public String requestDownloadLink(String osFileId) {
         refreshTokenIfNeeded();
@@ -148,9 +184,12 @@ public class OpenSubtitlesClient {
         }
     }
 
+    // ── Обработка ошибок ─────────────────────────────────────────────────
+
     private void handleRateLimits(int statusCode) {
         if (statusCode == 406 || statusCode == 429) {
-            throw new OpenSubtitlesQuotaExceededException("OpenSubtitles quota exhausted! Status code: " + statusCode);
+            throw new OpenSubtitlesQuotaExceededException(
+                    "OpenSubtitles quota exhausted! Status code: " + statusCode);
         }
         if (statusCode == 401 || statusCode == 403) {
             throw new RuntimeException("Authentication failed (401/403). Check API Key and Credentials.");

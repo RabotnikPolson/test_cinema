@@ -120,6 +120,8 @@ public class Movie {
     @Transient
     private String streamUrl;
 
+    @Column(name = "tmdb_id")
+    private Long tmdbId;
     // ── Жанры (many-to-many) ──────────────────────────────────────────────
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -259,4 +261,7 @@ public class Movie {
 
     public Set<Genre> getGenres() { return genres; }
     public void setGenres(Set<Genre> genres) { this.genres = genres; }
+
+    public Long getTmdbId() { return tmdbId; }
+    public void setTmdbId(Long tmdbId) { this.tmdbId = tmdbId; }
 }
