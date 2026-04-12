@@ -14,7 +14,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Models** (`/model/`): JPA entities with rich relationships (movies, users, genres, ratings, reviews, watch history, profiles, settings)
 - **Infrastructure** (`/client/`, `/config/`, `/security/`, `/user/`): HTTP clients, Spring config, JWT/security adapters, `UserPrincipal` mapping
 
-**Critical add-on:** Async Python AI worker (`/python-ai/`) for subtitle vectorization using `sentence-transformers`; currently standalone from Java request flow.
+**Critical add-on:** Subtitle processing now has two independent parts: Java discovery/download (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `MovieSubtitle`) and async Python vectorization worker (`/python-ai/`) using `sentence-transformers`.
 
 ## Key Integration Points
 
@@ -32,11 +32,13 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Security:** `SecurityConfig` still whitelists `/stream/**` and `/movies/*/stream`, but there is no active stream controller in `src/main/java`
 
 ### 3. Subtitle Vectorization Pipeline (Python → Java Bridge)
-- **Java side:** No active subtitle queueing pipeline in `src/main/java` (no `SubtitleDownloadWorker`/`SubtitleSyncService` classes)
-- **Python side:** `workers/worker.py` polls DB, parses VTT, vectorizes with `paraphrase-multilingual-MiniLM-L12-v2` (384 dims)
-- **Vectorizer:** `services/vectorizer.py` handles WebVTT parsing (removes timestamps, tags, converts text → embeddings)
-- **Current behavior:** Worker uses `_mock_download_from_s3(...)` stub and schedules job via APScheduler every 5 minutes
-- **Dependencies:** `/python-ai/requirements.txt` includes `fastapi`, `asyncpg`, `pgvector`, `sentence-transformers`, `APScheduler`
+- **Java side:** Active metadata/download pipeline exists in `SubtitleMetadataService` + `SubtitleDownloadWorker` with `MovieSubtitle` / `MovieSubtitleRepository`
+- **Discovery pattern:** `SubtitleMetadataService.discoverForMovie()` performs waterfall search `kk → ru (for CIS country) → en` via `OpenSubtitlesClient.searchSubtitles(...)` and saves `os_file_id` queue records in `movie_subtitles`
+- **Download pattern:** `SubtitleDownloadWorker.processDownloadQueue()` takes first pending subtitle, calls `OpenSubtitlesClient.requestDownloadLink(...)`, saves bytes to `storage/subtitles/{movieId}/{lang}.vtt`, and marks `is_downloaded=true`
+- **Triggering:** Manual endpoints are provided in `controller/SubtitleTestController.java` (`POST /api/test/subtitles/discover/{movieId}`, `POST /api/test/subtitles/trigger-worker`)
+- **Scheduling note:** Worker method is annotated with `@Scheduled(fixedDelay = 1800000)`, but `TestCinemaApplication` currently has no `@EnableScheduling`
+- **Python side:** `workers/worker.py` still uses `_mock_download_from_s3(...)` and APScheduler every 5 minutes for vectorization (`paraphrase-multilingual-MiniLM-L12-v2`, 384 dims)
+- **Schema mismatch warning:** Python models expect `movie_subtitles.s3_path/format/is_vectorized_for_ai`, while Java migration `V21__movie_subtitles.sql` currently defines `os_file_id/local_path/is_downloaded`
 
 ### 4. User Authentication (JWT)
 - **Files:** `security/JwtAuthenticationFilter.java`, `security/JwtService.java`, `security/RefreshTokenService.java`, `security/CustomUserDetailsService.java`, `user/UserDetailsMapper.java`, `config/JwtProperties.java`, `auth/AuthController.java`
@@ -45,11 +47,11 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Roles:** Stored in `user_roles` table (M2M with User); use `@PreAuthorize("hasRole('ADMIN')")` on restricted endpoints
 - **Refresh tokens:** RefreshToken entity + refresh token rotation in auth flow; disabled users are rejected by `CustomUserDetailsService`
 
-### 5. OMDb IMDb Lookup
-- **Files:** `client/OmdbClient.java`
-- **Pattern:** Lookup by movie title (and optional year) against OMDb `?t=...` → return `imdbID` when present, otherwise `null`
-- **Config:** `omdb.api.url` and `omdb.api.key` in `application.properties`; the client builds requests with `RestClient`
-- **Usage note:** This client is currently present as a reusable adapter; it is not wired into a controller flow yet
+### 5. TMDB ID Enrichment
+- **Files:** `client/TmdbClient.java`, `service/KinopoiskSyncService.java`
+- **Pattern:** During `KinopoiskSyncService.fetchAndSave(...)`, if Kinopoisk response has no `imdbId`, service calls `TmdbClient.searchMovieId(title, year)` and stores fallback `tmdbId` in `Movie`
+- **Config:** `tmdb.api.token` in `application.properties` (env var `TMDB_API_TOKEN`)
+- **Usage note:** `tmdbId` is used as fallback identifier for OpenSubtitles search when `imdbId` is missing
 
 ## Database Schema Patterns
 
@@ -68,6 +70,8 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **V18__comments_and_reactions.sql**: Comment threads with reactions
 - **V19__add_kinopoisk_id.sql**: Kinopoisk ID column for movies
 - **V20__ai_extensions.sql**: Domestic cinema flags/indexes (`is_domestic`, `kz_cultural_weight`)
+- **V21__movie_subtitles.sql**: Subtitle queue table (`movie_subtitles`: `os_file_id`, `local_path`, `is_downloaded`)
+- **V22__add_tmdb_id.sql**: `movies.tmdb_id` for TMDB/OpenSubtitles fallback
 
 **Key entities & their relationships:**
 ```
@@ -83,7 +87,9 @@ Comment (1:N) ← CommentReaction
 **Properties file:** `src/main/resources/application.properties`
 - Database: PostgreSQL at `localhost:5432/testdb` (user: `test_user`, pass: `pass1`)
 - Kinopoisk API key: env var `KINOPOISK_API_KEY` (example key provided in props)
-- OMDb lookup: `omdb.api.url` and `omdb.api.key` are configured for `client/OmdbClient.java`
+- TMDB token: env var `TMDB_API_TOKEN` (`tmdb.api.token`)
+- OpenSubtitles credentials: `opensubtitles.api.key`, `opensubtitles.username`, `opensubtitles.password`
+- Local subtitle storage: `storage.local.base-path` (default `./storage`)
 - JWT secret: env var `JWT_SECRET` (required for production)
 - Stream base URL: no longer configured in current `application.properties`; the legacy `StreamController` source is commented out
 - Swagger UI: auto-enabled at `http://localhost:8080/swagger-ui.html`
@@ -97,7 +103,7 @@ Comment (1:N) ← CommentReaction
 ./gradlew test          # Run tests (integration tests in /src/test/java/)
 ```
 
-**Key tests:** `MovieControllerAddFromKinopoiskTest`, `ReviewSmokeTest`; `StreamControllerTest.java` is commented out and not part of the active suite
+**Key tests:** `MovieControllerAddFromKinopoiskTest`, `ReviewSmokeTest`; helper `test/TestAuth.java` is reused for auth bootstrap; `StreamControllerTest.java` is commented out and not part of the active suite
 
 ## Common Workflows for Agents
 
@@ -109,11 +115,11 @@ Comment (1:N) ← CommentReaction
 5. Response returns full `Movie` entity with nested genres
 
 ### Fetching & Vectorizing Subtitles
-1. Start Python worker from `/python-ai/` (APScheduler)
-2. Worker selects subtitles where `is_downloaded=true` and `is_vectorized_for_ai=false`
-3. Worker currently uses `_mock_download_from_s3(...)` test stub for VTT content
-4. `vectorizer.py` parses VTT and chunks text
-5. Embeddings (384-dim) are generated and saved as `SubtitleChunk` records
+1. Trigger metadata discovery from Java (`POST /api/test/subtitles/discover/{movieId}`) to enqueue one base subtitle (`kk → ru → en`) in `movie_subtitles`
+2. Trigger Java downloader (`POST /api/test/subtitles/trigger-worker`) or wait for scheduler if `@EnableScheduling` is enabled later
+3. Java worker downloads subtitle via OpenSubtitles, saves file under `./storage/subtitles/{movieId}/{lang}.vtt`, sets `is_downloaded=true`
+4. Start Python worker from `/python-ai/` (APScheduler)
+5. Python worker vectorizes downloaded subtitles and writes `SubtitleChunk` embeddings (384 dims)
 
 ### User Registration & JWT Flow
 1. POST `/auth/register` → create User entity, hash password, set `ROLE_USER`, and create an empty `UserProfile`
@@ -137,7 +143,7 @@ Comment (1:N) ← CommentReaction
 - Example: `MovieDto` transfers movie data in API contracts
 
 ### Async & Scheduled Tasks
-- Java module currently has no `@Scheduled` workers and no `@EnableAsync` in `TestCinemaApplication`
+- Java module contains `@Scheduled` worker `SubtitleDownloadWorker.processDownloadQueue()`, but `TestCinemaApplication` currently does not enable scheduling (`@EnableScheduling` is absent)
 - Periodic subtitle vectorization (if used) runs in Python via APScheduler (`python-ai/workers/worker.py`)
 - Logging pattern in Java uses SLF4J (`LoggerFactory`) and `log.info()/warn()/error()`
 
@@ -162,9 +168,12 @@ Comment (1:N) ← CommentReaction
 | `controller/*.java` | REST endpoints with `@RestController`, `@RequestMapping`, OpenAPI docs |
 | `auth/AuthController.java` | JWT auth endpoints (`/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`) |
 | `controller/StreamController.java` | Legacy stream resolver scaffold; currently commented out, but `/stream/**` and `/movies/*/stream` remain whitelisted in `SecurityConfig` |
-| `client/OmdbClient.java` | OMDb lookup client for IMDb ID enrichment by movie title/year |
+| `client/TmdbClient.java` | TMDB client used to enrich `movies.tmdb_id` when Kinopoisk does not return `imdbId` |
+| `client/OpenSubtitlesClient.java` | OpenSubtitles auth/search/download client with quota handling (`406/429`) |
 | `security/CustomUserDetailsService.java` + `user/UserDetailsMapper.java` | Loads enabled users by email and maps roles into `UserPrincipal` |
 | `service/*.java` | Business logic, API clients, scheduled workers |
+| `service/SubtitleMetadataService.java` + `service/SubtitleDownloadWorker.java` | Java subtitle discovery queue + downloader (`movie_subtitles` → local `storage/subtitles`) |
+| `controller/SubtitleTestController.java` | Manual subtitle pipeline triggers for development/testing |
 | `security/JwtAuthenticationFilter.java` | Validates JWT tokens on incoming requests |
 | `auth/dto/*.java` | Request/response DTOs for the auth flow |
 | `model/*.java` | JPA entities with `@Entity`, relationships (`@OneToMany`, `@ManyToMany`), Flyway must match schema |
@@ -182,13 +191,13 @@ Comment (1:N) ← CommentReaction
 
 **Pattern:** Use `@SpringBootTest` with H2 (`MODE=PostgreSQL`) and Flyway (`src/test/resources/application-test.properties`)
 
-**Example tests:** `MovieControllerAddFromKinopoiskTest` covers the Kinopoisk import flow; `ReviewSmokeTest` covers authenticated review creation. `StreamControllerTest.java` is currently commented out and not part of the active suite.
+**Example tests:** `MovieControllerAddFromKinopoiskTest` covers the Kinopoisk import flow; `ReviewSmokeTest` covers authenticated review creation via JWT helper `TestAuth`. `StreamControllerTest.java` is currently commented out and not part of the active suite.
 
 ## Performance & Debugging Tips
 
 1. **Flyway migration stuck?** Check `flyway_schema_history` table; manually delete bad entries if needed
 2. **Kinopoisk API rate limited?** Worker catches errors; check logs for "limit exceeded" messages; data cached in DB so subsequent requests fast
-3. **Subtitle vectorization not running?** Current Python worker uses mocked download (`_mock_download_from_s3`) and expects DB rows with `is_downloaded=true`
+3. **Subtitle flow not running?** Java downloader scheduling requires `@EnableScheduling`; otherwise use `POST /api/test/subtitles/trigger-worker`. Python worker also expects columns (`s3_path`, `is_vectorized_for_ai`) not present in current Java `V21__movie_subtitles.sql`
 4. **JWT token invalid?** Ensure `JWT_SECRET` env var set; token must match secret; check expiry (`accessTtlMin`)
 5. **Swagger docs not showing?** Visit `http://localhost:8080/swagger-ui.html` after app starts; auto-generated from `@Operation`, `@Parameter` annotations
 
@@ -201,9 +210,8 @@ Comment (1:N) ← CommentReaction
 - [ ] Check profile/settings modules (`V14`, `V17`, `ProfileController`, `SettingsController`) before touching user-facing features
 - [ ] Test locally with `docker-compose up` + `./gradlew bootRun`; run `./gradlew test` before commits
 - [ ] Check existing controllers for patterns (e.g., error handling, logging, annotations)
-- [ ] Python AI worker runs in separate process; Java subtitle queueing pipeline is not present in current module
+- [ ] Java subtitle pipeline exists (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `SubtitleTestController`), but scheduled execution is effectively off until `@EnableScheduling` is enabled
 
 ---
 
-**Updated:** 2026-04-08 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
-
+**Updated:** 2026-04-12 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
