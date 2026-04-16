@@ -76,16 +76,19 @@ public class SubtitleDownloadWorker {
                     subtitleRepository.save(subtitle);
                     log.info("Successfully downloaded and saved subtitle to {}", subtitle.getLocalPath());
                     
-                    // Формируем путь для результата на казахском (kk.srt)
-                    // localPath сейчас имеет вид: ./storage/subtitles/123/ru.vtt
-                    String outputPath = subtitle.getLocalPath()
+                    // Преобразуем относительный путь в абсолютный, чтобы избежать "конфликта рабочих директорий"
+                    // между Java (запущена в /testCinema) и Python (запущен в /subtitle-translator)
+                    String absoluteInputPath = java.nio.file.Path.of(subtitle.getLocalPath()).toAbsolutePath().normalize().toString().replace('\\', '/');
+
+                    // Формируем абсолютный путь для результата на казахском (kk.srt)
+                    String absoluteOutputPath = absoluteInputPath
                             .replace(subtitle.getLanguage() + ".vtt", "kk.srt")
                             .replace(subtitle.getLanguage() + ".srt", "kk.srt");
 
                     translationClient.triggerTranslation(
                             subtitle.getMovie().getId(),
-                            subtitle.getLocalPath(),
-                            outputPath,
+                            absoluteInputPath,
+                            absoluteOutputPath,
                             subtitle.getMovie().getTitle(),
                             subtitle.getLanguage()
                     );
