@@ -27,6 +27,15 @@ public class MovieSubtitle {
     @Column(name = "is_downloaded", nullable = false)
     private boolean isDownloaded = false;
 
+    @Column(name = "translation_status", length = 20)
+    private String translationStatus = "none";
+
+    @Column(name = "translated_path", length = 500)
+    private String translatedPath;
+
+    @Column(name = "lines_translated")
+    private Integer linesTranslated = 0;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -85,6 +94,30 @@ public class MovieSubtitle {
 
     public void setDownloaded(boolean downloaded) {
         isDownloaded = downloaded;
+    }
+
+    public String getTranslationStatus() {
+        return translationStatus;
+    }
+
+    public void setTranslationStatus(String translationStatus) {
+        this.translationStatus = translationStatus;
+    }
+
+    public String getTranslatedPath() {
+        return translatedPath;
+    }
+
+    public void setTranslatedPath(String translatedPath) {
+        this.translatedPath = translatedPath;
+    }
+
+    public Integer getLinesTranslated() {
+        return linesTranslated;
+    }
+
+    public void setLinesTranslated(Integer linesTranslated) {
+        this.linesTranslated = linesTranslated;
     }
 
     public LocalDateTime getCreatedAt() {

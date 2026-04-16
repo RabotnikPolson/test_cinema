@@ -26,6 +26,7 @@ public class SubtitleDownloadWorker {
 
     private final MovieSubtitleRepository subtitleRepository;
     private final OpenSubtitlesClient openSubtitlesClient;
+    private final com.cinema.testcinema.client.SubtitleTranslationClient translationClient;
 
     @Value("${storage.local.base-path:./storage}")
     private String basePath;
@@ -34,9 +35,12 @@ public class SubtitleDownloadWorker {
     private final AtomicBoolean isQuotaExhausted = new AtomicBoolean(false);
     private Instant resumeAt = Instant.MIN;
 
-    public SubtitleDownloadWorker(MovieSubtitleRepository subtitleRepository, OpenSubtitlesClient openSubtitlesClient) {
+    public SubtitleDownloadWorker(MovieSubtitleRepository subtitleRepository, 
+                                  OpenSubtitlesClient openSubtitlesClient,
+                                  com.cinema.testcinema.client.SubtitleTranslationClient translationClient) {
         this.subtitleRepository = subtitleRepository;
         this.openSubtitlesClient = openSubtitlesClient;
+        this.translationClient = translationClient;
     }
 
     // Запуск каждые 30 минут
@@ -68,8 +72,23 @@ public class SubtitleDownloadWorker {
                 if (fileBytes != null) {
                     saveFileToDisk(subtitle, fileBytes);
                     subtitle.setDownloaded(true);
+                    subtitle.setTranslationStatus("pending"); // Указываем, что перевод в очереди
                     subtitleRepository.save(subtitle);
                     log.info("Successfully downloaded and saved subtitle to {}", subtitle.getLocalPath());
+                    
+                    // Формируем путь для результата на казахском (kk.srt)
+                    // localPath сейчас имеет вид: ./storage/subtitles/123/ru.vtt
+                    String outputPath = subtitle.getLocalPath()
+                            .replace(subtitle.getLanguage() + ".vtt", "kk.srt")
+                            .replace(subtitle.getLanguage() + ".srt", "kk.srt");
+
+                    translationClient.triggerTranslation(
+                            subtitle.getMovie().getId(),
+                            subtitle.getLocalPath(),
+                            outputPath,
+                            subtitle.getMovie().getTitle(),
+                            subtitle.getLanguage()
+                    );
                 } else {
                     log.error("Failed to download bytes from OS link for fileId {}", subtitle.getOsFileId());
                 }

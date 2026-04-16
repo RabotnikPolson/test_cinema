@@ -59,7 +59,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/stream/**").permitAll()
                         .requestMatchers("/movies/*/stream").permitAll()
-
+                        .requestMatchers("/api/internal/**").permitAll()
+                        .requestMatchers("/api/test/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()

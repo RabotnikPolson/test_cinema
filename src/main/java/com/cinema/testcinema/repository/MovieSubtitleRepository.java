@@ -12,4 +12,6 @@ public interface MovieSubtitleRepository extends JpaRepository<MovieSubtitle, Lo
     Optional<MovieSubtitle> findFirstByIsDownloadedFalseOrderByCreatedAtAsc();
 
     boolean existsByMovieIdAndLanguage(Long movieId, String language);
+
+    java.util.List<MovieSubtitle> findByMovieId(Long movieId);
 }
