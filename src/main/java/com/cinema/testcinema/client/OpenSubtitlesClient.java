@@ -105,8 +105,7 @@ public class OpenSubtitlesClient {
 
         refreshTokenIfNeeded();
         try {
-            String uri = apiUrl + "/subtitles?" + searchParam + "&languages=" + lang;
-            log.info("OS Search request: {}", uri);
+            String uri = apiUrl + "/subtitles?" + searchParam + "&languages=" + lang + "&foreign_parts_only=exclude&order_by=download_count&order_direction=desc";            log.info("OS Search request: {}", uri);
 
             JsonNode response = restClient.get()
                     .uri(uri)
@@ -134,17 +133,38 @@ public class OpenSubtitlesClient {
         if (response != null && response.has("data")
                 && response.get("data").isArray()
                 && !response.get("data").isEmpty()) {
+
+            // Берем первый элемент (предполагается, что ты уже добавил order_by=download_count в запрос)
             JsonNode firstResult = response.get("data").get(0);
-            if (firstResult.has("attributes") && firstResult.get("attributes").has("files")) {
-                JsonNode files = firstResult.get("attributes").get("files");
+            JsonNode attributes = firstResult.has("attributes") ? firstResult.get("attributes") : null;
+
+            if (attributes != null && attributes.has("files")) {
+                JsonNode files = attributes.get("files");
+
                 if (files.isArray() && !files.isEmpty()) {
-                    return files.get(0).get("file_id").asText();
+                    JsonNode firstFile = files.get(0);
+                    String fileId = firstFile.has("file_id") ? firstFile.get("file_id").asText() : null;
+
+                    if (fileId != null) {
+                        // Извлекаем метаданные для логов
+                        String fileName = firstFile.has("file_name") ? firstFile.get("file_name").asText() : "unknown";
+                        String release = attributes.has("release") ? attributes.get("release").asText() : "unknown";
+                        String subtitleId = attributes.has("subtitle_id") ? attributes.get("subtitle_id").asText() : "unknown";
+                        String downloadCount = attributes.has("download_count") ? attributes.get("download_count").asText() : "0";
+
+                        // Логируем полную картину
+                        log.info("Selected Subtitle -> Subtitle ID: {}, File ID: {}, Downloads: {}, Release: '{}', File Name: '{}'",
+                                subtitleId, fileId, downloadCount, release, fileName);
+
+                        return fileId;
+                    }
                 }
             }
         }
+
+        log.warn("No valid files found in OpenSubtitles response.");
         return null;
     }
-
     // ── Скачивание (расходует квоту 20/день!) ────────────────────────────
 
     public String requestDownloadLink(String osFileId) {
