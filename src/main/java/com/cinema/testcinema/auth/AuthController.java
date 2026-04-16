@@ -144,4 +144,32 @@ public class AuthController {
         refreshTokenService.revokeAllForUser(userId);
         return ResponseEntity.noContent().build();
     }
+
+    // Endpoint exclusively for Swagger UI OAuth2 Password Flow
+    @io.swagger.v3.oas.annotations.Operation(summary = "Login for Swagger UI (OAuth2 Password flow)", hidden = true)
+    @PostMapping(value = "/swagger-login", consumes = org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public java.util.Map<String, String> swaggerLogin(
+            @RequestParam("username") String username,
+            @RequestParam("password") String password) {
+        log.info("Swagger UI login attempt for email={}", username);
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
+        } catch (BadCredentialsException ex) {
+            log.warn("Invalid credentials for email={}", username);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверный email или пароль");
+        }
+
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверный email или пароль"));
+
+        if (!user.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Пользователь отключен");
+        }
+
+        String accessToken = jwtService.generateAccessToken(user);
+        return java.util.Map.of(
+            "access_token", accessToken,
+            "token_type", "Bearer"
+        );
+    }
 }

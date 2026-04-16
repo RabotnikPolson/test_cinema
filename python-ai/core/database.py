@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import declarative_base
 
 # Fallback to local testdb if not provided
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://test_user:pass1@localhost:5432/testdb")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://test_user:test_password@localhost:5432/testdb")
 
 # Create the async engine
 # Note: pool_pre_ping=True checks the connection before checking out from pool
