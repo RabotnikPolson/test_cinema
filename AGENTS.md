@@ -14,7 +14,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Models** (`/model/`): JPA entities with rich relationships (movies, users, genres, ratings, reviews, watch history, profiles, settings)
 - **Infrastructure** (`/client/`, `/config/`, `/security/`, `/user/`): HTTP clients, Spring config, JWT/security adapters, `UserPrincipal` mapping
 
-**Critical add-on:** Subtitle processing now has two independent parts: Java discovery/download (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `MovieSubtitle`) and async Python vectorization worker (`/python-ai/`) using `sentence-transformers`.
+**Critical add-on:** Subtitle processing now has three parts: Java discovery/download (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `MovieSubtitle`), Python translation microservice (`/subtitle-translator/`), and async Python vectorization worker (`/python-ai/`) using `sentence-transformers`.
 
 ## Key Integration Points
 
@@ -31,14 +31,16 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Validation:** The commented implementation validated optional params `ds_lang`, `autoplay`, `sub_url` before URL construction
 - **Security:** `SecurityConfig` still whitelists `/stream/**` and `/movies/*/stream`, but there is no active stream controller in `src/main/java`
 
-### 3. Subtitle Vectorization Pipeline (Python → Java Bridge)
-- **Java side:** Active metadata/download pipeline exists in `SubtitleMetadataService` + `SubtitleDownloadWorker` with `MovieSubtitle` / `MovieSubtitleRepository`
+### 3. Subtitle Download/Translation/Vectorization Pipeline (Java ↔ Python)
+- **Java side:** Active metadata/download pipeline exists in `SubtitleMetadataService` + `SubtitleDownloadWorker` with `MovieSubtitle` / `MovieSubtitleRepository`, plus translation webhook handling in `SubtitleTranslationWebhookController`
 - **Discovery pattern:** `SubtitleMetadataService.discoverForMovie()` performs waterfall search `kk → ru (for CIS country) → en` via `OpenSubtitlesClient.searchSubtitles(...)` and saves `os_file_id` queue records in `movie_subtitles`
-- **Download pattern:** `SubtitleDownloadWorker.processDownloadQueue()` takes first pending subtitle, calls `OpenSubtitlesClient.requestDownloadLink(...)`, saves bytes to `storage/subtitles/{movieId}/{lang}.vtt`, and marks `is_downloaded=true`
+- **Download pattern:** `SubtitleDownloadWorker.processDownloadQueue()` takes first pending subtitle, calls `OpenSubtitlesClient.requestDownloadLink(...)`, saves bytes to `storage/subtitles/{movieId}/{lang}.vtt`, marks `is_downloaded=true`, sets `translation_status='pending'`, then calls `SubtitleTranslationClient.triggerTranslation(...)`
 - **Triggering:** Manual endpoints are provided in `controller/SubtitleTestController.java` (`POST /api/test/subtitles/discover/{movieId}`, `POST /api/test/subtitles/trigger-worker`)
+- **Java callback endpoint:** `POST /api/internal/subtitles/translation-complete` updates `movie_subtitles.translation_status`, `translated_path`, `lines_translated` (guarded by `X-Internal-Secret`; current webhook statuses are `success`, `partial`, `failed`)
 - **Scheduling note:** Worker method is annotated with `@Scheduled(fixedDelay = 1800000)`, but `TestCinemaApplication` currently has no `@EnableScheduling`
-- **Python side:** `workers/worker.py` still uses `_mock_download_from_s3(...)` and APScheduler every 5 minutes for vectorization (`paraphrase-multilingual-MiniLM-L12-v2`, 384 dims)
-- **Schema mismatch warning:** Python models expect `movie_subtitles.s3_path/format/is_vectorized_for_ai`, while Java migration `V21__movie_subtitles.sql` currently defines `os_file_id/local_path/is_downloaded`
+- **Python translation side:** `subtitle-translator/routes/translate.py` exposes `POST /api/translate` (queued), and `subtitle-translator/services/webhook_client.py` posts results back to Java internal webhook
+- **Python vectorization side:** `python-ai/workers/worker.py` still uses `_mock_download_from_s3(...)` and APScheduler every 5 minutes for vectorization (`paraphrase-multilingual-MiniLM-L12-v2`, 384 dims)
+- **Schema mismatch warning:** Java schema now has `os_file_id/local_path/is_downloaded` + `translation_status/translated_path/lines_translated` (V23), while `python-ai` models still expect `movie_subtitles.s3_path/format/is_vectorized_for_ai`
 
 ### 4. User Authentication (JWT)
 - **Files:** `security/JwtAuthenticationFilter.java`, `security/JwtService.java`, `security/RefreshTokenService.java`, `security/CustomUserDetailsService.java`, `user/UserDetailsMapper.java`, `config/JwtProperties.java`, `auth/AuthController.java`
@@ -46,6 +48,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Config:** `app.jwt.secret` (env var `JWT_SECRET`), `app.jwt.access-ttl-min` (default 30), `app.jwt.refresh-ttl-days` (default 30); `V12__security_jwt.sql` adds `users.enabled` and the `refresh_tokens` table
 - **Roles:** Stored in `user_roles` table (M2M with User); use `@PreAuthorize("hasRole('ADMIN')")` on restricted endpoints
 - **Refresh tokens:** RefreshToken entity + refresh token rotation in auth flow; disabled users are rejected by `CustomUserDetailsService`
+- **Swagger auth flow:** OpenAPI config uses OAuth2 password flow with token URL `/auth/swagger-login` (`OpenApiConfig` + hidden endpoint in `AuthController`)
 
 ### 5. TMDB ID Enrichment
 - **Files:** `client/TmdbClient.java`, `service/KinopoiskSyncService.java`
@@ -72,6 +75,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **V20__ai_extensions.sql**: Domestic cinema flags/indexes (`is_domestic`, `kz_cultural_weight`)
 - **V21__movie_subtitles.sql**: Subtitle queue table (`movie_subtitles`: `os_file_id`, `local_path`, `is_downloaded`)
 - **V22__add_tmdb_id.sql**: `movies.tmdb_id` for TMDB/OpenSubtitles fallback
+- **V23__subtitle_translation_status.sql**: translation tracking fields in `movie_subtitles` (`translation_status`, `translated_path`, `lines_translated`)
 
 **Key entities & their relationships:**
 ```
@@ -85,11 +89,12 @@ Comment (1:N) ← CommentReaction
 ## Configuration & Startup
 
 **Properties file:** `src/main/resources/application.properties`
-- Database: PostgreSQL at `localhost:5432/testdb` (user: `test_user`, pass: `pass1`)
-- Kinopoisk API key: env var `KINOPOISK_API_KEY` (example key provided in props)
+- Database: PostgreSQL at `localhost:5432/testdb` (user: `test_user`, pass from env `DB_PASSWORD`; Docker default is `pass1`)
+- Kinopoisk API key: env var `KINOPOISK_API_KEY`
 - TMDB token: env var `TMDB_API_TOKEN` (`tmdb.api.token`)
 - OpenSubtitles credentials: `opensubtitles.api.key`, `opensubtitles.username`, `opensubtitles.password`
 - Local subtitle storage: `storage.local.base-path` (default `./storage`)
+- Subtitle translator bridge: `ai.translator.url` (default `http://localhost:8100/api/translate`), `ai.translator.secret` (must match Python `INTERNAL_SECRET`)
 - JWT secret: env var `JWT_SECRET` (required for production)
 - Stream base URL: no longer configured in current `application.properties`; the legacy `StreamController` source is commented out
 - Swagger UI: auto-enabled at `http://localhost:8080/swagger-ui.html`
@@ -118,8 +123,10 @@ Comment (1:N) ← CommentReaction
 1. Trigger metadata discovery from Java (`POST /api/test/subtitles/discover/{movieId}`) to enqueue one base subtitle (`kk → ru → en`) in `movie_subtitles`
 2. Trigger Java downloader (`POST /api/test/subtitles/trigger-worker`) or wait for scheduler if `@EnableScheduling` is enabled later
 3. Java worker downloads subtitle via OpenSubtitles, saves file under `./storage/subtitles/{movieId}/{lang}.vtt`, sets `is_downloaded=true`
-4. Start Python worker from `/python-ai/` (APScheduler)
-5. Python worker vectorizes downloaded subtitles and writes `SubtitleChunk` embeddings (384 dims)
+4. Java worker sets `translation_status='pending'` and triggers `subtitle-translator` via `SubtitleTranslationClient` (`POST /api/translate`)
+5. `subtitle-translator` processes queue and calls Java webhook `POST /api/internal/subtitles/translation-complete` with `X-Internal-Secret`
+6. (Optional/independent) Start Python vectorization worker from `/python-ai/` (APScheduler)
+7. Python vectorization worker vectorizes subtitle text and writes `SubtitleChunk` embeddings (384 dims)
 
 ### User Registration & JWT Flow
 1. POST `/auth/register` → create User entity, hash password, set `ROLE_USER`, and create an empty `UserProfile`
@@ -144,6 +151,7 @@ Comment (1:N) ← CommentReaction
 
 ### Async & Scheduled Tasks
 - Java module contains `@Scheduled` worker `SubtitleDownloadWorker.processDownloadQueue()`, but `TestCinemaApplication` currently does not enable scheduling (`@EnableScheduling` is absent)
+- Translation service (`subtitle-translator`) runs an in-process async queue worker (`worker_loop`) started from FastAPI lifespan; it is not APScheduler-based
 - Periodic subtitle vectorization (if used) runs in Python via APScheduler (`python-ai/workers/worker.py`)
 - Logging pattern in Java uses SLF4J (`LoggerFactory`) and `log.info()/warn()/error()`
 
@@ -173,6 +181,7 @@ Comment (1:N) ← CommentReaction
 | `security/CustomUserDetailsService.java` + `user/UserDetailsMapper.java` | Loads enabled users by email and maps roles into `UserPrincipal` |
 | `service/*.java` | Business logic, API clients, scheduled workers |
 | `service/SubtitleMetadataService.java` + `service/SubtitleDownloadWorker.java` | Java subtitle discovery queue + downloader (`movie_subtitles` → local `storage/subtitles`) |
+| `client/SubtitleTranslationClient.java` + `controller/SubtitleTranslationWebhookController.java` | Java → Python subtitle translation trigger and secure webhook callback (`/api/internal/subtitles/translation-complete`) |
 | `controller/SubtitleTestController.java` | Manual subtitle pipeline triggers for development/testing |
 | `security/JwtAuthenticationFilter.java` | Validates JWT tokens on incoming requests |
 | `auth/dto/*.java` | Request/response DTOs for the auth flow |
@@ -180,6 +189,7 @@ Comment (1:N) ← CommentReaction
 | `repository/*.java` | Spring Data JPA interfaces; extend `JpaRepository<Entity, ID>` |
 | `dto/**/*.java` | DTOs for request/response serialization |
 | `python-ai/` | Async AI worker (FastAPI) for subtitle vectorization |
+| `subtitle-translator/` | FastAPI microservice for queued subtitle translation + webhook callbacks to Java |
 | `exception/RestExceptionHandler.java` | Global HTTP error mapping for validation/security/business errors |
 | `src/test/java/com/cinema/testcinema/` | Integration tests (use `@SpringBootTest` + test properties) |
 
@@ -197,7 +207,7 @@ Comment (1:N) ← CommentReaction
 
 1. **Flyway migration stuck?** Check `flyway_schema_history` table; manually delete bad entries if needed
 2. **Kinopoisk API rate limited?** Worker catches errors; check logs for "limit exceeded" messages; data cached in DB so subsequent requests fast
-3. **Subtitle flow not running?** Java downloader scheduling requires `@EnableScheduling`; otherwise use `POST /api/test/subtitles/trigger-worker`. Python worker also expects columns (`s3_path`, `is_vectorized_for_ai`) not present in current Java `V21__movie_subtitles.sql`
+3. **Subtitle flow not running?** Java downloader scheduling requires `@EnableScheduling`; otherwise use `POST /api/test/subtitles/trigger-worker`. For translation callback, verify `ai.translator.secret` (Java) equals `INTERNAL_SECRET` (Python). `python-ai` worker still expects columns (`s3_path`, `is_vectorized_for_ai`) not present in Java schema (`V21` + `V23`)
 4. **JWT token invalid?** Ensure `JWT_SECRET` env var set; token must match secret; check expiry (`accessTtlMin`)
 5. **Swagger docs not showing?** Visit `http://localhost:8080/swagger-ui.html` after app starts; auto-generated from `@Operation`, `@Parameter` annotations
 
@@ -211,7 +221,8 @@ Comment (1:N) ← CommentReaction
 - [ ] Test locally with `docker-compose up` + `./gradlew bootRun`; run `./gradlew test` before commits
 - [ ] Check existing controllers for patterns (e.g., error handling, logging, annotations)
 - [ ] Java subtitle pipeline exists (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `SubtitleTestController`), but scheduled execution is effectively off until `@EnableScheduling` is enabled
+- [ ] If subtitle translation is used, keep Java `ai.translator.secret` and Python `INTERNAL_SECRET` aligned; webhook updates `movie_subtitles.translation_status/*_path/lines_translated`
 
 ---
 
-**Updated:** 2026-04-12 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
+**Updated:** 2026-04-21 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
