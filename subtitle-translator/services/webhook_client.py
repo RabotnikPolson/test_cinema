@@ -1,34 +1,40 @@
-import httpx
 import logging
 import asyncio
-from schemas.translation import WebhookPayload
-import os
+import httpx
+import json
+from datetime import datetime
+import aiosqlite
+from schemas.webhook import WebhookPayload
+from services.checkpoint_repository import CheckpointRepository
 
 logger = logging.getLogger(__name__)
 
-JAVA_WEBHOOK_URL = os.getenv("JAVA_WEBHOOK_URL", "http://localhost:8080/api/internal/subtitles/translation-complete")
-INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "change-me-in-prod")
-
 class WebhookClient:
+    def __init__(self, webhook_url: str, secret: str, checkpoint_repo: CheckpointRepository):
+        self._url = webhook_url
+        self._secret = secret
+        self._repo = checkpoint_repo
+
     async def send_webhook(self, payload: WebhookPayload):
-        """Отправляет результат перевода обратно на Java-бэкенд через httpx."""
-        logger.info(f"Sending webhook for movie {payload.movie_id} with status {payload.status}")
         async with httpx.AsyncClient(timeout=10.0) as client:
             for attempt in range(3):
                 try:
                     resp = await client.post(
-                        JAVA_WEBHOOK_URL,
-                        json=payload.model_dump(),
-                        headers={"X-Internal-Secret": INTERNAL_SECRET}
+                        self._url, json=payload.model_dump(),
+                        headers={"X-Internal-Secret": self._secret}
                     )
                     if resp.status_code in (200, 202, 204):
-                        logger.info(f"Webhook delivered successfully for movie {payload.movie_id}")
+                        logger.info(f"Webhook delivered for movie {payload.movie_id}")
                         return
-                    else:
-                        logger.warning(f"Webhook returned status {resp.status_code}. Output: {resp.text}")
-                        await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2 ** attempt)
                 except httpx.RequestError as e:
-                    logger.warning(f"Webhook attempt {attempt+1} failed: {e}")
+                    logger.warning(f"Webhook attempt {attempt} failed: {e}")
                     await asyncio.sleep(2 ** attempt)
 
-            logger.error(f"Failed to deliver webhook after 3 attempts for movie {payload.movie_id}")
+        logger.error(f"Webhook failed 3x for movie {payload.movie_id}. Persisting to retry queue.")
+        async with aiosqlite.connect(self._repo._db_path) as db:
+            await db.execute(
+                "INSERT INTO pending_webhooks (payload, next_retry_at) VALUES (?, ?)",
+                (json.dumps(payload.model_dump()), datetime.utcnow().isoformat())
+            )
+            await db.commit()

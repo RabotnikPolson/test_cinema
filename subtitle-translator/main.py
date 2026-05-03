@@ -4,35 +4,47 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
-# Нужно загрузить переменные окружения до импортов сервисов, 
-# чтобы settings.py и webhook_client подхватили их
+# Load env variables before importing settings
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-from services.translation_service import TranslationService
-from services.webhook_client import WebhookClient
-from services.task_queue import worker_loop
+from config.settings import Settings
+from services.container import ServiceContainer
 from routes.translate import router as translate_router
-
-translation_service = TranslationService()
-webhook_client = WebhookClient()
+from routes.openai_webhook import router as openai_webhook_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Startup ──
-    task = asyncio.create_task(worker_loop(translation_service, webhook_client))
-    logger.info("Translation worker task created")
+    settings = Settings()
+    container = ServiceContainer(settings)
+    await container.startup()
+    app.state.container = container
+    
+    # Start Background Workers
+    webhook_retry_task = asyncio.create_task(container.webhook_retry_worker.run_forever())
+    batch_reconciler_task = asyncio.create_task(container.batch_reconciler.run_forever())
+    
+    logger.info("Application startup complete. Background workers started.")
+    
     yield
+    
     # ── Shutdown ──
-    task.cancel()
+    logger.info("Application shutdown initiated.")
+    webhook_retry_task.cancel()
+    batch_reconciler_task.cancel()
     try:
-        await task
+        await asyncio.gather(webhook_retry_task, batch_reconciler_task, return_exceptions=True)
     except asyncio.CancelledError:
         pass
-    logger.info("Translation worker task cancelled")
+    
+    await container.shutdown()
+    logger.info("Application shutdown complete.")
 
 app = FastAPI(title="Subtitle Translator API", lifespan=lifespan)
 
+# Register routes
 app.include_router(translate_router)
+app.include_router(openai_webhook_router)
