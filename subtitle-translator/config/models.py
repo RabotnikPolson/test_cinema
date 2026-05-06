@@ -1,31 +1,46 @@
-# ═══════════════════════════════════════════════════════════════
-# ГЛОБАЛЬНЫЕ ПАРАМЕТРЫ БАТЧИНГА — применяются ОДИН РАЗ при init_subtitles()
-# Эти значения НЕ могут меняться при fallback-переключении модели.
-# ═══════════════════════════════════════════════════════════════
-BATCHING_CONFIG = {
-    "max_batch_size": 80,      # Наименьший общий знаменатель всех моделей
-    "scene_threshold": 90.0,   # Порог разбиения на сцены (секунды паузы)
-}
+"""
+Model chain configuration for the translation pipeline.
 
-# ═══════════════════════════════════════════════════════════════
-# ЦЕПОЧКА МОДЕЛЕЙ — только провайдер/модель/auth-параметры.
-# БЕЗ max_batch_size — батчинг не зависит от модели.
-# ═══════════════════════════════════════════════════════════════
-FALLBACK_CHAIN = [
+Gemini chain (FallbackRouter, synchronous, per-chunk):
+  1. gemini-3.1-flash-lite-preview  — cheapest, fastest, lowest quality
+  2. gemini-2.5-flash-lite          — cheap, fast
+  3. gemini-3-flash                 — mid-tier
+  4. gemini-2.5-flash               — highest quality Gemini
+
+OpenAI fallback (Batch API, event-driven, all remaining chunks at once):
+  - gpt-5-nano-2025-08-07          — triggered only when ALL Gemini models are exhausted
+"""
+
+GEMINI_CHAIN = [
     {
-        "provider": "Gemini",
         "model": "gemini-3.1-flash-lite-preview",
-        "api_key_env": "GEMINI_API_KEY",
-        "rate_limit": 10.0,
+        "provider": "gemini",
+        "max_retries": 2,
         "temperature": 0.15,
-        "stream_responses": False,
     },
     {
-        "provider": "Gemini",
-        "model": "gemini-3-flash-preview",
-        "api_key_env": "GEMINI_API_KEY",
-        "rate_limit": 10.0,
+        "model": "gemini-2.5-flash-lite",
+        "provider": "gemini",
+        "max_retries": 2,
         "temperature": 0.15,
-        "stream_responses": False,
+    },
+    {
+        "model": "gemini-3-flash",
+        "provider": "gemini",
+        "max_retries": 2,
+        "temperature": 0.15,
+    },
+    {
+        "model": "gemini-2.5-flash",
+        "provider": "gemini",
+        "max_retries": 2,
+        "temperature": 0.15,
     },
 ]
+
+OPENAI_BATCH_MODEL = {
+    "model": "gpt-5-nano-2025-08-07",
+    "provider": "openai",
+    "max_retries": 2,
+    "temperature": 0.10,
+}

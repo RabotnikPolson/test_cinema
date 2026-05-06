@@ -1,48 +1,50 @@
-from fastapi import APIRouter, Request, HTTPException
-from openai import AsyncOpenAI
-import os
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 import logging
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-def get_batch_handler(request: Request):
-    # Retrieve handler from FastAPI app state container
-    return request.app.state.container.batch_handler
 
 @router.post("/api/webhooks/openai")
-async def openai_webhook(request: Request):
-    payload = await request.body()
-    
-    # OpenAI webhooks typically use stripe-signature under the hood or custom headers
-    # We pass the full headers object to the unwrap method
-    secret = os.getenv("OPENAI_WEBHOOK_SECRET")
-    api_key = os.getenv("OPENAI_API_KEY")
-    
-    if not secret or not api_key:
-        logger.error("OPENAI_WEBHOOK_SECRET or OPENAI_API_KEY is missing")
+async def openai_webhook(
+    request: Request, background_tasks: BackgroundTasks
+):
+    """
+    Receives OpenAI Batch completion webhooks.
+    Validates signature via client.webhooks.unwrap using settings from DI container.
+    Delegates heavy processing to BackgroundTasks to acknowledge the webhook quickly.
+    """
+    container = request.app.state.container
+    settings = container.settings
+
+    if not settings.OPENAI_WEBHOOK_SECRET or not settings.OPENAI_API_KEY:
+        logger.error("OPENAI_WEBHOOK_SECRET or OPENAI_API_KEY is missing in settings.")
         raise HTTPException(status_code=500, detail="Server misconfiguration")
-        
-    client = AsyncOpenAI(api_key=api_key)
-    
+
+    payload = await request.body()
+
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
     try:
-        event = client.webhooks.unwrap(payload, dict(request.headers), secret=secret)
+        event = client.webhooks.unwrap(
+            payload, dict(request.headers), secret=settings.OPENAI_WEBHOOK_SECRET
+        )
     except Exception as e:
         logger.error(f"Webhook signature verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
+    handler = container.batch_handler
+
     if event.type == "batch.completed":
         batch_id = event.data.object.id
         logger.info(f"Received batch.completed webhook for batch {batch_id}")
-        
-        handler = get_batch_handler(request)
-        # Background process the completion to acknowledge the webhook quickly
-        import asyncio
-        asyncio.create_task(handler.handle_completion(batch_id))
-        
+        background_tasks.add_task(handler.handle_completion, batch_id)
+
     elif event.type in ("batch.failed", "batch.expired", "batch.cancelled"):
         batch_id = event.data.object.id
         logger.warning(f"Received {event.type} for batch {batch_id}")
-        # In a real scenario, handle failure logic here
-        
+        background_tasks.add_task(handler.handle_failure, batch_id, event.type)
+
     return {"status": "received"}
