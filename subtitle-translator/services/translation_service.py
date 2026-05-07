@@ -282,18 +282,22 @@ class TranslationService:
 
         # Build batch data for all remaining chunks
         chunks_data = []
-        rolling_context = deque(context_buffer, maxlen=self.CONTEXT_WINDOW_LINES)
+        
+        # The context buffer holds the LAST TRANSLATED lines (Kazakh) from the sync phase.
+        # We can only realistically provide this context to the very first chunk in the batch.
+        # For subsequent chunks, we have no translations yet, so context must be disabled
+        # to avoid polluting the prompt with Russian source text.
+        initial_context_str = self._build_context(context_buffer)
 
         for i in range(start_index, len(chunks)):
             chunk = chunks[i]
             lines = [entry.text for entry in chunk]
             clean_lines, _ = self._tag_preservator.strip(lines)
-            context_str = self._build_context(rolling_context)
+            
+            # Use real context only for the first chunk in the batch
+            context_str = initial_context_str if i == start_index else ""
 
             chunks_data.append((i, clean_lines, context_str, job.movie_title))
-
-            for line in clean_lines:
-                rolling_context.append(line)
 
         batch_id, chunk_mapping = await openai_provider.submit_batch_multi(
             chunks_data

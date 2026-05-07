@@ -192,9 +192,9 @@ class CheckpointRepository:
                     (chunk.chunk_index + 1, job_id),
                 )
                 await db.commit()
-            except Exception as e:
+            except Exception:
                 await db.rollback()
-                raise e
+                raise
 
     async def set_batch_status(
         self, job_id: str, batch_id: str, chunk_mapping: dict
