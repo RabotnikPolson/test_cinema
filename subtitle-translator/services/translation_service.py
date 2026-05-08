@@ -132,21 +132,29 @@ class TranslationService:
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
 
+        is_srt = output_path.lower().endswith(".srt")
+
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write("WEBVTT\n\n")
+            if not is_srt:
+                f.write("WEBVTT\n\n")
             for i, entry in enumerate(original_entries):
                 text = flat_translated[i] if i < len(flat_translated) else entry.text
+                if is_srt:
+                    f.write(f"{i + 1}\n")
                 f.write(
-                    f"{self._fmt_time(entry.start_time)} --> "
-                    f"{self._fmt_time(entry.end_time)}\n{text}\n\n"
+                    f"{self._fmt_time(entry.start_time, is_srt=is_srt)} --> "
+                    f"{self._fmt_time(entry.end_time, is_srt=is_srt)}\n{text}\n\n"
                 )
 
     @staticmethod
-    def _fmt_time(seconds: float) -> str:
+    def _fmt_time(seconds: float, is_srt: bool = False) -> str:
         h = int(seconds // 3600)
         m = int((seconds % 3600) // 60)
         s = seconds % 60
-        return f"{h:02d}:{m:02d}:{s:06.3f}"
+        ms_sep = "," if is_srt else "."
+        # Format seconds with 3 decimal places
+        s_str = f"{s:06.3f}".replace(".", ms_sep)
+        return f"{h:02d}:{m:02d}:{s_str}"
 
     # ═══════════════════════════════════════════
     #  CONTEXT BUILDER
