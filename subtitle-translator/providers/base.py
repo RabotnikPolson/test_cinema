@@ -25,7 +25,9 @@ class BaseLLMProvider(ABC):
         self._max_retries = config.get("max_retries", 2)
         self.provider_name = config.get("provider", "unknown")
 
-    async def translate_chunk(self, lines: List[str], context: str, movie_title: str) -> ChunkResult:
+    async def translate_chunk(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> ChunkResult:
+        if glossary is None:
+            glossary = {}
         expected_count = len(lines)
         
         # Pre-process: strip tags
@@ -33,7 +35,7 @@ class BaseLLMProvider(ABC):
         
         for attempt in range(1, self._max_retries + 1):
             try:
-                result = await self._call_api(clean_lines, context, movie_title)
+                result = await self._call_api(clean_lines, context, movie_title, source_language, genre, glossary)
                 
                 # STRICT LINE MATCHING
                 if len(result) != expected_count:
@@ -70,5 +72,5 @@ class BaseLLMProvider(ABC):
         raise LineMismatchError("Exhausted retries for line matching")
 
     @abstractmethod
-    async def _call_api(self, lines: List[str], context: str, movie_title: str) -> List[str]:
+    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> List[str]:
         pass

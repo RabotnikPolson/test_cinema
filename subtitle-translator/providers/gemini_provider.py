@@ -2,7 +2,7 @@ import json
 import logging
 from typing import List
 from providers.base import BaseLLMProvider, RateLimitError, ServiceUnavailableError, AuthenticationError
-from config.kazakh_prompt import TRANSLATION_PROMPT_TEMPLATE
+from config.kazakh_prompt import build_system_prompt, build_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +22,23 @@ class GeminiProvider(BaseLLMProvider):
         )
         self._gemini_model = genai.GenerativeModel(self.model, generation_config=self._gen_config)
 
-    async def _call_api(self, lines: List[str], context: str, movie_title: str) -> List[str]:
-        # 1. Build prompt using the professional template
-        prompt = TRANSLATION_PROMPT_TEMPLATE.format(
-            movie_title=movie_title,
-            context=context if context else "No context available.",
-            lines=json.dumps(lines, ensure_ascii=False, indent=2)
+    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> List[str]:
+        import google.generativeai as genai
+        
+        # 1. Build prompts
+        sys_prompt = build_system_prompt(movie_title, source_language, genre, glossary)
+        user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False, indent=2), context)
+        
+        # Initialize model with system instruction
+        model = genai.GenerativeModel(
+            self.model,
+            generation_config=self._gen_config,
+            system_instruction=sys_prompt
         )
             
         try:
             # 2. Call genai async
-            response = await self._gemini_model.generate_content_async(prompt)
+            response = await model.generate_content_async(user_prompt)
             text = response.text.strip()
             
             # Remove potential markdown code blocks (```json ... ```)

@@ -29,7 +29,7 @@ class TranslationService:
       3. Worker is then released. Results arrive via webhook or BatchReconciler.
     """
 
-    CONTEXT_WINDOW_LINES = 5
+    CONTEXT_WINDOW_LINES = 10
 
     def __init__(
         self,
@@ -212,7 +212,10 @@ class TranslationService:
 
             try:
                 result = await router.translate_chunk(
-                    lines, context_str, job.movie_title, i
+                    lines, context_str, job.movie_title, i,
+                    source_language=request.source_language,
+                    genre="general",
+                    glossary={}
                 )
                 await self._repo.save_chunk(job.job_id, result)
                 logger.info(

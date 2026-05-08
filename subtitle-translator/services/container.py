@@ -103,7 +103,7 @@ class ServiceContainer:
             api_key=self.settings.OPENAI_API_KEY,
             config=OPENAI_BATCH_MODEL,
             tag_preservator=self.tag_preservator,
-            execution_mode="batch",
+            execution_mode="standard", #or batch
         )
 
     async def startup(self) -> None:

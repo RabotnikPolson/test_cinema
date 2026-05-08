@@ -14,11 +14,11 @@ class FallbackRouter:
     def __init__(self, provider_chain: List[BaseLLMProvider]):
         self._active_providers = list(provider_chain)
 
-    async def translate_chunk(self, lines: List[str], context: str, movie_title: str, chunk_index: int) -> ChunkResult:
+    async def translate_chunk(self, lines: List[str], context: str, movie_title: str, chunk_index: int, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> ChunkResult:
         for provider in self._active_providers:
             try:
                 logger.info(f"Trying provider {provider.model} for chunk {chunk_index}...")
-                result = await provider.translate_chunk(lines, context, movie_title)
+                result = await provider.translate_chunk(lines, context, movie_title, source_language, genre, glossary)
                 result.chunk_index = chunk_index
                 return result
             except (RateLimitError, ServiceUnavailableError, LineMismatchError) as e:

@@ -11,7 +11,7 @@ from providers.base import (
     AuthenticationError,
     BatchSubmittedSignal,
 )
-from config.kazakh_prompt import TRANSLATION_PROMPT_TEMPLATE
+from config.kazakh_prompt import build_system_prompt, build_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +36,23 @@ class OpenAIProvider(BaseLLMProvider):
         self.execution_mode = execution_mode
 
     async def _call_api(
-        self, lines: List[str], context: str, movie_title: str
+        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None
     ) -> List[str]:
         """Standard synchronous path. Always used per-chunk by FallbackRouter."""
-        return await self._execute_standard(lines, context, movie_title)
+        return await self._execute_standard(lines, context, movie_title, source_language, genre, glossary)
 
     async def _execute_standard(
-        self, lines: List[str], context: str, movie_title: str
+        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None
     ) -> List[str]:
-        prompt = TRANSLATION_PROMPT_TEMPLATE.format(
-            movie_title=movie_title,
-            context=context if context else "No context available.",
-            lines=json.dumps(lines, ensure_ascii=False),
-        )
+        sys_prompt = build_system_prompt(movie_title, source_language, genre, glossary)
+        user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False), context)
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
                 temperature=self.config.get("temperature", 0.15),
             )
             text = response.choices[0].message.content.strip()
@@ -80,11 +80,8 @@ class OpenAIProvider(BaseLLMProvider):
             custom_id = f"chunk_{chunk_index}"
             chunk_mapping[custom_id] = chunk_index
 
-            prompt = TRANSLATION_PROMPT_TEMPLATE.format(
-                movie_title=movie_title,
-                context=context if context else "No context available.",
-                lines=json.dumps(lines, ensure_ascii=False),
-            )
+            sys_prompt = build_system_prompt(movie_title, source_lang="en", genre="general", glossary={})
+            user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False), context)
 
             req = {
                 "custom_id": custom_id,
@@ -92,7 +89,10 @@ class OpenAIProvider(BaseLLMProvider):
                 "url": "/v1/chat/completions",
                 "body": {
                     "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "messages": [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
                     "temperature": self.config.get("temperature", 0.15),
                 },
             }
