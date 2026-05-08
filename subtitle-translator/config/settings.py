@@ -2,11 +2,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # LLM
-    PRIMARY_PROVIDER: str = "gemini"  # "gemini" or "openai"
+    PRIMARY_PROVIDER: str = "openai"  # "gemini" or "openai"
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     OPENAI_WEBHOOK_SECRET: str = ""
-    OPENAI_EXECUTION_MODE: str = "standard"  # or "batch"
+    OPENAI_EXECUTION_MODE: str = "standard"  #standard or "batch"
     
     # Chunking
     GAP_THRESHOLD_SEC: float = 4.0

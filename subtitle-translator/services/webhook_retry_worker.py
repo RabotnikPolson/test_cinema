@@ -49,6 +49,13 @@ class WebhookRetryWorker:
                 )
                 if resp.status_code in (200, 202, 204):
                     success = True
+                elif 400 <= resp.status_code < 500:
+                    logger.critical(
+                        f"DEAD LETTER: webhook {webhook.id} rejected with HTTP {resp.status_code}. "
+                        f"Payload: {webhook.payload}. Marking as 'failed'."
+                    )
+                    await self._repo.mark_webhook_failed(webhook.id)
+                    return
                 else:
                     last_err = f"HTTP {resp.status_code}"
             except Exception as e:

@@ -40,6 +40,12 @@ class WebhookClient:
                             f"Webhook delivered for movie {payload.movie_id}"
                         )
                         return
+                    if 400 <= resp.status_code < 500:
+                        logger.error(
+                            f"Webhook rejected with HTTP {resp.status_code} (Client Error). "
+                            f"Movie ID {payload.movie_id} likely doesn't exist on Java side. Not retrying."
+                        )
+                        return
                     logger.warning(
                         f"Webhook attempt {attempt + 1} returned HTTP {resp.status_code}"
                     )
