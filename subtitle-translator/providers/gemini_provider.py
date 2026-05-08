@@ -22,12 +22,15 @@ class GeminiProvider(BaseLLMProvider):
         )
         self._gemini_model = genai.GenerativeModel(self.model, generation_config=self._gen_config)
 
-    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> List[str]:
+    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None, fix_instructions: str = None) -> List[str]:
         import google.generativeai as genai
         
         # 1. Build prompts
         sys_prompt = build_system_prompt(movie_title, source_language, genre, glossary)
         user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False, indent=2), context)
+        
+        if fix_instructions:
+            user_prompt += f"\n\n{fix_instructions}"
         
         # Initialize model with system instruction
         model = genai.GenerativeModel(

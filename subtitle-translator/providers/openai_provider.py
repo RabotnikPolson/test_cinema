@@ -36,16 +36,20 @@ class OpenAIProvider(BaseLLMProvider):
         self.execution_mode = execution_mode
 
     async def _call_api(
-        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None
+        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None, fix_instructions: str = None
     ) -> List[str]:
         """Standard synchronous path. Always used per-chunk by FallbackRouter."""
-        return await self._execute_standard(lines, context, movie_title, source_language, genre, glossary)
+        return await self._execute_standard(lines, context, movie_title, source_language, genre, glossary, fix_instructions)
 
     async def _execute_standard(
-        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None
+        self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None, fix_instructions: str = None
     ) -> List[str]:
         sys_prompt = build_system_prompt(movie_title, source_language, genre, glossary)
         user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False), context)
+        
+        if fix_instructions:
+            user_prompt += f"\n\n{fix_instructions}"
+            
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,

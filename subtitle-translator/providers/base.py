@@ -2,8 +2,11 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import List
 import logging
+import json
 from schemas.checkpoint import ChunkResult
 from processing.tag_preservator import TagPreservator
+from processing.translation_validator import TranslationValidator
+from config.kazakh_prompt import VALIDATION_FIX_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,33 @@ class BaseLLMProvider(ABC):
                 # Post-process: restore tags
                 restored = self._tag_preservator.restore(result, tag_map)
                 
+                # Validation and retry logic
+                validator = TranslationValidator(glossary=glossary)
+                val_result = validator.validate(lines, restored)
+                
+                if not val_result.is_valid:
+                    fix_instructions = VALIDATION_FIX_PROMPT.format(
+                        issues=validator.build_fix_prompt_issues(val_result),
+                        original_lines=json.dumps(lines, ensure_ascii=False),
+                        broken_translation=json.dumps(restored, ensure_ascii=False)
+                    )
+                    logger.warning(f"Validation failed for chunk. Retrying once with fix_instructions...")
+                    
+                    try:
+                        fixed_result = await self._call_api(clean_lines, context, movie_title, source_language, genre, glossary, fix_instructions=fix_instructions)
+                        # We don't check line counts on the retry strictly to avoid dropping it entirely if it fails again, but we just restore tags.
+                        # Wait, we should probably verify if the line counts match before restoring.
+                        if len(fixed_result) == expected_count:
+                            restored = self._tag_preservator.restore(fixed_result, tag_map)
+                            val_result = validator.validate(lines, restored)
+                    except Exception as e:
+                        logger.error(f"Fix retry failed with exception: {e}")
+                        
+                    if not val_result.is_valid:
+                        logger.error("Validation failed even after fix retry.")
+                        for i in val_result.flagged_lines.keys():
+                            restored[i] = f"[FIXME-EN] {restored[i]}"
+                
                 return ChunkResult(
                     chunk_index=-1, # Will be set by FallbackRouter
                     original_lines=lines,
@@ -72,5 +102,5 @@ class BaseLLMProvider(ABC):
         raise LineMismatchError("Exhausted retries for line matching")
 
     @abstractmethod
-    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None) -> List[str]:
+    async def _call_api(self, lines: List[str], context: str, movie_title: str, source_language: str = "ru", genre: str = "general", glossary: dict = None, fix_instructions: str = None) -> List[str]:
         pass

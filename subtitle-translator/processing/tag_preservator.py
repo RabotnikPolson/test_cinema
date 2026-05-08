@@ -1,5 +1,8 @@
 import re
+import logging
 from typing import List, Tuple, Dict
+
+logger = logging.getLogger(__name__)
 
 class TagPreservator:
     """
@@ -40,6 +43,11 @@ class TagPreservator:
         return cleaned_lines, tag_map
 
     def restore(self, translated_lines: List[str], tag_map: Dict[str, str]) -> List[str]:
+        full_text = "".join(translated_lines)
+        missing = [k for k in tag_map if k not in full_text]
+        if missing:
+            logger.warning(f"Lost placeholders during translation: {missing}")
+
         restored_lines = []
         for line in translated_lines:
             current_line = line
