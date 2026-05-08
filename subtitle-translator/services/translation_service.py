@@ -23,9 +23,10 @@ class TranslationService:
     Core orchestrator.
 
     Architecture:
-      1. FallbackRouter contains ONLY Gemini providers (sync, per-chunk).
-      2. When ALL Gemini models are exhausted on any chunk,
-         ALL remaining chunks are submitted to OpenAI Batch API at once.
+    Architecture:
+      1. FallbackRouter contains sync providers (Gemini or OpenAI).
+      2. execution_mode = "standard" -> strictly synchronous, no batch fallback.
+      3. execution_mode = "batch" -> purely batch, bypasses sync chain.
       3. Worker is then released. Results arrive via webhook or BatchReconciler.
     """
 
@@ -36,7 +37,7 @@ class TranslationService:
         checkpoint_repo: CheckpointRepository,
         smart_chunker: SmartChunker,
         tag_preservator: TagPreservator,
-        gemini_provider_factory: Callable,
+        sync_provider_factory: Callable,
         openai_provider_factory: Callable,
         webhook_client,
         settings,
@@ -44,7 +45,7 @@ class TranslationService:
         self._repo = checkpoint_repo
         self._smart_chunker = smart_chunker
         self._tag_preservator = tag_preservator
-        self._gemini_provider_factory = gemini_provider_factory
+        self._sync_provider_factory = sync_provider_factory
         self._openai_provider_factory = openai_provider_factory
         self._webhook_client = webhook_client
         self._settings = settings
@@ -191,11 +192,7 @@ class TranslationService:
             await self._repo.create_job(job)
             logger.info(f"Created new job {job.job_id}")
 
-        # 5. Build Gemini-only chain for FallbackRouter
-        gemini_providers = self._gemini_provider_factory()
-        router = FallbackRouter(gemini_providers)
-
-        # 6. Rolling context buffer
+        # 5. Rolling context buffer
         context_buffer: deque = deque(maxlen=self.CONTEXT_WINDOW_LINES)
 
         if job.next_chunk_index > 0:
@@ -204,7 +201,18 @@ class TranslationService:
                 for line in ec.translated_lines:
                     context_buffer.append(line)
 
-        # 7. Translation loop (Gemini only)
+        # 6. Check execution mode bypass
+        if request.execution_mode == "batch":
+            logger.info(f"Execution mode 'batch' requested for job {job.job_id}, submitting batch directly.")
+            return await self._submit_batch_fallback(
+                job, chunks, job.next_chunk_index, context_buffer
+            )
+
+        # 7. Build sync chain for FallbackRouter
+        sync_providers = self._sync_provider_factory()
+        router = FallbackRouter(sync_providers)
+
+        # 8. Translation loop (Sync only)
         for i in range(job.next_chunk_index, len(chunks)):
             chunk = chunks[i]
             lines = [entry.text for entry in chunk]
@@ -226,16 +234,22 @@ class TranslationService:
                     context_buffer.append(line)
 
             except ExhaustedProvidersError:
-                # ALL Gemini models failed → submit ALL remaining to OpenAI Batch
-                logger.warning(
-                    f"All Gemini models exhausted at chunk {i}/{len(chunks) - 1}. "
-                    f"Falling back to OpenAI Batch for {len(chunks) - i} remaining chunks."
+                logger.error(
+                    f"All sync models exhausted at chunk {i}/{len(chunks) - 1}. "
+                    f"Execution mode is standard, failing the job."
                 )
-                return await self._submit_batch_fallback(
-                    job, chunks, i, context_buffer
+                await self._repo.update_job_status(job.job_id, "exhausted")
+                await self._webhook_client.send_webhook(
+                    WebhookPayload(
+                        movie_id=job.movie_id,
+                        language="kk",
+                        status="failed",
+                        error_message="All sync providers exhausted in standard mode",
+                    )
                 )
+                return {"status": "exhausted", "error": "All sync models failed"}
 
-        # 8. All chunks completed synchronously — assemble file
+        # 9. All chunks completed synchronously — assemble file
         all_results = await self._repo.get_chunks_for_job(job.job_id)
         self._assemble_file(all_results, job.output_path, entries)
         await self._repo.update_job_status(job.job_id, "completed")

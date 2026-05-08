@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # LLM
+    PRIMARY_PROVIDER: str = "gemini"  # "gemini" or "openai"
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     OPENAI_WEBHOOK_SECRET: str = ""

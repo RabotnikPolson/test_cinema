@@ -42,5 +42,5 @@ OPENAI_BATCH_MODEL = {
     "model": "gpt-5-nano-2025-08-07",
     "provider": "openai",
     "max_retries": 2,
-    "temperature": 0.10,
+    "reasoning_effort": "medium",
 }

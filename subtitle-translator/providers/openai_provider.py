@@ -50,15 +50,19 @@ class OpenAIProvider(BaseLLMProvider):
         if fix_instructions:
             user_prompt += f"\n\n{fix_instructions}"
             
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+        }
+        for key in ["temperature", "max_tokens", "reasoning_effort"]:
+            if key in self.config:
+                payload[key] = self.config[key]
+
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=self.config.get("temperature", 0.15),
-            )
+            response = await self.client.chat.completions.create(**payload)
             text = response.choices[0].message.content.strip()
             return self._parse_json_response(text)
         except Exception as e:
@@ -87,18 +91,22 @@ class OpenAIProvider(BaseLLMProvider):
             sys_prompt = build_system_prompt(movie_title, source_lang="en", genre="general", glossary={})
             user_prompt = build_user_prompt(json.dumps(lines, ensure_ascii=False), context)
 
+            body = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+            }
+            for key in ["temperature", "max_tokens", "reasoning_effort"]:
+                if key in self.config:
+                    body[key] = self.config[key]
+
             req = {
                 "custom_id": custom_id,
                 "method": "POST",
                 "url": "/v1/chat/completions",
-                "body": {
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": self.config.get("temperature", 0.15),
-                },
+                "body": body,
             }
             jsonl_lines.append(json.dumps(req))
 
