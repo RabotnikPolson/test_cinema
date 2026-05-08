@@ -115,13 +115,13 @@ async def main():
                     "  If Java is not running, the webhook will be persisted for retry."
                 )
             else:
-                print(f"\n  ❌ Unexpected status code: {resp.status_code}")
+                print(f"\n Unexpected status code: {resp.status_code}")
 
     except httpx.ConnectError:
-        print("\n  ❌ Cannot connect to http://localhost:8100")
+        print("\n  Cannot connect to http://localhost:8100")
         print("  Did you start the server? Run: uvicorn main:app --port 8100")
     except Exception as e:
-        print(f"\n  ❌ Error: {e}")
+        print(f"\n  Error: {e}")
 
 
 if __name__ == "__main__":
