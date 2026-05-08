@@ -35,12 +35,18 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Java side:** Active metadata/download pipeline exists in `SubtitleMetadataService` + `SubtitleDownloadWorker` with `MovieSubtitle` / `MovieSubtitleRepository`, plus translation webhook handling in `SubtitleTranslationWebhookController`
 - **Discovery pattern:** `SubtitleMetadataService.discoverForMovie()` performs waterfall search `kk → ru (for CIS country) → en` via `OpenSubtitlesClient.searchSubtitles(...)` and saves `os_file_id` queue records in `movie_subtitles`
 - **Download pattern:** `SubtitleDownloadWorker.processDownloadQueue()` takes first pending subtitle, calls `OpenSubtitlesClient.requestDownloadLink(...)`, saves bytes to `storage/subtitles/{movieId}/{lang}.vtt`, marks `is_downloaded=true`, sets `translation_status='pending'`, then calls `SubtitleTranslationClient.triggerTranslation(...)`
+ - **Download pattern:** `SubtitleDownloadWorker.processDownloadQueue()` takes first pending subtitle, calls `OpenSubtitlesClient.requestDownloadLink(...)`, saves bytes to `storage/subtitles/{movieId}/{lang}.vtt`, marks `is_downloaded=true`, sets `translation_status='pending'`, then calls `SubtitleTranslationClient.triggerTranslation(...)`.
+   - Note: the worker converts the saved relative `local_path` to an absolute, forward-slash-normalized path before calling the translator to avoid working-directory differences between Java and the Python translator. It also synthesizes an absolute `output_path` that ends with `kk.srt` (Kazakh output) when requesting translation.
 - **Triggering:** Manual endpoints are provided in `controller/SubtitleTestController.java` (`POST /api/test/subtitles/discover/{movieId}`, `POST /api/test/subtitles/trigger-worker`)
 - **Java callback endpoint:** `POST /api/internal/subtitles/translation-complete` updates `movie_subtitles.translation_status`, `translated_path`, `lines_translated` (guarded by `X-Internal-Secret`; current webhook statuses are `success`, `partial`, `failed`)
+  - Implementation note: the webhook controller queries `movie_subtitles` by `movie_id` and updates the first matching row's `translation_status`/`translated_path`/`lines_translated` fields (it does not currently create a new row for the translated file).
 - **Scheduling note:** Worker method is annotated with `@Scheduled(fixedDelay = 1800000)`, but `TestCinemaApplication` currently has no `@EnableScheduling`
 - **Python translation side:** `subtitle-translator/routes/translate.py` exposes `POST /api/translate` (queued), and `subtitle-translator/services/webhook_client.py` posts results back to Java internal webhook
 - **Python vectorization side:** `python-ai/workers/worker.py` still uses `_mock_download_from_s3(...)` and APScheduler every 5 minutes for vectorization (`paraphrase-multilingual-MiniLM-L12-v2`, 384 dims)
 - **Schema mismatch warning:** Java schema now has `os_file_id/local_path/is_downloaded` + `translation_status/translated_path/lines_translated` (V23), while `python-ai` models still expect `movie_subtitles.s3_path/format/is_vectorized_for_ai`
+ - **Python vectorization side:** `python-ai/workers/worker.py` still uses `_mock_download_from_s3(...)` (a mocked S3/VTT fetch) and APScheduler every 5 minutes for vectorization (`paraphrase-multilingual-MiniLM-L12-v2`, 384 dims). It expects `movie_subtitles.s3_path` and `is_vectorized_for_ai` columns and will query `MovieSubtitle.s3_path` to retrieve VTT content (mocked in the repo).
+ - **Quota & backoff:** the Java worker now catches `OpenSubtitlesQuotaExceededException`, sets an internal lock and a `resumeAt` timestamp and will pause processing for ~24 hours when the hard daily download limit is reached. Check the worker logs for "Worker paused until" messages.
+ - **Schema mismatch warning:** Java schema now has `os_file_id/local_path/is_downloaded` + `translation_status/translated_path/lines_translated` (V23), while `python-ai` models still expect `movie_subtitles.s3_path/format/is_vectorized_for_ai`
 
 ### 4. User Authentication (JWT)
 - **Files:** `security/JwtAuthenticationFilter.java`, `security/JwtService.java`, `security/RefreshTokenService.java`, `security/CustomUserDetailsService.java`, `user/UserDetailsMapper.java`, `config/JwtProperties.java`, `auth/AuthController.java`
@@ -122,9 +128,10 @@ Comment (1:N) ← CommentReaction
 ### Fetching & Vectorizing Subtitles
 1. Trigger metadata discovery from Java (`POST /api/test/subtitles/discover/{movieId}`) to enqueue one base subtitle (`kk → ru → en`) in `movie_subtitles`
 2. Trigger Java downloader (`POST /api/test/subtitles/trigger-worker`) or wait for scheduler if `@EnableScheduling` is enabled later
-3. Java worker downloads subtitle via OpenSubtitles, saves file under `./storage/subtitles/{movieId}/{lang}.vtt`, sets `is_downloaded=true`
-4. Java worker sets `translation_status='pending'` and triggers `subtitle-translator` via `SubtitleTranslationClient` (`POST /api/translate`)
+3. Java worker downloads subtitle via OpenSubtitles, saves file under `./storage/subtitles/{movieId}/{lang}.vtt`, sets `is_downloaded=true` and stores a normalized `local_path` (forward slashes).
+4. Before calling the translator, the worker converts `local_path` to an absolute, normalized path and synthesizes an absolute `output_path` that ends with `kk.srt`. `SubtitleTranslationClient.triggerTranslation(...)` sends a JSON body containing `movie_id`, `input_path` (absolute VTT path), `output_path` (absolute kk.srt path), `movie_title`, and `source_language` to `ai.translator.url`.
 5. `subtitle-translator` processes queue and calls Java webhook `POST /api/internal/subtitles/translation-complete` with `X-Internal-Secret`
+ - Note: the Java worker will pause for ~24 hours when OpenSubtitles hard daily download limits are hit; check worker logs for "Worker paused until" and use the manual trigger endpoint to re-run if necessary.
 6. (Optional/independent) Start Python vectorization worker from `/python-ai/` (APScheduler)
 7. Python vectorization worker vectorizes subtitle text and writes `SubtitleChunk` embeddings (384 dims)
 
@@ -208,6 +215,7 @@ Comment (1:N) ← CommentReaction
 1. **Flyway migration stuck?** Check `flyway_schema_history` table; manually delete bad entries if needed
 2. **Kinopoisk API rate limited?** Worker catches errors; check logs for "limit exceeded" messages; data cached in DB so subsequent requests fast
 3. **Subtitle flow not running?** Java downloader scheduling requires `@EnableScheduling`; otherwise use `POST /api/test/subtitles/trigger-worker`. For translation callback, verify `ai.translator.secret` (Java) equals `INTERNAL_SECRET` (Python). `python-ai` worker still expects columns (`s3_path`, `is_vectorized_for_ai`) not present in Java schema (`V21` + `V23`)
+    - Note: the Java worker normalizes `local_path` to an absolute, forward-slash path when calling the translator to avoid cross-platform working-directory issues. If downloads stop unexpectedly, check the worker logs for quota backoff messages ("Worker paused until ...") — the worker will pause for ~24 hours after `OpenSubtitlesQuotaExceededException`.
 4. **JWT token invalid?** Ensure `JWT_SECRET` env var set; token must match secret; check expiry (`accessTtlMin`)
 5. **Swagger docs not showing?** Visit `http://localhost:8080/swagger-ui.html` after app starts; auto-generated from `@Operation`, `@Parameter` annotations
 
@@ -225,4 +233,4 @@ Comment (1:N) ← CommentReaction
 
 ---
 
-**Updated:** 2026-04-21 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
+**Updated:** 2026-05-08 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
