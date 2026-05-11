@@ -122,6 +122,10 @@ public class Movie {
 
     @Column(name = "tmdb_id")
     private Long tmdbId;
+
+    @Column(name = "video_s3_path", length = 500)
+    private String videoS3Path;
+
     // ── Жанры (many-to-many) ──────────────────────────────────────────────
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -264,4 +268,7 @@ public class Movie {
 
     public Long getTmdbId() { return tmdbId; }
     public void setTmdbId(Long tmdbId) { this.tmdbId = tmdbId; }
+
+    public String getVideoS3Path() { return videoS3Path; }
+    public void setVideoS3Path(String videoS3Path) { this.videoS3Path = videoS3Path; }
 }

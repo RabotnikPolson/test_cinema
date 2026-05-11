@@ -65,6 +65,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/trending").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/metrics/**").permitAll()
                         .requestMatchers("/profile/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/profile/**").permitAll()
                         .requestMatchers("/profile/**").authenticated()

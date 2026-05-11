@@ -7,6 +7,8 @@ import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.model.WatchHistory;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.WatchHistoryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.*;
 
 @Service
 public class WatchService {
+    private static final Logger log = LoggerFactory.getLogger(WatchService.class);
     private final WatchHistoryRepository whRepo;
     private final MovieRepository movieRepo;
 
@@ -48,7 +51,42 @@ public class WatchService {
             wh.setSecondsWatched(wh.getSecondsWatched() + delta);
         }
         wh.setLastBeatAt(Instant.now());
+
+        // Автоматически помечаем просмотр завершённым при достижении 90% хронометража
+        if (!wh.isCompleted()) {
+            Integer runtimeMinutes = parseRuntimeMinutes(movie.getRuntime());
+            if (runtimeMinutes != null && runtimeMinutes > 0) {
+                int runtimeSeconds = runtimeMinutes * 60;
+                if (wh.getSecondsWatched() >= runtimeSeconds * 0.9) {
+                    wh.setCompleted(true);
+                    log.debug("[WATCH] session {} marked as completed ({} sec / {} sec)",
+                            dto.sessionId(), wh.getSecondsWatched(), runtimeSeconds);
+                }
+            }
+        }
+
         whRepo.save(wh);
+    }
+
+    /**
+     * Парсит хронометраж фильма из строки.
+     * Поддерживаемые форматы: "120 min", "120"
+     *
+     * @param runtime строка из Movie.runtime
+     * @return длительность в минутах, или null если строка null / непарсируемая
+     */
+    private Integer parseRuntimeMinutes(String runtime) {
+        if (runtime == null || runtime.isBlank()) {
+            return null;
+        }
+        try {
+            // Формат "120 min" — берём первый токен до пробела
+            String trimmed = runtime.trim().split("\\s+")[0];
+            return Integer.parseInt(trimmed);
+        } catch (NumberFormatException e) {
+            log.debug("[WATCH] Не удалось распарсить runtime '{}', пропускаем расчёт completion", runtime);
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)

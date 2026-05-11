@@ -53,7 +53,14 @@ public class KinopoiskClient {
         return get("/api/v2.2/films" + query);
     }
 
-    // ─── Похожие фильмы ───────────────────────────────────────────────────────
+    // ─── Похожие и Тренды ─────────────────────────────────────────────────────
+
+    /**
+     * GET /api/v2.2/films/collections?type=TOP_POPULAR_ALL&page={page} — ТОП популярных
+     */
+    public JsonNode fetchTopPopular(int page) {
+        return get("/api/v2.2/films/collections?type=TOP_POPULAR_ALL&page=" + page);
+    }
 
     /**
      * GET /api/v2.2/films/{id}/similars — список похожих фильмов (для AI-графа).

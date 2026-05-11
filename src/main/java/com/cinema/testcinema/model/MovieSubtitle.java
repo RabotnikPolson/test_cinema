@@ -39,6 +39,9 @@ public class MovieSubtitle {
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "s3_path", length = 500)
+    private String s3Path;
+
     public MovieSubtitle() {
     }
 
@@ -122,5 +125,13 @@ public class MovieSubtitle {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getS3Path() {
+        return s3Path;
+    }
+
+    public void setS3Path(String s3Path) {
+        this.s3Path = s3Path;
     }
 }

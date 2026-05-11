@@ -35,7 +35,7 @@ public class KinopoiskSyncService {
         this.genreRepository = genreRepository;
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public Movie fetchAndSave(String kinopoiskId) {
         JsonNode data = client.fetchFilm(kinopoiskId);
 
@@ -79,11 +79,17 @@ public class KinopoiskSyncService {
         movie.setEditorAnnotation(textOf(data, "editorAnnotation"));
 
         // -- Year ----------------------------------------------------------
-        if (data.hasNonNull("year")) {
-            movie.setYear(data.get("year").asLong());
-        } else if (data.hasNonNull("startYear")) {
-            movie.setYear(data.get("startYear").asLong());
+        Long year = null;
+        if (data.hasNonNull("year") && data.get("year").asLong() > 0) {
+            year = data.get("year").asLong();
+        } else if (data.hasNonNull("startYear") && data.get("startYear").asLong() > 0) {
+            year = data.get("startYear").asLong();
         }
+        
+        if (year != null && (year < 1888 || year > 2100)) {
+            year = null;
+        }
+        movie.setYear(year);
 
         // -- Runtime -------------------------------------------------------
         if (data.hasNonNull("filmLength")) {
