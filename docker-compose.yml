@@ -26,6 +26,32 @@ services:
     volumes:
       - minio_data:/data
 
+  test-ai:
+    build:
+      context: ./test_ai/test_ai
+    container_name: test-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=test_user
+      - DB_PASS=pass1
+      - DB_NAME=testdb
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: https://github.com/RabotnikPolson/main-frontend.git#refactor/fsd-cleanup
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - test-ai
+
 volumes:
   pgdata:
   minio_data:
