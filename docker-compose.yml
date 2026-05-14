@@ -44,7 +44,7 @@ services:
 
   frontend:
     build:
-      context: https://github.com/RabotnikPolson/main-frontend.git#refactor/fsd-cleanup
+      context: ./main-frontend
     container_name: frontend
     restart: unless-stopped
     ports:
