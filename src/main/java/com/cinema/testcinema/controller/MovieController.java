@@ -37,7 +37,7 @@ public class MovieController {
     @Operation(summary = "Добавить/обновить фильм по ID Кинопоиска (ADMIN)")
     public Movie addFromKinopoisk(
             @Parameter(description = "Числовой ID фильма на kinopoisk.ru (например, 301 – это 'Матрица')")
-            @RequestParam String kinopoiskId) {
+            @RequestParam(name = "kinopoiskId") String kinopoiskId) {
         if (kinopoiskId == null || kinopoiskId.isBlank()) {
             throw new IllegalArgumentException("kinopoiskId не может быть пустым");
         }
@@ -65,7 +65,7 @@ public class MovieController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Получить фильм по внутреннему ID")
-    public Movie getMovieById(@PathVariable Long id) {
+    public Movie getMovieById(@PathVariable(name = "id") Long id) {
         return movieRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Фильм с ID " + id + " не найден"));
     }
@@ -73,7 +73,7 @@ public class MovieController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Удалить фильм по ID (ADMIN)")
-    public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteMovie(@PathVariable(name = "id") Long id) {
         movieRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
