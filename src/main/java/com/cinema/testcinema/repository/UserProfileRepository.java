@@ -1,0 +1,11 @@
+package com.cinema.testcinema.repository;
+
+import com.cinema.testcinema.model.UserProfile;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface UserProfileRepository extends JpaRepository<UserProfile, Long> {
+    Optional<UserProfile> findByUserId(Long userId);
+    Optional<UserProfile> findByUserUsername(String username);
+}
