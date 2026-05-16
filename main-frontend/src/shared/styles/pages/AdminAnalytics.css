@@ -1,0 +1,67 @@
+/* src/styles/pages/AdminAnalytics.css */
+.admin-analytics {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--text);
+}
+
+.admin-analytics h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.admin-analytics .card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
+  padding: 16px;
+}
+
+.admin-analytics table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.admin-analytics thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  background: var(--tile);
+}
+
+.admin-analytics tbody td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.admin-analytics tbody tr:hover {
+  background: var(--tile-hover);
+}
+
+.admin-analytics .meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* горизонтальный скролл на узких экранах */
+.admin-analytics .table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .admin-analytics h1 { font-size: 20px; }
+  .admin-analytics .card { padding: 12px; }
+  .admin-analytics thead { position: sticky; top: 0; z-index: 1; }
+}

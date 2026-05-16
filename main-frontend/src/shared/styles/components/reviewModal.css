@@ -1,0 +1,140 @@
+.review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.62);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  z-index: 1000;
+}
+
+.review-modal-card {
+  width: min(760px, 100%);
+  background: rgba(18,18,18,0.98);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+
+.review-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.review-modal-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-modal-block {
+  margin-top: 14px;
+}
+
+.review-modal-label {
+  margin-bottom: 8px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-star {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.22);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.review-star.is-active {
+  color: #f5c518;
+  border-color: rgba(245,197,24,0.35);
+  background: rgba(245,197,24,0.10);
+}
+
+.review-rating-value {
+  margin-left: 6px;
+  opacity: 0.8;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.review-modal-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: inherit;
+  outline: none;
+}
+
+.review-modal-textarea:focus {
+  border-color: rgba(255,255,255,0.22);
+}
+
+.review-modal-error {
+  margin-top: 10px;
+  color: #ff6b6b;
+  font-size: 13px;
+}
+
+.review-modal-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.review-btn-primary {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.12);
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-btn-primary:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.review-btn-ghost {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-btn-ghost:hover {
+  background: rgba(255,255,255,0.10);
+}

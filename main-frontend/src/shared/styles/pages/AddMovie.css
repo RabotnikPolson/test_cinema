@@ -1,0 +1,26 @@
+/* src/styles/pages/AddMovie.css */
+.addmovie-page h1 { color: var(--text); margin-bottom: 16px; }
+
+.imdb-import {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: 520px;
+}
+.imdb-import .input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.imdb-import .button {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  cursor: pointer;
+}
+.status-message { margin-top: 12px; color: var(--muted); }
