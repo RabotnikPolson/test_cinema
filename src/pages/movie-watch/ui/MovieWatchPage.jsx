@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { MoviePlayer } from "@/features/player";
 import { CommentsSection } from "@/features/comments";
-import { getStream, useMovie } from "@/features/movies";
+import { useMovie } from "@/features/movies";
 import WatchRecommendationsRail from "@/features/recommendations/ui/RightRailTabs";
 import {
   ReviewCard,
@@ -11,56 +11,7 @@ import {
   useReviewMutations,
   useReviewsByMovie,
 } from "@/features/reviews";
-import { WatchTracker } from "@/features/watch-history";
 import "@/shared/styles/pages/MovieWatch.css";
-
-function MoviePlayer({ streamData, isLoading, isError, onRetry, movieId }) {
-  return (
-    <div className="watch-player glass">
-      <div className="watch-player-top">
-        <span>Видео</span>
-        <button className="button button--ghost" onClick={onRetry} disabled={isLoading}>
-          Обновить источник
-        </button>
-      </div>
-
-      <div className="watch-player-stage">
-        {isLoading && <div className="watch-player-status">Загрузка видео...</div>}
-        {isError && (
-          <div className="watch-player-status watch-player-status-error">
-            Не удалось загрузить видео.
-            <button className="button button--ghost" onClick={onRetry}>
-              Повторить
-            </button>
-          </div>
-        )}
-
-        {!isLoading && !isError && streamData?.url ? (
-          <div className="watch-video-card">
-            <WatchTracker url={streamData.url} movieId={movieId} />
-          </div>
-        ) : (
-          !isLoading && (
-            <div className="watch-player-fallback">
-              Источник недоступен. Попробуйте открыть в новой вкладке.
-            </div>
-          )
-        )}
-      </div>
-
-      <div className="watch-player-bottom">
-        <button
-          className="button btn-primary"
-          onClick={() => window.open(streamData?.url, "_blank", "noopener,noreferrer")}
-          disabled={!streamData?.url || isLoading}
-        >
-          Открыть в новой вкладке
-        </button>
-        {streamData?.quality && <span className="watch-quality">{streamData.quality}</span>}
-      </div>
-    </div>
-  );
-}
 
 export default function MovieWatchPage() {
   const { id } = useParams();
@@ -84,12 +35,6 @@ export default function MovieWatchPage() {
       document.title = `${movie.title} — CineVerse`;
     }
   }, [movie?.title]);
-
-  const streamQuery = useQuery({
-    queryKey: ["stream", movieId],
-    queryFn: () => getStream(movieId),
-    enabled: !!movieId,
-  });
 
   const reviewsQuery = useReviewsByMovie(movieId, 0, 5);
   const reviews = reviewsQuery.data?.items || [];
@@ -117,12 +62,8 @@ export default function MovieWatchPage() {
   };
 
   const onDelete = async (reviewId) => {
-    if (!reviewId) {
-      return;
-    }
-    if (!window.confirm("Удалить отзыв?")) {
-      return;
-    }
+    if (!reviewId) return;
+    if (!window.confirm("Удалить отзыв?")) return;
     try {
       await mutations.deleteReview.mutateAsync(reviewId);
     } catch (reviewError) {
@@ -178,13 +119,7 @@ export default function MovieWatchPage() {
 
       <div className="watch-grid">
         <main className="watch-main">
-          <MoviePlayer
-            streamData={streamQuery.data}
-            isLoading={streamQuery.isLoading}
-            isError={streamQuery.isError}
-            onRetry={() => streamQuery.refetch()}
-            movieId={movieId}
-          />
+          <MoviePlayer movieId={movieId} />
 
           <div className="watch-headline glass">
             <div>

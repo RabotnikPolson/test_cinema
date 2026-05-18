@@ -1,12 +1,41 @@
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addFromKinopoisk, deleteMovie, useMovies } from "@/features/movies";
+import http from "@/shared/api/http-client";
 import "@/shared/styles/pages/AddMovie.css";
+
+const STATUS_COLORS = {
+  none: { bg: "rgba(122,127,153,0.15)", color: "#7A7F99" },
+  pending: { bg: "rgba(201,168,76,0.15)", color: "#C9A84C" },
+  in_progress: { bg: "rgba(201,168,76,0.2)", color: "#C9A84C" },
+  completed: { bg: "rgba(34,197,94,0.15)", color: "#22c55e" },
+  failed: { bg: "rgba(239,68,68,0.15)", color: "#ef4444" },
+};
+
+function StatusBadge({ status }) {
+  const s = STATUS_COLORS[status] || STATUS_COLORS.none;
+  return (
+    <span
+      style={{
+        padding: "4px 10px",
+        borderRadius: "999px",
+        fontSize: "0.8rem",
+        fontWeight: 600,
+        background: s.bg,
+        color: s.color,
+        textTransform: "capitalize",
+      }}
+    >
+      {status || "none"}
+    </span>
+  );
+}
 
 export default function AdminMoviesPage() {
   const { data: movies = [], isLoading, isError, error } = useMovies();
   const [kpId, setKpId] = useState("");
   const [msg, setMsg] = useState("");
+  const [toast, setToast] = useState("");
   const qc = useQueryClient();
 
   const addMut = useMutation({
@@ -17,8 +46,7 @@ export default function AdminMoviesPage() {
       setKpId("");
     },
     onError: (err) => {
-      const errorMsg =
-        err.response?.data?.message || err.message || "Ошибка сервера";
+      const errorMsg = err.response?.data?.message || err.message || "Ошибка сервера";
       setMsg(`Ошибка: ${errorMsg}`);
     },
   });
@@ -31,22 +59,30 @@ export default function AdminMoviesPage() {
     },
     onError: (err) => {
       const status = err.response?.status;
-      const backend =
-        err.response?.data?.message || err.response?.data || "Ошибка сервера";
-      const errorMsg = `${status ? `[${status}] ` : ""}${backend}`;
-      setMsg(`Ошибка удаления: ${errorMsg}`);
+      const backend = err.response?.data?.message || err.response?.data || "Ошибка сервера";
+      setMsg(`Ошибка удаления: ${status ? `[${status}] ` : ""}${backend}`);
+    },
+  });
+
+  const triggerMut = useMutation({
+    mutationFn: () => http.post("/api/test/subtitles/trigger-worker"),
+    onSuccess: () => {
+      setToast("Задача отправлена AI-агенту");
+      setTimeout(() => setToast(""), 3000);
+    },
+    onError: () => {
+      setToast("Ошибка запуска AI-воркера");
+      setTimeout(() => setToast(""), 3000);
     },
   });
 
   const onSubmit = (event) => {
     event.preventDefault();
     const id = kpId.trim();
-
     if (!/^[0-9]+$/.test(id)) {
       setMsg("Введите числовой Kinopoisk ID");
       return;
     }
-
     addMut.mutate(id);
   };
 
@@ -61,6 +97,29 @@ export default function AdminMoviesPage() {
   return (
     <div className="container addmovie-page">
       <h1>Админ: управление фильмами</h1>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            right: 24,
+            zIndex: 9999,
+            padding: "14px 24px",
+            borderRadius: 12,
+            background: "rgba(13,18,32,0.95)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(201,168,76,0.3)",
+            color: "#C9A84C",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          }}
+        >
+          {toast}
+        </div>
+      )}
 
       <section className="admin-add-section">
         <h2>Добавить фильм по Kinopoisk ID</h2>
@@ -96,6 +155,7 @@ export default function AdminMoviesPage() {
                   <th>Название</th>
                   <th>Год</th>
                   <th>Жанр</th>
+                  <th>Статус перевода</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -107,13 +167,22 @@ export default function AdminMoviesPage() {
                     <td>{movie.year || "-"}</td>
                     <td>{movie.genre || "-"}</td>
                     <td>
+                      <StatusBadge status={movie.translationStatus} />
+                    </td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="button button--ghost"
+                        style={{ fontSize: "0.8rem", padding: "4px 10px", color: "#C9A84C" }}
+                        disabled={triggerMut.isPending}
+                        onClick={() => triggerMut.mutate()}
+                      >
+                        AI-перевод (KZ)
+                      </button>
                       <button
                         className="button button--ghost"
                         disabled={deleteMut.isPending}
                         onClick={() => {
-                          if (!window.confirm(`Удалить фильм "${movie.title}" (ID ${movie.id})?`)) {
-                            return;
-                          }
+                          if (!window.confirm(`Удалить фильм "${movie.title}" (ID ${movie.id})?`)) return;
                           deleteMut.mutate(movie.id);
                         }}
                       >

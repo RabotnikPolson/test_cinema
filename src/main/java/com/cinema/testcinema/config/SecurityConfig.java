@@ -57,8 +57,6 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        .requestMatchers("/stream/**").permitAll()
-                        .requestMatchers("/movies/*/stream").permitAll()
                         .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
 
@@ -72,6 +70,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/reviews/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/reviews/**").authenticated()
                         .requestMatchers("/ratings/**").authenticated()
+                        .requestMatchers("/metrics/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/shop/**").permitAll()
+                        .requestMatchers("/shop/**").authenticated()
+                        .requestMatchers("/api/admin/**").authenticated()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider())

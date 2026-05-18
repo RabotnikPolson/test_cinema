@@ -10,6 +10,7 @@ const GenresPage = lazy(() => import("@/pages/genres/ui/GenresPage"));
 const AddMoviePage = lazy(() => import("@/pages/admin/ui/AddMoviePage"));
 const AdminMoviesPage = lazy(() => import("@/pages/admin/ui/AdminMoviesPage"));
 const AdminAnalyticsPage = lazy(() => import("@/pages/admin/ui/AdminAnalyticsPage"));
+const AdminShopManager = lazy(() => import("@/pages/admin/ui/AdminShopManager"));
 const UserActivityPage = lazy(() => import("@/pages/admin/ui/UserActivityPage"));
 const FavoritesPage = lazy(() => import("@/pages/favorites/ui/FavoritesPage"));
 const HistoryPage = lazy(() => import("@/pages/history/ui/HistoryPage"));
@@ -22,6 +23,7 @@ const RegisterPage = lazy(() => import("@/pages/auth/ui/RegisterPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/ui/SettingsPage"));
 const SubscriptionPage = lazy(() => import("@/pages/subscription/ui/SubscriptionPage"));
 const ProfilePage = lazy(() => import("@/pages/user-profile/ui/ProfilePage"));
+const ShopPage = lazy(() => import("@/pages/shop/ui/ShopPage"));
 
 function ScrollToTop() {
   const location = useLocation();
@@ -47,6 +49,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />
+            <Route path="shop" element={<ShopPage />} />
 
             <Route path="movie/:id" element={<MovieDetailsPage />} />
             <Route path="movie/:id/watch" element={<MovieWatchPage />} />
@@ -74,6 +77,14 @@ export default function App() {
               element={
                 <AdminRoute>
                   <AdminAnalyticsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/shop"
+              element={
+                <AdminRoute>
+                  <AdminShopManager />
                 </AdminRoute>
               }
             />
