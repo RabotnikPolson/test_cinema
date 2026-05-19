@@ -44,7 +44,8 @@ dependencies {
 
     implementation 'org.flywaydb:flyway-core:10.19.0'                 // сам Flyway
     implementation 'org.flywaydb:flyway-database-postgresql:10.19.0'  // поддержка Postgres
-    implementation 'io.minio:minio:8.5.9'                             // MinIO S3 client
+    implementation 'io.minio:minio:8.5.9'
+
 }
 
 

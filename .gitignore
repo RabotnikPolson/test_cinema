@@ -41,3 +41,5 @@ out/
 ### Env ###
 .env
 *.env
+
+node_modules/

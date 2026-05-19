@@ -1,24 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from contextlib import asynccontextmanager
 
 from database import SessionLocal
 from models import Movie, User, Rating, WatchHistory
 import recommender
 
-app = FastAPI(title="Cinema AI Service", version="3.0.0")
-
 ML_MODEL = {
     "df": None,
     "similarity": None
 }
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def load_models():
     try:
@@ -29,14 +22,44 @@ def load_models():
     except Exception as e:
         print(f"Error loading models: {e}")
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     load_models()
+    yield
+    # Shutdown (nothing to do)
+
+app = FastAPI(title="Cinema AI Service", version="3.0.0", lifespan=lifespan)
+
+# CORS — разрешаем фронтенду (React) обращаться напрямую к Python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 @app.post("/api/v1/ml/retrain")
 async def retrain_models(background_tasks: BackgroundTasks):
     background_tasks.add_task(load_models)
     return {"_comment_action": "Процесс переобучения запущен в фоновом режиме", "status": "ok"}
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "model_loaded": ML_MODEL["df"] is not None,
+        "movies_in_model": len(ML_MODEL["df"]) if ML_MODEL["df"] is not None else 0
+    }
 
 @app.get("/api/v1/stats")
 async def get_ml_stats(db: Session = Depends(get_db)):
@@ -93,7 +116,7 @@ async def recommend_hybrid(movie_id: int, limit: int = 5):
     return {"movie_id": movie_id, "recommendations": recs, "method": "hybrid_scoring"}
 
 @app.get("/api/v1/recommend/tab/smart/{movie_id}")
-async def recommend_smart(movie_id: int, limit: int = 5, user_id: int = None):
+async def recommend_smart(movie_id: int, limit: int = 5, user_id: Optional[int] = None):
     """Умный гибрид: candidate generation → re-scoring → re-ranking. Исключает просмотренные."""
     check_model()
     recs = recommender.get_smart_hybrid_recommendations(
@@ -141,7 +164,11 @@ async def recommend_collaborative_user(user_id: int, limit: int = 5):
 @app.get("/api/v1/recommend/feed/{user_id}")
 async def get_smart_feed(user_id: int):
     check_model()
-    feed = recommender.get_youtube_like_feed(user_id, ML_MODEL["df"], ML_MODEL["similarity"])
+    try:
+        feed = recommender.get_youtube_like_feed(user_id, ML_MODEL["df"], ML_MODEL["similarity"])
+    except Exception as e:
+        print(f"Feed error for user {user_id}: {e}")
+        feed = {"top_picks_for_you": recommender.get_popular_fallback(ML_MODEL["df"], top_n=5)}
     return {"user_id": user_id, "feed": feed}
 
 @app.get("/api/v1/movie/details/{movie_id}")
@@ -159,3 +186,79 @@ async def get_movie_details(movie_id: int, db: Session = Depends(get_db)):
         "is_domestic": movie.is_domestic,
         "imdb_rating": movie.imdb_rating
     }
+
+
+# ==============================================================
+# ЭНДПОИНТЫ ДЛЯ ПРЯМОГО ПОДКЛЮЧЕНИЯ ФРОНТЕНДА (без Java прокси)
+# Зеркалируют пути которые использует frontend: /api/v1/recommendations/*
+# ==============================================================
+
+@app.get("/api/v1/recommendations/feed")
+async def frontend_smart_feed(user_id: Optional[int] = None):
+    """Лента рекомендаций для главной страницы. user_id — query param."""
+    check_model()
+    if user_id is None:
+        # Нет user_id — вернуть популярные как fallback
+        return {"feed": {"top_picks_for_you": recommender.get_popular_fallback(ML_MODEL["df"], top_n=10)}}
+    try:
+        feed = recommender.get_youtube_like_feed(user_id, ML_MODEL["df"], ML_MODEL["similarity"])
+    except Exception as e:
+        print(f"Feed error for user {user_id}: {e}")
+        feed = {"top_picks_for_you": recommender.get_popular_fallback(ML_MODEL["df"], top_n=10)}
+    return {"user_id": user_id, "feed": feed}
+
+
+@app.get("/api/v1/recommendations/tab/{type}/{movie_id}")
+async def frontend_tab_recommendations(type: str, movie_id: int, limit: int = 15, user_id: Optional[int] = None):
+    """Рекомендации по типу для страницы фильма."""
+    check_model()
+    try:
+        result = {
+            "franchise":          lambda: recommender.get_franchise_recommendations(movie_id, ML_MODEL["df"], limit),
+            "director":           lambda: recommender.get_director_recommendations(movie_id, ML_MODEL["df"], limit),
+            "actor":              lambda: recommender.get_actor_recommendations(movie_id, ML_MODEL["df"], limit),
+            "genre":              lambda: recommender.get_genre_recommendations(movie_id, ML_MODEL["df"], limit),
+            "content":            lambda: recommender.get_content_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit),
+            "hybrid":             lambda: recommender.get_hybrid_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit),
+            "smart":              lambda: recommender.get_smart_hybrid_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit, user_id),
+            "collaborative-item": lambda: recommender.get_collaborative_users_also_watched(movie_id, limit),
+        }.get(type)
+        if result is None:
+            raise HTTPException(status_code=400, detail=f"Неизвестный тип: {type}")
+        recs = result()
+        if not recs and type == "smart":
+            recs = recommender.get_hybrid_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+        return {"movie_id": movie_id, "recommendations": recs, "method": type}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Tab rec error [{type}] movie={movie_id}: {e}")
+        return {"movie_id": movie_id, "recommendations": [], "method": type}
+
+
+@app.get("/api/v1/recommendations/tab/domestic")
+async def frontend_domestic(limit: int = 15):
+    check_model()
+    recs = recommender.get_domestic_recommendations(ML_MODEL["df"], limit)
+    return {"recommendations": recs, "method": "domestic_cinema"}
+
+
+@app.get("/api/v1/recommendations/tab/because-you-liked")
+async def frontend_because_you_liked(user_id: int, limit: int = 15):
+    check_model()
+    recs = recommender.get_because_you_liked(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    if not recs:
+        recs = recommender.get_collaborative_recommendations(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    if not recs:
+        recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
+    return {"user_id": user_id, "recommendations": recs, "method": "because_you_liked"}
+
+
+@app.get("/api/v1/recommendations/movie/{movie_id}")
+async def frontend_right_rail(movie_id: int, limit: int = 15, user_id: Optional[int] = None):
+    """Правая колонка (похожие фильмы) — legacy эндпоинт фронтенда."""
+    check_model()
+    recs = recommender.get_smart_hybrid_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit, user_id)
+    if not recs:
+        recs = recommender.get_hybrid_recommendations(movie_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    return {"movie_id": movie_id, "recommendations": recs, "method": "smart_hybrid"}

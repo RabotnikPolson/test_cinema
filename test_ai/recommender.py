@@ -47,6 +47,20 @@ def get_recommendations_model():
     cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
     return df, cosine_sim
 
+def _safe_year(year_val):
+    """Safely convert year value to int or None."""
+    try:
+        if year_val is None:
+            return None
+        if pd.isna(year_val):
+            return None
+        s = str(year_val).strip()
+        if not s or s == 'nan' or s == 'None':
+            return None
+        return int(float(s))
+    except (ValueError, TypeError):
+        return None
+
 def _format_recs(df, indices, scores=None, reasons=None):
     recs = []
     for i, idx in enumerate(indices):
@@ -58,8 +72,8 @@ def _format_recs(df, indices, scores=None, reasons=None):
             "movie_id": int(df['id'].iloc[idx]),
             "score": round(float(score), 3),
             "title": df['title'].iloc[idx],
-            "poster_url": poster_val if pd.notna(poster_val) else None,
-            "year": int(year_val) if pd.notna(year_val) and str(year_val).strip() else None,
+            "poster_url": str(poster_val) if poster_val is not None and pd.notna(poster_val) else None,
+            "year": _safe_year(year_val),
             "reason": reason
         })
     return recs
@@ -67,7 +81,12 @@ def _format_recs(df, indices, scores=None, reasons=None):
 def get_popular_fallback(df, top_n=5):
     df['rating_num'] = pd.to_numeric(df['imdb_rating'], errors='coerce').fillna(0)
     popular = df.sort_values(by='rating_num', ascending=False).head(top_n)
-    return [{"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": r.get('poster_url'), "year": r.get('year')} for _, r in popular.iterrows()]
+    result = []
+    for _, r in popular.iterrows():
+        poster = r['poster_url'] if 'poster_url' in r.index and pd.notna(r['poster_url']) else None
+        year = _safe_year(r['year']) if 'year' in r.index else None
+        result.append({"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": poster, "year": year})
+    return result
 
 def get_franchise_recommendations(movie_id, df, top_n=5):
     if movie_id not in df['id'].values: return []
@@ -108,10 +127,16 @@ def get_director_recommendations(movie_id, df, top_n=5):
     if matches.empty: return []
     
     # Sort by rating or just take first N
+    matches = matches.copy()
     matches['rating_num'] = pd.to_numeric(matches['imdb_rating'], errors='coerce').fillna(0)
     best = matches.sort_values(by='rating_num', ascending=False).head(top_n)
     
-    return [{"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": r.get('poster_url'), "year": r.get('year'), "reason": f"Тот же режиссер: {director}"} for _, r in best.iterrows()]
+    result = []
+    for _, r in best.iterrows():
+        poster = r['poster_url'] if 'poster_url' in r.index and pd.notna(r['poster_url']) else None
+        year = _safe_year(r['year']) if 'year' in r.index else None
+        result.append({"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": poster, "year": year, "reason": f"Тот же режиссер: {director}"})
+    return result
 
 def get_actor_recommendations(movie_id, df, top_n=5):
     if movie_id not in df['id'].values: return []
@@ -279,12 +304,12 @@ def get_collaborative_users_also_watched(movie_id, top_n=5):
         df_collab = pd.read_sql(query, engine)
         if df_collab.empty: return []
         
-        # Get movie details for these IDs
+        # Get movie details for these IDs (включая poster_url и year)
         ids = tuple(df_collab['recommended_movie_id'].tolist())
         if len(ids) == 1:
-            query_movies = f"SELECT id, title FROM movies WHERE id = {ids[0]}"
+            query_movies = f"SELECT id, title, poster_url, year FROM movies WHERE id = {ids[0]}"
         else:
-            query_movies = f"SELECT id, title FROM movies WHERE id IN {ids}"
+            query_movies = f"SELECT id, title, poster_url, year FROM movies WHERE id IN {ids}"
             
         df_movies = pd.read_sql(query_movies, engine)
         
@@ -294,11 +319,13 @@ def get_collaborative_users_also_watched(movie_id, top_n=5):
             m_data = df_movies[df_movies['id'] == m_id]
             m_title = m_data['title'].iloc[0] if not m_data.empty else "Unknown"
             poster_val = m_data['poster_url'].iloc[0] if not m_data.empty and 'poster_url' in m_data.columns else None
+            year_val = m_data['year'].iloc[0] if not m_data.empty and 'year' in m_data.columns else None
             recs.append({
                 "movie_id": int(m_id),
                 "score": float(row['watch_count']),
                 "title": m_title,
-                "poster_url": poster_val if pd.notna(poster_val) else None,
+                "poster_url": str(poster_val) if poster_val is not None and pd.notna(poster_val) else None,
+                "year": _safe_year(year_val),
                 "reason": "Люди также смотрели"
             })
         return recs
@@ -312,8 +339,14 @@ def get_domestic_recommendations(df, top_n=5):
         if domestic.empty: return []
         domestic['rating_num'] = pd.to_numeric(domestic['imdb_rating'], errors='coerce').fillna(0)
         best = domestic.sort_values(by='rating_num', ascending=False).head(top_n)
-        return [{"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": r.get('poster_url'), "reason": "Казахстанское кино"} for _, r in best.iterrows()]
-    except:
+        result = []
+        for _, r in best.iterrows():
+            poster = r['poster_url'] if 'poster_url' in r.index and pd.notna(r['poster_url']) else None
+            year = _safe_year(r['year']) if 'year' in r.index else None
+            result.append({"movie_id": int(r['id']), "score": float(r['rating_num']), "title": r['title'], "poster_url": poster, "year": year, "reason": "Казахстанское кино"})
+        return result
+    except Exception as e:
+        print(f"get_domestic_recommendations error: {e}")
         return []
 
 # Retain old methods for compatibility
@@ -381,7 +414,7 @@ def get_youtube_like_feed(user_id, df, cosine_sim):
         
     watched_movie_ids = history_df['movie_id'].tolist()
     
-    in_progress = history_df[history_df['completed'] == False]
+    in_progress = history_df[~history_df['completed'].fillna(False).astype(bool)]
     for _, row in in_progress.head(5).iterrows():
         try:
             m_idx = df.index[df['id'] == row['movie_id']][0]
