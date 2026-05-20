@@ -130,7 +130,7 @@ This is a required sequence. Do not skip steps.
 3. **Implementation** — Work step by step. After each step:
     - Show what changed
     - Provide testing instructions: which requests to send (curl/Postman), what response to expect, what to check in the DB if needed
-4. **Final** — After all steps are done, provide a complete smoke-test guide for the entire feature from A to Z.
+4. **Final** — After all steps are done, provide a complete live-test guide for the entire feature from A to Z.
 
 ## Do Not Touch Without My Approval
 - Do not modify existing Flyway migrations (only add new ones)
