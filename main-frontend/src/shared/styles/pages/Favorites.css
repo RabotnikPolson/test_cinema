@@ -1,0 +1,4 @@
+/* src/styles/pages/Favorites.css */
+.favorites-page h1 { color: var(--text); margin-bottom: 12px; }
+.favorites-page .empty { color: var(--muted); padding: 12px 0; }
+.favorites-page .ids-hint { margin-top: 12px; color: var(--muted); font-size: 13px; }

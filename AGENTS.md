@@ -1,18 +1,19 @@
 # AGENTS.md — Guiding AI Agents in testCinema
 
-A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external API integrations, and user engagement tools.
+A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external API integrations, and user engagement tools. Includes a React/Vite SPA frontend (`main-frontend`).
 
 ## Architecture Overview
 
-**Stack:** Spring Boot 3.5.6 + PostgreSQL + Flyway migrations + JWT security + Java 17
+**Stack:** Spring Boot 3.5.6 + PostgreSQL + Flyway migrations + JWT security + Java 17 (Backend) | React 18 + Vite + React Router 6 + React Query (Frontend)
 
-**Three-tier structure:**
+**Three-tier structure (Backend):**
 - **Controllers** (`/controller/`): REST endpoints with OpenAPI docs (springdoc-openapi 2.8.13)
 - **Auth controllers** (`/auth/`): registration/login/refresh/logout JWT flow
 - **Services** (`/service/`): Business logic, external integrations, scheduled workers
 - **JPA Repositories** (`/repository/`): Spring Data JPA for database operations
 - **Models** (`/model/`): JPA entities with rich relationships (movies, users, genres, ratings, reviews, watch history, profiles, settings)
 - **Infrastructure** (`/client/`, `/config/`, `/security/`, `/user/`): HTTP clients, Spring config, JWT/security adapters, `UserPrincipal` mapping
+- **Frontend** (`/main-frontend/`): React SPA with Axios, React Query, and Chart.js for analytics. Routes are protected via JWT stored in LocalStorage.
 
 **Critical add-on:** Subtitle processing now has three parts: Java discovery/download (`SubtitleMetadataService`, `SubtitleDownloadWorker`, `MovieSubtitle`), Python translation microservice (`/subtitle-translator/`), and async Python vectorization worker (`/python-ai/`) using `sentence-transformers`.
 
@@ -54,6 +55,7 @@ A Spring Boot 3 REST API for a cinema catalog with AI-powered features, external
 - **Config:** `app.jwt.secret` (env var `JWT_SECRET`), `app.jwt.access-ttl-min` (default 30), `app.jwt.refresh-ttl-days` (default 30); `V12__security_jwt.sql` adds `users.enabled` and the `refresh_tokens` table
 - **Roles:** Stored in `user_roles` table (M2M with User); use `@PreAuthorize("hasRole('ADMIN')")` on restricted endpoints
 - **Refresh tokens:** RefreshToken entity + refresh token rotation in auth flow; disabled users are rejected by `CustomUserDetailsService`
+- **Frontend integration:** The `main-frontend` application stores tokens in LocalStorage and uses Axios interceptors (`src/api/http.js`) to append `Authorization: Bearer <jwt>`, calling `/api/auth/login` and `/api/auth/register`.
 - **Swagger auth flow:** OpenAPI config uses OAuth2 password flow with token URL `/auth/swagger-login` (`OpenApiConfig` + hidden endpoint in `AuthController`)
 
 ### 5. TMDB ID Enrichment
@@ -105,13 +107,22 @@ Comment (1:N) ← CommentReaction
 - Stream base URL: no longer configured in current `application.properties`; the legacy `StreamController` source is commented out
 - Swagger UI: auto-enabled at `http://localhost:8080/swagger-ui.html`
 
+**Frontend Environment:** `main-frontend/.env`
+- `VITE_API_URL`: Address of the backend API (e.g., `http://localhost:8080`)
+- `VITE_APP_NAME` and `VITE_ENABLE_ANALYTICS` variables.
+
 **Docker setup:** Run `docker-compose up` to start PostgreSQL (see `docker-compose.yml`)
 
 **Build & run:**
 ```bash
+# Backend
 ./gradlew build         # Build with tests
 ./gradlew bootRun       # Run app locally
 ./gradlew test          # Run tests (integration tests in /src/test/java/)
+
+# Frontend
+cd main-frontend
+npm i && npm run dev    # Install dependencies and start Vite dev server
 ```
 
 **Key tests:** `MovieControllerAddFromKinopoiskTest`, `ReviewSmokeTest`; helper `test/TestAuth.java` is reused for auth bootstrap; `StreamControllerTest.java` is commented out and not part of the active suite
@@ -177,6 +188,7 @@ Comment (1:N) ← CommentReaction
 | File | Purpose |
 |------|---------|
 | `build.gradle` | Gradle dependencies, Java 17, plugins (Flyway, Spring Boot 3.5.6) |
+| `main-frontend/package.json` | Meta framework and UI dependencies (React, Vite, Chart.js, React Router) |
 | `src/main/resources/db/migration/V*.sql` | Flyway SQL migrations; always name correctly (V1, V2, V3, ...) |
 | `TestCinemaApplication.java` | Entry point; enables `@ConfigurationProperties(JwtProperties)` |
 | `config/*.java` | Spring configuration: security, OpenAPI, JPA repository/entity scanning |
@@ -197,12 +209,15 @@ Comment (1:N) ← CommentReaction
 | `dto/**/*.java` | DTOs for request/response serialization |
 | `python-ai/` | Async AI worker (FastAPI) for subtitle vectorization |
 | `subtitle-translator/` | FastAPI microservice for queued subtitle translation + webhook callbacks to Java |
+| `main-frontend/src/api/http.js` | Axios instance setup with JWT interceptor for backend communication |
+| `main-frontend/src/pages/` | React top-level route components (Home, MovieDetails, Profile, etc.) |
+| `main-frontend/src/hooks/` | Custom React hooks for data fetching (React Query) and state logic |
 | `exception/RestExceptionHandler.java` | Global HTTP error mapping for validation/security/business errors |
 | `src/test/java/com/cinema/testcinema/` | Integration tests (use `@SpringBootTest` + test properties) |
 
 ## Testing Strategy
 
-**Location:** `src/test/java/com/cinema/testcinema/`
+**Location:** `src/test/java/com/cinema/testcinema/` (Backend tests)
 
 **Test properties:** `src/test/resources/application-test.properties` (separate DB config for tests)
 
@@ -222,7 +237,8 @@ Comment (1:N) ← CommentReaction
 ## AI Agent Productivity Checklist
 
 - [ ] Understand the Movie-Genre M2M relationship (see V4__movie_genres_m2m.sql)
-- [ ] Familiarize with JWT flow: extraction → validation → UserDetails loading → role checks
+- [ ] Check frontend route guards via `PrivateRoute` and `useAuth()` in `main-frontend` before opening access.
+- [ ] Familiarize with JWT flow: extraction → validation → UserDetails loading → role checks (Backend) and LocalStorage → Axios interceptor (Frontend).
 - [ ] Know Flyway naming convention: `V<number>__<description>.sql` (must be sequential)
 - [ ] When adding endpoints, use DTOs for requests/responses; never expose JPA entities
 - [ ] Check profile/settings modules (`V14`, `V17`, `ProfileController`, `SettingsController`) before touching user-facing features
@@ -233,4 +249,4 @@ Comment (1:N) ← CommentReaction
 
 ---
 
-**Updated:** 2026-05-08 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+**
+**Updated:** 2026-05-17 | **Java 17** | **Spring Boot 3.5.6** | **PostgreSQL 16** | **Python 3.10+** | **React 18**

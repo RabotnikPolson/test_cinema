@@ -1,0 +1,12 @@
+/* src/styles/pages/Subscription.css */
+.subscription-page h1 { color: var(--text); margin-bottom: 12px; }
+.sub-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  max-width: 520px;
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+}

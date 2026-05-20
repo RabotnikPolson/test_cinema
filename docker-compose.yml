@@ -26,6 +26,58 @@ services:
     volumes:
       - minio_data:/data
 
+  # ── AI Recommendation Service (Python) ──
+  test-ai:
+    build:
+      context: ./test_ai/test_ai
+    container_name: test-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=test_user
+      - DB_PASS=pass1
+      - DB_NAME=testdb
+    volumes:
+      - ./test_ai/test_ai:/app          # hot-reload: edit .py → auto-restart
+    depends_on:
+      - postgres
+
+  # ── Subtitle Translation Service (Python) ──
+  subtitle-translator:
+    build:
+      context: ./subtitle-translator
+    container_name: subtitle-translator
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - PRIMARY_PROVIDER=${PRIMARY_PROVIDER:-openai}
+      - STORAGE_BASE_PATH=/storage
+      - JAVA_WEBHOOK_URL=http://host.docker.internal:8080/api/internal/subtitles/translation-complete
+      - INTERNAL_SECRET=change-me-in-prod
+    volumes:
+      - ./subtitle-translator:/app      # hot-reload: edit .py → auto-restart
+      - ./storage:/storage               # shared subtitle files with Java backend
+    depends_on:
+      - postgres
+
+  # ── Frontend (React + Vite) ──
+  frontend:
+    build:
+      context: ./main-frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./main-frontend/src:/app/src     # hot-reload: edit JSX/CSS → instant HMR
+      - ./main-frontend/public:/app/public
+
 volumes:
   pgdata:
   minio_data:

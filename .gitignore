@@ -42,4 +42,6 @@ out/
 .env
 *.env
 
-node_modules/
+### Frontend ###
+main-frontend/node_modules/
+
