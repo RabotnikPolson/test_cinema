@@ -57,9 +57,13 @@ public class RedisConfig {
         // Кастомная конфигурация для подборок на главной странице (TTL 30 минут)
         RedisCacheConfiguration homeCollectionsConfig = defaultConfig.entryTtl(Duration.ofMinutes(30));
 
+        // Кастомная конфигурация для карточки фильма (TTL 1 час)
+        RedisCacheConfiguration movieDetailConfig = defaultConfig.entryTtl(Duration.ofHours(1));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withCacheConfiguration("home_collections", homeCollectionsConfig)
+                .withCacheConfiguration("movie_detail", movieDetailConfig)
                 .build();
     }
 }

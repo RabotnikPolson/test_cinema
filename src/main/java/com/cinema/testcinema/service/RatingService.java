@@ -27,15 +27,18 @@ public class RatingService {
     private final MovieRepository movieRepository;
     private final UserRepository userRepository;
     private final AuthenticatedUserService authenticatedUserService;
+    private final MovieService movieService;
 
     public RatingService(RatingRepository ratingRepository,
                          MovieRepository movieRepository,
                          UserRepository userRepository,
-                         AuthenticatedUserService authenticatedUserService) {
+                         AuthenticatedUserService authenticatedUserService,
+                         MovieService movieService) {
         this.ratingRepository = ratingRepository;
         this.movieRepository = movieRepository;
         this.userRepository = userRepository;
         this.authenticatedUserService = authenticatedUserService;
+        this.movieService = movieService;
     }
 
     @Transactional
@@ -61,6 +64,7 @@ public class RatingService {
         }
 
         Rating saved = ratingRepository.save(rating);
+        movieService.evictMovieCache(request.movieId());
         return new RatingUpsertResult(toResponse(saved), created);
     }
 
@@ -89,6 +93,8 @@ public class RatingService {
         Rating rating = ratingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Рейтинг с ID " + id + " не найден"));
+        
+        Long existingMovieId = rating.getMovie().getId();
 
         Long currentUserId = authenticatedUserService.requireCurrentUserId(authentication);
         boolean isAdmin = authenticatedUserService.hasRole(authentication, "ADMIN");
@@ -111,6 +117,12 @@ public class RatingService {
         rating.setScore(request.score());
 
         Rating saved = ratingRepository.save(rating);
+        
+        movieService.evictMovieCache(existingMovieId);
+        if (!existingMovieId.equals(request.movieId())) {
+            movieService.evictMovieCache(request.movieId());
+        }
+
         return toResponse(saved);
     }
 
@@ -126,7 +138,9 @@ public class RatingService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
 
+        Long movieId = rating.getMovie().getId();
         ratingRepository.delete(rating);
+        movieService.evictMovieCache(movieId);
     }
 
     private RatingResponse toResponse(Rating rating) {

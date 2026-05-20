@@ -9,6 +9,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
+
+import com.cinema.testcinema.dto.movie.BulkImportRequest;
+import com.cinema.testcinema.dto.movie.BulkImportResponse;
+import com.cinema.testcinema.service.BulkImportService;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -19,13 +26,16 @@ public class MovieController {
     private final MovieRepository movieRepository;
     private final KinopoiskSyncService kinopoiskSyncService;
     private final MovieService movieService;
+    private final BulkImportService bulkImportService;
 
     public MovieController(MovieRepository movieRepository,
                            KinopoiskSyncService kinopoiskSyncService,
-                           MovieService movieService) {
+                           MovieService movieService,
+                           BulkImportService bulkImportService) {
         this.movieRepository = movieRepository;
         this.kinopoiskSyncService = kinopoiskSyncService;
         this.movieService = movieService;
+        this.bulkImportService = bulkImportService;
     }
 
     /**
@@ -35,6 +45,7 @@ public class MovieController {
     @PostMapping("/addFromKinopoisk")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Добавить/обновить фильм по ID Кинопоиска (ADMIN)")
+    @CacheEvict(value = "home_collections", allEntries = true)
     public Movie addFromKinopoisk(
             @Parameter(description = "Числовой ID фильма на kinopoisk.ru (например, 301 – это 'Матрица')")
             @RequestParam String kinopoiskId) {
@@ -42,6 +53,14 @@ public class MovieController {
             throw new IllegalArgumentException("kinopoiskId не может быть пустым");
         }
         return kinopoiskSyncService.fetchAndSave(kinopoiskId);
+    }
+
+    @PostMapping("/bulkImport")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Массовый импорт фильмов по списку Kinopoisk ID (ADMIN)")
+    @CacheEvict(value = "home_collections", allEntries = true)
+    public BulkImportResponse bulkImport(@Valid @RequestBody BulkImportRequest request) {
+        return bulkImportService.bulkImport(request.kinopoiskIds());
     }
 
     @GetMapping
@@ -66,13 +85,16 @@ public class MovieController {
     @GetMapping("/{id}")
     @Operation(summary = "Получить фильм по внутреннему ID")
     public Movie getMovieById(@PathVariable Long id) {
-        return movieRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Фильм с ID " + id + " не найден"));
+        return movieService.getMovieById(id);
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Удалить фильм по ID (ADMIN)")
+    @Caching(evict = {
+        @CacheEvict(value = "movie_detail", key = "#id"),
+        @CacheEvict(value = "home_collections", allEntries = true)
+    })
     public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
         movieRepository.deleteById(id);
         return ResponseEntity.noContent().build();
