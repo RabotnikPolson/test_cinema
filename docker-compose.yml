@@ -26,6 +26,17 @@ services:
     volumes:
       - minio_data:/data
 
+  # ── Redis Cache ──
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
   # ── AI Recommendation Service (Python) ──
   test-ai:
     build:
@@ -35,15 +46,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=host.docker.internal   # Java backend's local Windows postgres
       - DB_PORT=5432
       - DB_USER=test_user
       - DB_PASS=pass1
       - DB_NAME=testdb
     volumes:
       - ./test_ai/test_ai:/app          # hot-reload: edit .py → auto-restart
-    depends_on:
-      - postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # ── Subtitle Translation Service (Python) ──
   subtitle-translator:
@@ -81,3 +92,4 @@ services:
 volumes:
   pgdata:
   minio_data:
+  redis_data:

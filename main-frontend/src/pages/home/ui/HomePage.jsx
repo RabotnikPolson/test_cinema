@@ -172,16 +172,14 @@ export default function HomePage() {
       </section>
 
       {/* All Movies (fallback) */}
-      {q && (
-        <section className="home-section">
-          <div className="container">
-            <h2 className="section-title display">Результаты поиска</h2>
-            {isLoading && <div className="loading">Загрузка...</div>}
-            {isError && <div className="error">Ошибка: {error.message}</div>}
-            {!isLoading && <MovieGrid movies={filtered} />}
-          </div>
-        </section>
-      )}
+      <section className="home-section">
+        <div className="container">
+          <h2 className="section-title display">{q ? "Результаты поиска" : "Все фильмы"}</h2>
+          {isLoading && <div className="loading">Загрузка...</div>}
+          {isError && <div className="error">Ошибка: {error.message}</div>}
+          {!isLoading && <MovieGrid movies={q ? filtered : movies.slice(0, 24)} />}
+        </div>
+      </section>
     </div>
   );
 }

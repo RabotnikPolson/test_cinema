@@ -31,4 +31,6 @@ export const useSmartFeed = () =>
   useQuery({
     queryKey: ["smartFeed"],
     queryFn: () => getSmartFeed(),
+    retry: 1,
+    staleTime: 1000 * 60 * 5, // 5 min
   });

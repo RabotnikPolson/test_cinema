@@ -11,57 +11,88 @@ import "swiper/element/css/navigation";
 export default function HomeHeroCarousel() {
   const navigate = useNavigate();
   const { data: allMovies = [], isLoading: isMoviesLoading } = useMovies();
-  const { data, isLoading: isFeedLoading } = useSmartFeed();
+  const { data, isLoading: isFeedLoading, isError: isFeedError } = useSmartFeed();
   const feed = data?.feed;
-  const isLoading = isMoviesLoading || isFeedLoading;
+
+  // Only wait for movies — don't block on AI service
+  const isLoading = isMoviesLoading;
 
   const sections = useMemo(() => {
-    if (!feed || !allMovies.length) {
-      return [];
-    }
-
-    const enrichMovies = (items) =>
-      (items || [])
-        .map((item) => {
-          const fullMovie = allMovies.find(
-            (movie) => movie.id == item.movie_id || movie.imdbId == item.movie_id
-          );
-          return fullMovie ? { ...item, ...fullMovie } : null;
-        })
-        .filter(Boolean);
-
     const nextSections = [];
 
-    if (feed.continue_watching?.length > 0) {
-      nextSections.push({
-        title: "Продолжить просмотр",
-        subtitle: "Вы остановились здесь",
-        items: enrichMovies(feed.continue_watching),
-      });
+    // If AI feed is available, use it
+    if (feed && allMovies.length) {
+      const enrichMovies = (items) =>
+        (items || [])
+          .map((item) => {
+            const fullMovie = allMovies.find(
+              (movie) => movie.id == item.movie_id || movie.imdbId == item.movie_id
+            );
+            return fullMovie ? { ...item, ...fullMovie } : null;
+          })
+          .filter(Boolean);
+
+      if (feed.continue_watching?.length > 0) {
+        nextSections.push({
+          title: "Продолжить просмотр",
+          subtitle: "Вы остановились здесь",
+          items: enrichMovies(feed.continue_watching),
+        });
+      }
+
+      if (feed.top_picks_for_you?.length > 0) {
+        nextSections.push({
+          title: "Специально для вас",
+          subtitle: "AI подборка",
+          items: enrichMovies(feed.top_picks_for_you),
+        });
+      }
+
+      if (feed.because_you_watched?.recommendations?.length > 0) {
+        nextSections.push({
+          title: feed.because_you_watched.reason,
+          subtitle: "Похожий контент",
+          items: enrichMovies(feed.because_you_watched.recommendations),
+        });
+      }
+
+      if (feed.trending?.length > 0) {
+        nextSections.push({
+          title: "В тренде",
+          subtitle: "Популярные фильмы",
+          items: enrichMovies(feed.trending),
+        });
+      }
     }
 
-    if (feed.top_picks_for_you?.length > 0) {
-      nextSections.push({
-        title: "Специально для вас",
-        subtitle: "AI подборка",
-        items: enrichMovies(feed.top_picks_for_you),
-      });
-    }
+    // Fallback: if AI is down or returned nothing, show movies from backend
+    if (nextSections.length === 0 && allMovies.length > 0) {
+      // Sort by rating descending, take top movies with posters
+      const topRated = [...allMovies]
+        .filter((m) => m.poster)
+        .sort((a, b) => (b.imdbRating || 0) - (a.imdbRating || 0))
+        .slice(0, 10);
 
-    if (feed.because_you_watched?.recommendations?.length > 0) {
-      nextSections.push({
-        title: feed.because_you_watched.reason,
-        subtitle: "Похожий контент",
-        items: enrichMovies(feed.because_you_watched.recommendations),
-      });
-    }
+      if (topRated.length > 0) {
+        nextSections.push({
+          title: "Популярные фильмы",
+          subtitle: "Лучшие по рейтингу",
+          items: topRated,
+        });
+      }
 
-    if (feed.trending?.length > 0) {
-      nextSections.push({
-        title: "В тренде",
-        subtitle: "Популярные фильмы",
-        items: enrichMovies(feed.trending),
-      });
+      // Domestic cinema
+      const domestic = allMovies.filter(
+        (m) => m.raw?.domestic || m.raw?.kzCulturalWeight > 0
+      ).slice(0, 10);
+
+      if (domestic.length > 0) {
+        nextSections.push({
+          title: "Казахстанское кино",
+          subtitle: "Отечественные фильмы",
+          items: domestic,
+        });
+      }
     }
 
     return nextSections;
@@ -128,6 +159,10 @@ export default function HomeHeroCarousel() {
                       src={movie.posterUrl || movie.poster}
                       alt={movie.title}
                       className="carousel-poster"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          `https://placehold.jp/333/fff/300x450.png?text=${encodeURIComponent(movie.title)}`;
+                      }}
                     />
                     <div className="carousel-overlay">
                       <h3>{movie.title}</h3>

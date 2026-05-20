@@ -24,15 +24,18 @@ public class MetricsService {
     private final SearchLogRepository searchRepo;
     private final SubtitleEventRepository subtitleRepo;
     private final MovieRepository movieRepo;
+    private final TrendingRedisService trendingRedisService;
 
     public MetricsService(MovieClickRepository clickRepo,
                           SearchLogRepository searchRepo,
                           SubtitleEventRepository subtitleRepo,
-                          MovieRepository movieRepo) {
+                          MovieRepository movieRepo,
+                          TrendingRedisService trendingRedisService) {
         this.clickRepo = clickRepo;
         this.searchRepo = searchRepo;
         this.subtitleRepo = subtitleRepo;
         this.movieRepo = movieRepo;
+        this.trendingRedisService = trendingRedisService;
     }
 
     @Transactional
@@ -40,6 +43,10 @@ public class MetricsService {
         Movie movieRef = movieRepo.getReferenceById(request.movieId());
         MovieClick click = new MovieClick(userId, request.guestSessionId(), movieRef);
         clickRepo.save(click);
+        
+        // Увеличиваем счетчик в Redis для ленты трендов
+        trendingRedisService.incrementMovieClick(request.movieId());
+        
         log.debug("[METRICS] click: userId={}, guestSession={}, movieId={}", 
                 userId, request.guestSessionId(), request.movieId());
     }

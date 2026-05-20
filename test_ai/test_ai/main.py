@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
@@ -7,6 +8,14 @@ from models import Movie, User, Rating, WatchHistory
 import recommender
 
 app = FastAPI(title="Cinema AI Service", version="3.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ML_MODEL = {
     "df": None,
@@ -40,12 +49,16 @@ async def retrain_models(background_tasks: BackgroundTasks):
 
 @app.get("/api/v1/stats")
 async def get_ml_stats(db: Session = Depends(get_db)):
-    return {
-        "movies": db.query(Movie).count(),
-        "users": db.query(User).count(),
-        "ratings": db.query(Rating).count(),
-        "history": db.query(WatchHistory).count()
-    }
+    try:
+        return {
+            "movies": db.query(Movie).count(),
+            "users": db.query(User).count(),
+            "ratings": db.query(Rating).count(),
+            "history": db.query(WatchHistory).count()
+        }
+    except Exception as e:
+        # Tables may not exist yet (e.g. Java migrations haven't run)
+        return {"movies": 0, "users": 0, "ratings": 0, "history": 0, "warning": "DB tables not ready"}
 
 def check_model():
     if ML_MODEL["df"] is None:

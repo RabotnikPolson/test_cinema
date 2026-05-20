@@ -45,3 +45,5 @@ out/
 ### Frontend ###
 main-frontend/node_modules/
 
+/storage/
+/.claude/
