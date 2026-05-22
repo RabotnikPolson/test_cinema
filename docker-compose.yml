@@ -26,26 +26,34 @@ services:
     volumes:
       - minio_data:/data
 
-  # ── AI Recommendation Service (Python) ──
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
   test-ai:
     build:
-      context: ./test_ai/test_ai
+      context: rec_ai
     container_name: test-ai
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=host.docker.internal
       - DB_PORT=5432
       - DB_USER=test_user
       - DB_PASS=pass1
       - DB_NAME=testdb
     volumes:
-      - ./test_ai/test_ai:/app          # hot-reload: edit .py → auto-restart
-    depends_on:
-      - postgres
+      - ./rec_ai:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  # ── Subtitle Translation Service (Python) ──
   subtitle-translator:
     build:
       context: ./subtitle-translator
@@ -61,12 +69,11 @@ services:
       - JAVA_WEBHOOK_URL=http://host.docker.internal:8080/api/internal/subtitles/translation-complete
       - INTERNAL_SECRET=change-me-in-prod
     volumes:
-      - ./subtitle-translator:/app      # hot-reload: edit .py → auto-restart
-      - ./storage:/storage               # shared subtitle files with Java backend
+      - ./subtitle-translator:/app
+      - ./storage:/storage
     depends_on:
       - postgres
 
-  # ── Frontend (React + Vite) ──
   frontend:
     build:
       context: ./main-frontend
@@ -75,9 +82,10 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./main-frontend/src:/app/src     # hot-reload: edit JSX/CSS → instant HMR
+      - ./main-frontend/src:/app/src
       - ./main-frontend/public:/app/public
 
 volumes:
   pgdata:
   minio_data:
+  redis_data:

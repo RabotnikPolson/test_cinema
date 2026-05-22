@@ -1,1 +1,0 @@
-export { useHistoryStorage } from "./localHistory";

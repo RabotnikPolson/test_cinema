@@ -31,7 +31,7 @@ out/
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
-/dist/
+
 /nbdist/
 /.nb-gradle/
 
@@ -43,5 +43,9 @@ out/
 *.env
 
 ### Frontend ###
-main-frontend/node_modules/
-
+/main-frontend/dist/
+/main-frontend/node_modules/
+/main-frontend/.vscode/
+/main-frontend/.idea/
+/main-frontend/.claude/
+/rec_ai/.venv/
