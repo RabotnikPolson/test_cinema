@@ -255,6 +255,11 @@ public class CommentService {
         return c.getMovieId();
     }
 
+    private Long safeParentId(Comment c) {
+        if (c.getParentId() != null) return c.getParentId();
+        return c.getParent() != null ? c.getParent().getId() : null;
+    }
+
     private CommentResponse toResponse(Comment comment, List<Comment> replies,
                                        Map<Long, List<CommentReactionSummary>> reactionMap) {
 
@@ -265,7 +270,7 @@ public class CommentService {
                 comment.getId(),
                 userId,
                 movieId,
-                comment.getParentId(),
+                safeParentId(comment),
                 comment.getContent(),
                 comment.getCreatedAt(),
                 comment.getUpdatedAt(),

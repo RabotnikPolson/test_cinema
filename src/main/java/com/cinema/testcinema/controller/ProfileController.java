@@ -107,7 +107,9 @@ public class ProfileController {
                 })
                 .toList();
 
-        PublicProfileDto profileDto = userProfileService.toPublicDto(user, profile);
+        PublicProfileDto profileDto = (isOwner || isAdmin)
+                ? new PublicProfileDto(user.getUsername(), profile.getAvatarUrl(), user.getCreatedAt(), profile.getBio())
+                : userProfileService.toPublicDto(user, profile);
         return new PublicProfileWithRatingsDto(
                 profileDto,
                 ratingDtos,

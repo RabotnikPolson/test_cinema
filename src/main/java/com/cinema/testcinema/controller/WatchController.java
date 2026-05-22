@@ -8,6 +8,7 @@ import com.cinema.testcinema.security.AuthenticatedUserService;
 import com.cinema.testcinema.service.WatchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.http.HttpStatus;
@@ -29,7 +30,7 @@ public class WatchController {
     }
 
     @PostMapping("/watch-history/beat")
-    public ResponseEntity<Void> beat(@RequestBody WatchBeatDto dto, Authentication authentication) {
+    public ResponseEntity<Void> beat(@Valid @RequestBody WatchBeatDto dto, Authentication authentication) {
         Long userId = authenticatedUserService.requireCurrentUserId(authentication);
         User user = loadUser(userId);
         watchService.beat(user, dto);

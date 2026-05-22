@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 public class UserProfileService {
 
@@ -69,6 +71,7 @@ public class UserProfileService {
             profile.setBio(request.bio());
         }
 
+        profile.setLastProfileEditAt(Instant.now());
         UserProfile saved = userProfileRepository.save(profile);
         return toOwnerDto(user, saved);
     }

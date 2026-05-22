@@ -123,7 +123,7 @@ public class ReviewService {
         }
 
         Instant now = Instant.now();
-        if (Duration.between(review.getCreatedAt(), now).compareTo(Duration.ofHours(1)) > 0) {
+        if (!isAdmin && Duration.between(review.getCreatedAt(), now).compareTo(Duration.ofHours(1)) > 0) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Отзыв можно редактировать только в течение часа после создания");
         }
@@ -170,16 +170,30 @@ public class ReviewService {
         }
     }
 
+    private Long safeUserId(Review r) {
+        if (r.getUserId() != null) return r.getUserId();
+        return r.getUser() != null ? r.getUser().getId() : null;
+    }
+
+    private Long safeMovieId(Review r) {
+        if (r.getMovieId() != null) return r.getMovieId();
+        return r.getMovie() != null ? r.getMovie().getId() : null;
+    }
+
     private ReviewResponse toResponse(Review review, List<ReviewResponse> replies) {
-        Short score = ratingRepository.findByUserIdAndMovieId(review.getUserId(), review.getMovieId())
-                .map(rating -> rating.getScore())
-                .orElse(null);
+        Long userId = safeUserId(review);
+        Long movieId = safeMovieId(review);
+
+        Short score = (userId != null && movieId != null)
+                ? ratingRepository.findByUserIdAndMovieId(userId, movieId)
+                        .map(rating -> rating.getScore()).orElse(null)
+                : null;
         long upVotes = reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.UP);
         long downVotes = reviewReactionRepository.countByReviewIdAndType(review.getId(), ReviewReactionType.DOWN);
         ReviewResponse response = new ReviewResponse(
                 review.getId(),
-                review.getUserId(),
-                review.getMovieId(),
+                userId,
+                movieId,
                 review.getParentId(),
                 review.getContent(),
                 review.getCreatedAt(),
@@ -191,12 +205,13 @@ public class ReviewService {
         );
         response.setReplies(replies);
 
-        // Заполняем поля автора. В случае отсутствия пользователя или профиля значения будут null.
-        userRepository.findById(review.getUserId()).ifPresent(user -> {
-            response.setAuthorUsername(user.getUsername());
-            userProfileRepository.findByUserId(user.getId())
-                    .ifPresent(profile -> response.setAuthorAvatarUrl(profile.getAvatarUrl()));
-        });
+        if (userId != null) {
+            userRepository.findById(userId).ifPresent(user -> {
+                response.setAuthorUsername(user.getUsername());
+                userProfileRepository.findByUserId(user.getId())
+                        .ifPresent(profile -> response.setAuthorAvatarUrl(profile.getAvatarUrl()));
+            });
+        }
         return response;
     }
 }

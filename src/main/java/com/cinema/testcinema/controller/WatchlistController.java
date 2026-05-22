@@ -9,7 +9,9 @@ import com.cinema.testcinema.repository.WatchlistRepository;
 import com.cinema.testcinema.security.AuthenticatedUserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -38,6 +40,7 @@ public class WatchlistController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public List<WatchlistResponse> getAll() {
         return watchlistRepository.findAll().stream()
                 .map(this::toResponse)
@@ -131,6 +134,7 @@ public class WatchlistController {
 
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
     public void delete(@RequestParam Long userId, @RequestParam Long movieId, Authentication authentication) {
         authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
         if (!watchlistRepository.existsByUserIdAndMovieId(userId, movieId)) {
