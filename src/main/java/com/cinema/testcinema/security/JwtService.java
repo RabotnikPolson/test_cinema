@@ -54,6 +54,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", user.getEmail());
         claims.put("type", "refresh");
+        claims.put("jti", UUID.randomUUID().toString());
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -76,7 +77,8 @@ public class JwtService {
                     .build()
                     .parseClaimsJws(token);
             Date exp = jws.getBody().getExpiration();
-            return exp != null && exp.after(new Date());
+            String type = jws.getBody().get("type", String.class);
+            return "access".equals(type) && exp != null && exp.after(new Date());
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
