@@ -319,16 +319,58 @@ async def frontend_because_you_liked(user_id: int, limit: int = 15):
     return {"user_id": user_id, "recommendations": recs, "method": "because_you_liked", "total": len(recs)}
 
 @app.get("/api/v1/trending", response_model=schemas.RecommendationResponse)
-async def get_trending(weekly: bool = False):
-    check_model()
-    recs = recommender.get_popular_fallback(ML_MODEL["df"], 20)
-    return {"recommendations": recs, "method": "trending", "total": len(recs)}
+async def get_trending(weekly: bool = False, db: Session = Depends(get_db)):
+    try:
+        def _parse(s):
+            try: return float(s) if s else 0.0
+            except (ValueError, TypeError): return 0.0
+
+        movies = db.query(Movie).filter(Movie.is_domestic == True).all()
+        if not movies:
+            movies = db.query(Movie).all()
+
+        sorted_movies = sorted(
+            movies,
+            key=lambda m: (_parse(m.imdb_rating), m.year or 0),
+            reverse=True
+        )[:20]
+
+        recs = [
+            {"movie_id": m.id, "score": _parse(m.imdb_rating),
+             "title": m.title, "poster_url": m.poster_url, "year": m.year}
+            for m in sorted_movies
+        ]
+        return {"recommendations": recs, "method": "trending", "total": len(recs)}
+    except Exception as e:
+        print(f"[TRENDING] DB error: {e}")
+        return {"recommendations": [], "method": "trending", "total": 0}
 
 @app.get("/api/v1/trending/weekly", response_model=schemas.RecommendationResponse)
-async def get_trending_weekly():
-    check_model()
-    recs = recommender.get_popular_fallback(ML_MODEL["df"], 20)
-    return {"recommendations": recs, "method": "trending_weekly", "total": len(recs)}
+async def get_trending_weekly(db: Session = Depends(get_db)):
+    try:
+        def _parse(s):
+            try: return float(s) if s else 0.0
+            except (ValueError, TypeError): return 0.0
+
+        movies = db.query(Movie).filter(Movie.is_domestic == True).all()
+        if not movies:
+            movies = db.query(Movie).all()
+
+        sorted_movies = sorted(
+            movies,
+            key=lambda m: (_parse(m.imdb_rating), m.year or 0),
+            reverse=True
+        )[:20]
+
+        recs = [
+            {"movie_id": m.id, "score": _parse(m.imdb_rating),
+             "title": m.title, "poster_url": m.poster_url, "year": m.year}
+            for m in sorted_movies
+        ]
+        return {"recommendations": recs, "method": "trending_weekly", "total": len(recs)}
+    except Exception as e:
+        print(f"[TRENDING_WEEKLY] DB error: {e}")
+        return {"recommendations": [], "method": "trending_weekly", "total": 0}
 
 @app.get("/api/v1/recommendations/movie/{movie_id}")
 async def frontend_right_rail(movie_id: int, limit: int = 15, user_id: Optional[int] = None):

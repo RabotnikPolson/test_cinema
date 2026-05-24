@@ -2,13 +2,17 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 class MovieRecommendation(BaseModel):
-    id: int
-    title: str
+    movie_id: Optional[int] = None
+    id: Optional[int] = None
+    title: Optional[str] = None
     poster_url: Optional[str] = None
     year: Optional[int] = None
+    score: Optional[float] = None
     rating: Optional[float] = None
     genre: Optional[str] = None
     reason: Optional[str] = None
+
+    model_config = {"extra": "allow"}
 
 class RecommendationResponse(BaseModel):
     recommendations: List[MovieRecommendation]

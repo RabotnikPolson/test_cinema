@@ -54,3 +54,4 @@ out/
 # Environment Variables
 .env
 /main-frontend/
+/main-frontend/public/
