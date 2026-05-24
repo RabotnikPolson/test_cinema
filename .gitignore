@@ -50,3 +50,7 @@ out/
 /main-frontend/.idea/
 /main-frontend/.claude/
 /rec_ai/.venv/
+
+# Environment Variables
+.env
+/main-frontend/

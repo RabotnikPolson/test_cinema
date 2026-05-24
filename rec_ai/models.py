@@ -27,6 +27,11 @@ class Movie(Base):
     director = Column(String(255))
     actors = Column(Text)
     is_domestic = Column(Boolean, default=False)
+    # NEW FIELDS:
+    poster_url = Column(String, nullable=True)
+    year = Column(Integer, nullable=True)
+    kinopoisk_id = Column(String, nullable=True)
+    
     genres = relationship("Genre", secondary=movie_genres)
     ratings = relationship("Rating", back_populates="movie")
 

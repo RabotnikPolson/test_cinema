@@ -140,6 +140,17 @@ public class WatchlistController {
         watchlistRepository.deleteByUserIdAndMovieId(userId, movieId);
     }
 
+    @DeleteMapping("/{userId}/{movieId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteByPath(@PathVariable Long userId, @PathVariable Long movieId, Authentication authentication) {
+        authenticatedUserService.assertSameUserOrAdmin(authentication, userId);
+        if (!watchlistRepository.existsByUserIdAndMovieId(userId, movieId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Запись не найдена в списке пользователя");
+        }
+        watchlistRepository.deleteByUserIdAndMovieId(userId, movieId);
+    }
+
     private WatchlistResponse toResponse(Watchlist watchlist) {
         return new WatchlistResponse(
                 watchlist.getUser() != null ? watchlist.getUser().getId() : null,

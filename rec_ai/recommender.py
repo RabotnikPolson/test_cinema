@@ -7,10 +7,31 @@ from database import DATABASE_URL
 from functools import lru_cache
 import time
 
+KAZAKHSTAN_BOOST = 2.5
+CENTRAL_ASIA_BOOST = 1.8
+CIS_BOOST = 1.3
+DEFAULT_BOOST = 1.0
+
+def get_kazakhstan_boost_score(movie_row) -> float:
+    country = str(movie_row.get("country", "")) if 'country' in movie_row.index and pd.notna(movie_row['country']) else ""
+    country = country.lower()
+    language = str(movie_row.get("language", "")) if 'language' in movie_row.index and pd.notna(movie_row['language']) else ""
+    language = language.lower()
+    
+    if "казахстан" in country or "kazakhstan" in country or "kz" in country:
+        return KAZAKHSTAN_BOOST
+    if "казахский" in language or "kazakh" in language or "қазақ" in language:
+        return KAZAKHSTAN_BOOST
+    if any(c in country for c in ["кыргыз", "узбек", "таджик", "туркмен"]):
+        return CENTRAL_ASIA_BOOST
+    if any(c in country for c in ["россия", "russia", "беларусь", "украина", "азербайджан"]):
+        return CIS_BOOST
+    return DEFAULT_BOOST
+
 def get_recommendations_model():
     engine = create_engine(DATABASE_URL)
     try:
-        query = "SELECT id, title, genre_text, description, imdb_rating, director, actors, is_domestic, poster_url, year FROM movies"
+        query = "SELECT id, title, genre_text, description, imdb_rating, director, actors, is_domestic, poster_url, year, country, language FROM movies"
         df = pd.read_sql(query, engine)
     except Exception as e:
         print(f"Warning: {e}. Falling back to old schema.")
@@ -287,21 +308,21 @@ def get_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5):
 def get_collaborative_users_also_watched(movie_id, top_n=5):
     engine = create_engine(DATABASE_URL)
     # users who watched this also watched
-    query = f"""
+    query = text("""
     SELECT movie_id as recommended_movie_id, COUNT(*) as watch_count
     FROM watch_history
     WHERE user_id IN (
        SELECT user_id
        FROM watch_history
-       WHERE movie_id = {movie_id}
+       WHERE movie_id = :movie_id
     )
-    AND movie_id != {movie_id}
+    AND movie_id != :movie_id
     GROUP BY recommended_movie_id
     ORDER BY watch_count DESC
-    LIMIT {top_n}
-    """
+    LIMIT :top_n
+    """)
     try:
-        df_collab = pd.read_sql(query, engine)
+        df_collab = pd.read_sql(query, engine, params={"movie_id": movie_id, "top_n": top_n})
         if df_collab.empty: return []
         
         # Get movie details for these IDs (включая poster_url и year)
@@ -320,9 +341,14 @@ def get_collaborative_users_also_watched(movie_id, top_n=5):
             m_title = m_data['title'].iloc[0] if not m_data.empty else "Unknown"
             poster_val = m_data['poster_url'].iloc[0] if not m_data.empty and 'poster_url' in m_data.columns else None
             year_val = m_data['year'].iloc[0] if not m_data.empty and 'year' in m_data.columns else None
+            
+            boost = 1.0
+            if m_id in df['id'].values:
+                boost = get_kazakhstan_boost_score(df[df['id'] == m_id].iloc[0])
+            
             recs.append({
                 "movie_id": int(m_id),
-                "score": float(row['watch_count']),
+                "score": float(row['watch_count']) * boost,
                 "title": m_title,
                 "poster_url": str(poster_val) if poster_val is not None and pd.notna(poster_val) else None,
                 "year": _safe_year(year_val),
@@ -355,9 +381,9 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
     # Not touched
     import numpy as np
     engine = create_engine(DATABASE_URL)
-    query = f"SELECT movie_id, seconds_watched, completed FROM watch_history WHERE user_id = {user_id}"
+    query = text("SELECT movie_id, seconds_watched, completed FROM watch_history WHERE user_id = :user_id")
     try:
-        history_df = pd.read_sql(query, engine)
+        history_df = pd.read_sql(query, engine, params={"user_id": user_id})
     except:
         return None
     
@@ -385,6 +411,9 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
             idx = df.index[df['id'] == m_id][0]
             user_profile_scores[idx] = 0.0
         except IndexError: pass
+        
+    for i in range(len(df)):
+        user_profile_scores[i] *= get_kazakhstan_boost_score(df.iloc[i])
             
     if user_profile_scores.max() == 0: return None
     top_indices = user_profile_scores.argsort()[::-1][:top_n]
@@ -394,9 +423,9 @@ def get_youtube_like_feed(user_id, df, cosine_sim):
     # Old logic kept intact
     import numpy as np
     engine = create_engine(DATABASE_URL)
-    query = f"SELECT movie_id, seconds_watched, completed, id as watch_id FROM watch_history WHERE user_id = {user_id} ORDER BY id DESC"
+    query = text("SELECT movie_id, seconds_watched, completed, id as watch_id FROM watch_history WHERE user_id = :user_id ORDER BY id DESC")
     try:
-        history_df = pd.read_sql(query, engine)
+        history_df = pd.read_sql(query, engine, params={"user_id": user_id})
     except:
         return {"top_picks_for_you": get_popular_fallback(df, top_n=5)}
     
@@ -525,10 +554,10 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
         actor_score = min(1.0, shared_actors * 0.25)
         rating_boost = float(df["rating_norm"].iloc[i]) if "rating_norm" in df.columns else 0.0
 
-        score = (genre_score * 0.30 + content_score * 0.25 +
+        base_score = (genre_score * 0.30 + content_score * 0.25 +
                  director_score * 0.20 + actor_score * 0.15 + rating_boost * 0.10)
-        if df["is_domestic"].iloc[i]:
-            score += 0.15
+        boost = get_kazakhstan_boost_score(df.iloc[i])
+        score = base_score * boost
         scores.append((i, score))
 
     scores.sort(key=lambda x: x[1], reverse=True)
@@ -537,7 +566,7 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
     if user_id is not None:
         try:
             engine = create_engine(DATABASE_URL)
-            wh = pd.read_sql(f"SELECT movie_id FROM watch_history WHERE user_id = {user_id}", engine)
+            wh = pd.read_sql(text("SELECT movie_id FROM watch_history WHERE user_id = :user_id"), engine, params={"user_id": user_id})
             watched_ids = set(wh["movie_id"].tolist())
         except Exception:
             pass
@@ -573,8 +602,8 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
     engine = create_engine(DATABASE_URL)
     try:
         ratings_df = pd.read_sql(
-            f"SELECT movie_id, score FROM ratings WHERE user_id = {user_id} AND score >= 7 ORDER BY score DESC LIMIT 10",
-            engine
+            text("SELECT movie_id, score FROM ratings WHERE user_id = :user_id AND score >= 7 ORDER BY score DESC LIMIT 10"),
+            engine, params={"user_id": user_id}
         )
     except Exception as e:
         print(f"because_you_liked error: {e}")
@@ -584,7 +613,7 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
         return []
 
     try:
-        wh = pd.read_sql(f"SELECT movie_id FROM watch_history WHERE user_id = {user_id}", engine)
+        wh = pd.read_sql(text("SELECT movie_id FROM watch_history WHERE user_id = :user_id"), engine, params={"user_id": user_id})
         watched_ids = set(wh["movie_id"].tolist())
     except Exception:
         watched_ids = set()
@@ -605,6 +634,9 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
         if m_id in df["id"].values:
             profile[df.index[df["id"] == m_id][0]] = 0.0
 
+    for i in range(len(df)):
+        profile[i] *= get_kazakhstan_boost_score(df.iloc[i])
+
     if profile.max() == 0:
         return []
 
@@ -612,3 +644,54 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
     best_title = df[df["id"] == best_movie_id]["title"].iloc[0] if best_movie_id else "фильма"
     reasons = [f"Потому что вам понравился «{best_title}»" for _ in top_indices]
     return _format_recs(df, top_indices, profile[top_indices], reasons)
+
+
+def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):
+    engine = create_engine(DATABASE_URL)
+    watched_ids = set()
+    if user_id is not None:
+        try:
+            wh = pd.read_sql(text("SELECT movie_id FROM watch_history WHERE user_id = :user_id"), engine, params={"user_id": user_id})
+            watched_ids = set(wh["movie_id"].tolist())
+        except Exception:
+            pass
+
+    kz_df = df.copy()
+    scores = []
+    reasons = []
+    indices = []
+    
+    for i in range(len(kz_df)):
+        m_id = int(kz_df['id'].iloc[i])
+        if m_id in watched_ids:
+            continue
+        
+        country = str(kz_df.get("country", "").iloc[i]).lower() if 'country' in kz_df.columns and pd.notna(kz_df['country'].iloc[i]) else ""
+        language = str(kz_df.get("language", "").iloc[i]).lower() if 'language' in kz_df.columns and pd.notna(kz_df['language'].iloc[i]) else ""
+        
+        is_kz = False
+        if "казахстан" in country or "kazakhstan" in country or "kz" in country:
+            is_kz = True
+        if "казахский" in language or "kazakh" in language or "қазақ" in language:
+            is_kz = True
+            
+        if is_kz:
+            if genre and genre.lower() not in str(kz_df['genre_clean'].iloc[i]).lower():
+                continue
+            boost = get_kazakhstan_boost_score(kz_df.iloc[i])
+            rating_num = float(kz_df['rating_norm'].iloc[i]) if 'rating_norm' in kz_df.columns else 0.0
+            scores.append(rating_num * boost)
+            reasons.append("Казахское кино")
+            indices.append(i)
+            
+    if not indices:
+        return []
+        
+    import numpy as np
+    indices = np.array(indices)
+    scores = np.array(scores)
+    top_idxs = indices[scores.argsort()[::-1][:limit]]
+    top_scores = scores[scores.argsort()[::-1][:limit]]
+    top_reasons = [reasons[0]] * len(top_idxs)
+    
+    return _format_recs(kz_df, top_idxs, top_scores, top_reasons)

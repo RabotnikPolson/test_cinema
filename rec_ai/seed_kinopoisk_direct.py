@@ -12,7 +12,10 @@ DB_NAME = os.getenv("DB_NAME", "testdb")
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Read API Key from application.properties
-API_KEY = "3ee92c30-e913-4af0-ba70-9635a086de50"
+API_KEY = os.getenv("KINOPOISK_API_KEY")
+if not API_KEY:
+    raise ValueError("KINOPOISK_API_KEY not set in environment")
+
 HEADERS = {
     "X-API-KEY": API_KEY,
     "Content-Type": "application/json",
