@@ -47,17 +47,16 @@ public class MovieController {
     @PostMapping("/addFromKinopoisk")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Добавить/обновить фильм по ID Кинопоиска (ADMIN)")
-    @Caching(evict = {
-        @CacheEvict(value = "movie_detail", key = "#result.id"),
-        @CacheEvict(value = "home_collections", allEntries = true)
-    })
+    @CacheEvict(value = "home_collections", allEntries = true)
     public Movie addFromKinopoisk(
             @Parameter(description = "Числовой ID фильма на kinopoisk.ru (например, 301 – это 'Матрица')")
             @RequestParam String kinopoiskId) {
         if (kinopoiskId == null || kinopoiskId.isBlank()) {
             throw new IllegalArgumentException("kinopoiskId не может быть пустым");
         }
-        return kinopoiskSyncService.fetchAndSave(kinopoiskId);
+        Movie saved = kinopoiskSyncService.fetchAndSave(kinopoiskId);
+        movieService.evictMovieCache(saved.getId());
+        return saved;
     }
 
     @PostMapping("/bulkImport")

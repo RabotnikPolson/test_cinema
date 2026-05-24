@@ -4,6 +4,7 @@ import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.security.JwtAuthenticationFilter;
 import com.cinema.testcinema.security.JwtService;
+import com.cinema.testcinema.service.BulkImportService;
 import com.cinema.testcinema.service.KinopoiskSyncService;
 import com.cinema.testcinema.service.MovieService;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class MovieControllerAddFromKinopoiskTest {
 
     @MockBean
     private MovieService movieService;
+
+    @MockBean
+    private BulkImportService bulkImportService;
 
     @Test
     void addFromKinopoiskReturns400ForBlankId() throws Exception {

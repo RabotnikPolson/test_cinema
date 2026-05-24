@@ -20,13 +20,17 @@ public class TestAuth {
             String password
     ) throws Exception {
 
-        // register
-        mockMvc.perform(post("/auth/register")
+        // register (409 означает что юзер уже есть — логинимся с теми же кредами)
+        var regResult = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(om.writeValueAsString(
                                 new RegisterRequest(email, username, password)
                         )))
-                .andExpect(status().isCreated());
+                .andReturn();
+        int regStatus = regResult.getResponse().getStatus();
+        if (regStatus != 201 && regStatus != 409) {
+            throw new AssertionError("register failed with status " + regStatus);
+        }
 
         // login
         var res = mockMvc.perform(post("/auth/login")
