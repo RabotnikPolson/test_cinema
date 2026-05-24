@@ -3,6 +3,7 @@ package com.cinema.testcinema.service;
 import com.cinema.testcinema.dto.analytics.*;
 import com.cinema.testcinema.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -32,6 +33,7 @@ public class AdminAnalyticsService {
         this.movieSubtitleRepository = movieSubtitleRepository;
     }
 
+    @Transactional(readOnly = true)
     public AdminDashboardDto getDashboard(int topLimit, String period) {
         Instant since = "month".equals(period)
                 ? Instant.now().minus(30, ChronoUnit.DAYS)
