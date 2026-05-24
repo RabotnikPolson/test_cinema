@@ -28,6 +28,7 @@ public class AdminAnalyticsController {
             @RequestParam(defaultValue = "10") int topLimit,
             @RequestParam(defaultValue = "week") String period
     ) {
-        return analyticsService.getDashboard(topLimit, period);
+        int safeLimit = Math.min(Math.max(topLimit, 1), 100);
+        return analyticsService.getDashboard(safeLimit, period);
     }
 }

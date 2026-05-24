@@ -16,6 +16,8 @@ import com.cinema.testcinema.dto.movie.BulkImportRequest;
 import com.cinema.testcinema.dto.movie.BulkImportResponse;
 import com.cinema.testcinema.service.BulkImportService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -52,7 +54,9 @@ public class MovieController {
         if (kinopoiskId == null || kinopoiskId.isBlank()) {
             throw new IllegalArgumentException("kinopoiskId не может быть пустым");
         }
-        return kinopoiskSyncService.fetchAndSave(kinopoiskId);
+        Movie saved = kinopoiskSyncService.fetchAndSave(kinopoiskId);
+        movieService.evictMovieCache(saved.getId());
+        return saved;
     }
 
     @PostMapping("/bulkImport")
@@ -92,10 +96,13 @@ public class MovieController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Удалить фильм по ID (ADMIN)")
     @Caching(evict = {
-        @CacheEvict(value = "movie_detail", key = "#id"),
-        @CacheEvict(value = "home_collections", allEntries = true)
+            @CacheEvict(value = "movie_detail", key = "#id"),
+            @CacheEvict(value = "home_collections", allEntries = true)
     })
     public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
+        if (!movieRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм с ID " + id + " не найден");
+        }
         movieRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
