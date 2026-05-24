@@ -6,8 +6,13 @@ import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.repository.GenreRepository;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.MovieFilterRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,5 +90,19 @@ public class MovieService {
             effectivePage = 0; // default page index
         }
         return movieFilterRepository.searchMovies(q, genreId, yearFrom, yearTo, effectivePage, effectiveSize);
+    }
+
+    @Cacheable(value = "movie_detail", key = "#id")
+    public Movie getMovieById(Long id) {
+        Movie movie = movieRepository.findWithGenresById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Фильм с ID " + id + " не найден"));
+        movie.setGenres(new HashSet<>(movie.getGenres()));
+        return movie;
+    }
+
+    @CacheEvict(value = "movie_detail", key = "#id")
+    public void evictMovieCache(Long id) {
+        // просто сбрасывает кэш
     }
 }

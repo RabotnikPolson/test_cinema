@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -35,4 +36,35 @@ public interface WatchHistoryRepository extends JpaRepository<WatchHistory, Long
             "GROUP BY DATE(started_at) " +
             "ORDER BY watchDate ASC", nativeQuery = true)
     List<Object[]> getActivityByDay(@Param("userId") Long userId);
+
+    @Query(value = "SELECT COALESCE(SUM(seconds_watched), 0) FROM watch_history", nativeQuery = true)
+    long getTotalWatchSecondsAllUsers();
+
+    @Query(value = """
+            SELECT m.id, m.title, m.poster_url, m.is_domestic,
+                   SUM(wh.seconds_watched) as score
+            FROM watch_history wh
+            JOIN movies m ON wh.movie_id = m.id
+            WHERE wh.started_at > :since
+            GROUP BY m.id, m.title, m.poster_url, m.is_domestic
+            ORDER BY score DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Object[]> findTopByWatchTime(@Param("since") Instant since, @Param("limit") int limit);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(wh.seconds_watched), 0)
+            FROM watch_history wh
+            JOIN movies m ON wh.movie_id = m.id
+            WHERE m.is_domestic = true
+            """, nativeQuery = true)
+    long getTotalDomesticWatchSeconds();
+
+    @Query(value = """
+            SELECT COALESCE(SUM(wh.seconds_watched), 0)
+            FROM watch_history wh
+            JOIN movies m ON wh.movie_id = m.id
+            WHERE m.is_domestic = false
+            """, nativeQuery = true)
+    long getTotalForeignWatchSeconds();
 }
