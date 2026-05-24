@@ -1,10 +1,13 @@
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.dto.movie.TrendingMovieDto;
+import com.cinema.testcinema.model.Genre;
 import com.cinema.testcinema.model.Movie;
+import com.cinema.testcinema.repository.GenreRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.time.Year;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,22 +15,25 @@ import java.util.stream.Collectors;
 public class CollectionService {
 
     private final MovieService movieService;
+    private final GenreRepository genreRepository;
 
-    public CollectionService(MovieService movieService) {
+    public CollectionService(MovieService movieService, GenreRepository genreRepository) {
         this.movieService = movieService;
+        this.genreRepository = genreRepository;
     }
 
     @Cacheable(value = "home_collections", key = "'new_releases'")
     public List<TrendingMovieDto> getNewReleases() {
-        // Тяжелый запрос: Фильмы текущего года, сортировка по убыванию даты или рейтинга
-        List<Movie> movies = movieService.searchMovies(null, null, 2024L, 2026L, 0, 10);
+        long currentYear = Year.now().getValue();
+        List<Movie> movies = movieService.searchMovies(null, null, currentYear - 1, currentYear + 1, 0, 10);
         return mapToDto(movies);
     }
 
     @Cacheable(value = "home_collections", key = "'top_comedies'")
     public List<TrendingMovieDto> getTopComedies() {
-        // Допустим, жанр комедия имеет ID = 5
-        List<Movie> movies = movieService.searchMovies(null, 5L, null, null, 0, 10);
+        Genre comedy = genreRepository.findByName("Комедия");
+        if (comedy == null) return List.of();
+        List<Movie> movies = movieService.searchMovies(null, comedy.getId(), null, null, 0, 10);
         return mapToDto(movies);
     }
 

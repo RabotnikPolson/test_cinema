@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.Comparator;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.Collections;
 
@@ -48,24 +46,20 @@ public class TrendingController {
     @PermitAll
     @Operation(summary = "Получить еженедельный ТОП фильмов (Redis ZSET)", description = "Достает ТОП-10 фильмов на основе кликов пользователей")
     public ResponseEntity<List<TrendingMovieDto>> getWeeklyTrending() {
-        Set<Long> topIds = trendingRedisService.getTopTrendingIds(10);
+        List<Long> topIds = trendingRedisService.getTopTrendingIds(10);
         if (topIds.isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
-        List<Movie> movies = movieRepository.findAllById(topIds);
-        
-        List<TrendingMovieDto> sortedDtos = movies.stream()
-                .sorted(Comparator.comparingInt(m -> new ArrayList<>(topIds).indexOf(m.getId())))
-                .map(m -> new TrendingMovieDto(
-                        m.getId(),
-                        m.getTitle(),
-                        m.getPosterUrl(),
-                        // Здесь мы не знаем точный score (разве что возвращать из сервиса ZSetOperations.TypedTuple),
-                        // поэтому передаем 0.0 или можно расширить сервис. Для демо оставим 0.0
-                        0.0,
-                        m.isDomestic()
-                ))
+        Map<Long, Movie> movieById = movieRepository.findAllById(topIds).stream()
+                .collect(Collectors.toMap(Movie::getId, m -> m));
+
+        List<TrendingMovieDto> sortedDtos = topIds.stream()
+                .filter(movieById::containsKey)
+                .map(id -> {
+                    Movie m = movieById.get(id);
+                    return new TrendingMovieDto(m.getId(), m.getTitle(), m.getPosterUrl(), 0.0, m.isDomestic());
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(sortedDtos);

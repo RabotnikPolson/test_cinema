@@ -85,10 +85,10 @@ public class UserSettingsService {
         Instant lastEmailEditAt = settings.getLastEmailEditAt();
         Instant now = Instant.now();
         if (lastEmailEditAt != null && lastEmailEditAt.plus(EMAIL_EDIT_WINDOW).isAfter(now)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять никнейм или email можно раз в 7 дней");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Изменять email можно раз в 7 дней");
         }
 
-        if (userRepository.existsByEmail(newEmail) && !newEmail.equalsIgnoreCase(user.getEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(newEmail)) {
             throw new BusinessException(HttpStatus.CONFLICT, "Email уже зарегистрирован");
         }
 
