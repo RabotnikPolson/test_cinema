@@ -43,6 +43,7 @@ out/
 *.env
 
 ### Frontend ###
+/main-frontend/
 /main-frontend/dist/
 /main-frontend/node_modules/
 /main-frontend/.vscode/
