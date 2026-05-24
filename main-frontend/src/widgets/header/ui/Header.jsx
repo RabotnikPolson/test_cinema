@@ -129,6 +129,7 @@ export default function Header({ onMenuClick }) {
     navigate("/");
   };
 
+  const submit = (event) => {
     event.preventDefault();
     navigateWith(q);
 

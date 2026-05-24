@@ -49,6 +49,8 @@ function mapDomesticItems(data, allMovies) {
 }
 
 export default function HomePage() {
+  const { user } = useAuth();
+  const userId = user?.profile?.userId || user?.id || null;
   const { data: movies = [], isLoading, isError, error } = useMovies();
   const { data: genres = [] } = useGenres();
   const { data: domesticData } = useKazakhstanRecommendations(6);
@@ -56,8 +58,6 @@ export default function HomePage() {
   const { data: trendingData, isError: isTrendingError } = useTrending();
   const [searchParams] = useSearchParams();
   const q = (searchParams.get("q") || "").toLowerCase();
-  const { user } = useAuth();
-  const userId = user?.profile?.userId || user?.id || null;
 
   const continueWatching = useMemo(
     () => movies.filter((movie) => movie.progress && movie.progress > 0).slice(0, 6),
