@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0e1c" stop-opacity="0.2"></stop>
+      <stop offset="55%" stop-color="#0a0e1c" stop-opacity="0.6"></stop>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.95"></stop>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#6488C9" stop-opacity="0.55"></stop>
+      <stop offset="60%" stop-color="#6488C9" stop-opacity="0.10"></stop>
+      <stop offset="100%" stop-color="#0a0e1c" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  <rect width="300" height="450" fill="#0a0e1c"></rect>
+  <rect width="300" height="450" fill="url(#halo)"></rect>
+  
+  <g opacity="0.07" fill="#fff">
+    <circle cx="70" cy="180" r="0.38"></circle><circle cx="106" cy="145" r="1.01"></circle><circle cx="102" cy="86" r="0.44"></circle><circle cx="88" cy="345" r="0.19"></circle><circle cx="160" cy="146" r="1.00"></circle><circle cx="148" cy="48" r="0.89"></circle><circle cx="172" cy="111" r="1.41"></circle><circle cx="150" cy="427" r="1.13"></circle><circle cx="96" cy="399" r="0.24"></circle><circle cx="277" cy="279" r="0.68"></circle><circle cx="179" cy="287" r="1.50"></circle><circle cx="22" cy="58" r="0.57"></circle><circle cx="20" cy="14" r="0.56"></circle><circle cx="57" cy="130" r="0.71"></circle><circle cx="84" cy="253" r="0.98"></circle><circle cx="215" cy="434" r="0.79"></circle><circle cx="90" cy="371" r="1.33"></circle><circle cx="81" cy="61" r="0.90"></circle><circle cx="33" cy="251" r="1.46"></circle><circle cx="237" cy="22" r="0.43"></circle><circle cx="78" cy="36" r="1.12"></circle><circle cx="48" cy="129" r="0.34"></circle><circle cx="220" cy="392" r="1.36"></circle><circle cx="38" cy="190" r="0.73"></circle><circle cx="14" cy="240" r="0.67"></circle><circle cx="192" cy="155" r="0.43"></circle><circle cx="215" cy="107" r="0.48"></circle><circle cx="73" cy="76" r="1.16"></circle><circle cx="143" cy="342" r="0.69"></circle><circle cx="129" cy="326" r="0.76"></circle><circle cx="49" cy="132" r="0.40"></circle><circle cx="45" cy="9" r="0.38"></circle><circle cx="62" cy="286" r="0.49"></circle><circle cx="249" cy="191" r="0.26"></circle><circle cx="225" cy="300" r="0.64"></circle><circle cx="52" cy="51" r="1.41"></circle><circle cx="189" cy="411" r="0.13"></circle><circle cx="2" cy="96" r="1.16"></circle><circle cx="45" cy="147" r="1.47"></circle><circle cx="104" cy="287" r="0.34"></circle><circle cx="289" cy="335" r="1.46"></circle><circle cx="285" cy="415" r="1.39"></circle><circle cx="284" cy="300" r="0.94"></circle><circle cx="65" cy="447" r="1.18"></circle><circle cx="150" cy="249" r="1.09"></circle><circle cx="80" cy="33" r="0.46"></circle><circle cx="20" cy="371" r="0.62"></circle><circle cx="49" cy="299" r="0.19"></circle><circle cx="149" cy="32" r="0.55"></circle><circle cx="144" cy="236" r="0.16"></circle><circle cx="284" cy="249" r="0.76"></circle><circle cx="51" cy="373" r="1.08"></circle><circle cx="196" cy="247" r="0.44"></circle><circle cx="55" cy="128" r="0.90"></circle><circle cx="85" cy="14" r="0.63"></circle><circle cx="62" cy="30" r="0.93"></circle><circle cx="248" cy="232" r="0.92"></circle><circle cx="286" cy="227" r="1.39"></circle><circle cx="236" cy="134" r="1.39"></circle><circle cx="145" cy="81" r="0.71"></circle><circle cx="54" cy="181" r="1.22"></circle><circle cx="19" cy="440" r="0.59"></circle><circle cx="237" cy="332" r="0.51"></circle><circle cx="216" cy="145" r="1.48"></circle><circle cx="181" cy="304" r="1.37"></circle><circle cx="6" cy="289" r="1.39"></circle><circle cx="277" cy="133" r="0.89"></circle><circle cx="20" cy="21" r="0.85"></circle><circle cx="151" cy="248" r="0.36"></circle><circle cx="132" cy="154" r="1.34"></circle><circle cx="185" cy="189" r="0.54"></circle><circle cx="272" cy="190" r="0.74"></circle><circle cx="75" cy="85" r="1.01"></circle><circle cx="110" cy="371" r="1.23"></circle><circle cx="289" cy="107" r="0.41"></circle><circle cx="128" cy="52" r="1.08"></circle><circle cx="24" cy="50" r="0.53"></circle><circle cx="66" cy="401" r="1.27"></circle><circle cx="122" cy="433" r="0.37"></circle><circle cx="63" cy="37" r="1.20"></circle><circle cx="185" cy="375" r="1.45"></circle><circle cx="163" cy="168" r="0.26"></circle><circle cx="216" cy="27" r="1.30"></circle><circle cx="282" cy="296" r="0.93"></circle><circle cx="116" cy="377" r="1.12"></circle><circle cx="134" cy="88" r="1.09"></circle><circle cx="232" cy="15" r="0.76"></circle><circle cx="270" cy="90" r="1.35"></circle><circle cx="92" cy="208" r="0.37"></circle><circle cx="248" cy="38" r="1.34"></circle>
+  </g>
+  
+  <path d="M0 300 L60 240 L110 280 L160 220 L210 270 L260 235 L300 290 L300 450 L0 450 Z" fill="#000" opacity="0.55"></path>
+  <rect width="300" height="450" fill="url(#g)"></rect>
+  
+  <text x="150" y="185" text-anchor="middle" font-family="DM Serif Display, serif" font-size="120" fill="#6488C9" opacity="0.9">♪</text>
+  
+  <text x="150" y="345" text-anchor="middle" font-family="DM Serif Display, serif" font-size="34" fill="#fff" letter-spacing="2">КОБЫЗ</text>
+  <text x="150" y="370" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="10" font-weight="500" fill="#6488C9" letter-spacing="6">KOBYZ</text>
+  <line x1="100" y1="385" x2="200" y2="385" stroke="#6488C9" stroke-width="1" opacity="0.6"></line>
+  <text x="150" y="410" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="10" fill="#9A9EB8" letter-spacing="3">МУЗЫКАЛЬНЫЙ · 2023</text>
+</svg>

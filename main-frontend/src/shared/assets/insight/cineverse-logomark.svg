@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="INSIGHT mark">
+  
+  <defs>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.35"></stop>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  <rect width="96" height="96" rx="16" fill="#0D0D1C"></rect>
+  <circle cx="48" cy="48" r="44" fill="url(#goldGlow)"></circle>
+  <g transform="translate(48 48)" fill="none" stroke="#C9A84C" stroke-width="4" stroke-linecap="round">
+    
+    <path d="M 0 -28 A 28 28 0 0 1 24.25 14"></path>
+    <path d="M 24.25 14 A 28 28 0 0 1 -24.25 14"></path>
+    <path d="M -24.25 14 A 28 28 0 0 1 0 -28"></path>
+  </g>
+  
+  <circle cx="48" cy="48" r="6" fill="#C9A84C"></circle>
+  
+  <path d="M 72 32 A 26 26 0 1 0 72 64" stroke="#D4D8E8" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.0"></path>
+</svg>

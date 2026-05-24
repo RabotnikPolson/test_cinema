@@ -1,0 +1,80 @@
+.favorites-page {
+  padding-top: 2.5rem;
+}
+
+.favorites-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.favorites-eyebrow {
+  color: var(--cv-gold);
+  font-family: var(--cv-font-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.favorites-hero h1 {
+  margin: 0 0 0.5rem;
+  color: var(--cv-ice);
+  font-family: var(--cv-font-heading);
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.favorites-hero p {
+  margin: 0;
+  color: var(--cv-text-dim);
+  max-width: 560px;
+}
+
+.favorites-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--cv-gold);
+}
+
+.favorites-count span {
+  font-family: var(--cv-font-display);
+  font-size: 1.6rem;
+}
+
+.favorites-state,
+.favorites-empty {
+  margin-top: 2rem;
+  border-radius: var(--cv-r-xl);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--cv-text-dim);
+}
+
+.favorites-empty svg {
+  color: var(--cv-gold);
+}
+
+.favorites-empty h2 {
+  margin: 1rem 0 0.5rem;
+  color: var(--cv-ice);
+  font-family: var(--cv-font-heading);
+}
+
+@media (max-width: 720px) {
+  .favorites-page {
+    padding-top: 1.5rem;
+  }
+
+  .favorites-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
