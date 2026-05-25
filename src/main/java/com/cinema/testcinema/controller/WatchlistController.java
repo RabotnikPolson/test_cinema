@@ -137,7 +137,7 @@ public class WatchlistController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Запись не найдена в списке пользователя");
         }
-        watchlistRepository.deleteByUserIdAndMovieId(userId, movieId);
+        watchlistRepository.deleteById(new Watchlist.WatchlistId(userId, movieId));
     }
 
     @DeleteMapping("/{userId}/{movieId}")
@@ -148,7 +148,7 @@ public class WatchlistController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Запись не найдена в списке пользователя");
         }
-        watchlistRepository.deleteByUserIdAndMovieId(userId, movieId);
+        watchlistRepository.deleteById(new Watchlist.WatchlistId(userId, movieId));
     }
 
     private WatchlistResponse toResponse(Watchlist watchlist) {

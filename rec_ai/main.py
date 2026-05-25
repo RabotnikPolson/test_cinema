@@ -246,9 +246,9 @@ async def frontend_smart_feed(user_id: Optional[int] = None):
     return {"user_id": user_id, "feed": feed}
 
 @app.get("/api/v1/recommendations/tab/kazakhstan", response_model=schemas.RecommendationResponse)
-async def frontend_kazakhstan_tab(user_id: Optional[int] = None, limit: int = 20, genre: Optional[str] = None):
+async def frontend_kazakhstan_tab(user_id: Optional[int] = None, limit: int = 20, genre: Optional[str] = None, year_from: Optional[int] = None, year_to: Optional[int] = None, sort_by: str = "relevance"):
     check_model()
-    recs = recommender.get_kazakhstan_tab_recommendations(ML_MODEL["df"], user_id=user_id, limit=limit, genre=genre)
+    recs = recommender.get_kazakhstan_tab_recommendations(ML_MODEL["df"], user_id=user_id, limit=limit, genre=genre, year_from=year_from, year_to=year_to, sort_by=sort_by)
     return {"recommendations": recs, "method": "kazakhstan", "total": len(recs)}
 
 
@@ -280,6 +280,52 @@ async def frontend_tab_recommendations_query(tab: str, limit: int = 15, user_id:
         return {"recommendations": recs, "method": tab}
         
     raise HTTPException(status_code=400, detail=f"Неизвестный тип: {tab}")
+
+
+# ==============================================================
+# НОВЫЕ KZ-ЭНДПОИНТЫ ДЛЯ СЕКЦИИ "ҚАЗАҚ КИНО"
+# ==============================================================
+
+@app.get("/api/v1/recommend/kazakhstan")
+async def kazakhstan_recommendations(
+    user_id: Optional[int] = None,
+    limit: int = 20,
+    genre: Optional[str] = None,
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    sort_by: str = "relevance"
+):
+    """KZ-рекомендации с фильтрацией по жанру, году и сортировкой"""
+    check_model()
+    df = ML_MODEL["df"]
+    recs = recommender.get_kazakhstan_tab_recommendations(
+        df, user_id=user_id, limit=limit,
+        genre=genre, year_from=year_from, year_to=year_to, sort_by=sort_by
+    )
+    return {
+        "recommendations": recs,
+        "total": len(recs),
+        "filters": {"genre": genre, "year_from": year_from, "year_to": year_to, "sort_by": sort_by}
+    }
+
+
+@app.get("/api/v1/recommend/kazakhstan/genres")
+async def kazakhstan_genres():
+    """Список жанров, доступных среди KZ-фильмов — для фронтенд-фильтров"""
+    check_model()
+    df = ML_MODEL["df"]
+    kz_mask = (
+        df['country'].fillna('').str.lower().str.contains('казахстан|kazakhstan|kz', na=False) |
+        df['language'].fillna('').str.lower().str.contains('казахский|kazakh|қазақ', na=False) |
+        df['is_domestic'].fillna(False)
+    )
+    genres = set()
+    for g_str in df[kz_mask]['genre_clean'].dropna():
+        for g in g_str.split(','):
+            g = g.strip()
+            if g:
+                genres.add(g)
+    return {"genres": sorted(list(genres))}
 
 
 @app.get("/api/v1/recommendations/tab/{type}/{movie_id}", response_model=schemas.RecommendationResponse)

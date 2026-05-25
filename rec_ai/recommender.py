@@ -7,10 +7,28 @@ from database import DATABASE_URL
 from functools import lru_cache
 import time
 
-KAZAKHSTAN_BOOST = 2.5
-CENTRAL_ASIA_BOOST = 1.8
-CIS_BOOST = 1.3
+KAZAKHSTAN_BOOST = 3.0
+CENTRAL_ASIA_BOOST = 2.2
+CIS_BOOST = 1.5
 DEFAULT_BOOST = 1.0
+
+# Аддитивный бонус к base_score — гарантирует что KZ-фильмы пробиваются в топ
+# даже если base_score близок к нулю (нет жанрового совпадения)
+KZ_DIRECT_BONUS = 0.35
+
+# === Model Cache (критично для производительности) ===
+_MODEL_CACHE = {"df": None, "cosine_sim": None, "loaded_at": 0}
+MODEL_TTL_SECONDS = 3600  # Перегружать раз в час
+
+def get_recommendations_model_cached():
+    """Кэшированная обёртка: пересчитывает модель не чаще раз в час."""
+    now = time.time()
+    if _MODEL_CACHE["df"] is None or (now - _MODEL_CACHE["loaded_at"]) > MODEL_TTL_SECONDS:
+        df, cosine_sim = get_recommendations_model()
+        _MODEL_CACHE["df"] = df
+        _MODEL_CACHE["cosine_sim"] = cosine_sim
+        _MODEL_CACHE["loaded_at"] = now
+    return _MODEL_CACHE["df"], _MODEL_CACHE["cosine_sim"]
 
 def get_kazakhstan_boost_score(movie_row) -> float:
     country = str(movie_row.get("country", "")) if 'country' in movie_row.index and pd.notna(movie_row['country']) else ""
@@ -556,8 +574,15 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
 
         base_score = (genre_score * 0.30 + content_score * 0.25 +
                  director_score * 0.20 + actor_score * 0.15 + rating_boost * 0.10)
-        boost = get_kazakhstan_boost_score(df.iloc[i])
-        score = base_score * boost
+        kz_boost = get_kazakhstan_boost_score(df.iloc[i])
+
+        # Комбо: аддитив + мультипликатор для KZ-фильмов
+        # Мультипликатор не помогает если base_score близок к 0,
+        # аддитив гарантирует что хороший KZ-фильм пробивается в топ
+        if kz_boost >= KAZAKHSTAN_BOOST:
+            score = base_score * kz_boost + KZ_DIRECT_BONUS
+        else:
+            score = base_score * kz_boost
         scores.append((i, score))
 
     scores.sort(key=lambda x: x[1], reverse=True)
@@ -646,7 +671,14 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
     return _format_recs(df, top_indices, profile[top_indices], reasons)
 
 
-def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):
+def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None, year_from=None, year_to=None, sort_by="relevance"):
+    """
+    KZ-tab с расширенной фильтрацией и сортировкой.
+    
+    Параметры:
+    - year_from, year_to: фильтр по диапазону года выпуска
+    - sort_by: "relevance" | "rating" | "year"
+    """
     engine = create_engine(DATABASE_URL)
     watched_ids = set()
     if user_id is not None:
@@ -678,6 +710,14 @@ def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):
         if is_kz:
             if genre and genre.lower() not in str(kz_df['genre_clean'].iloc[i]).lower():
                 continue
+            
+            # Фильтр по году
+            movie_year = _safe_year(kz_df['year'].iloc[i]) if 'year' in kz_df.columns else None
+            if year_from and (movie_year is None or movie_year < year_from):
+                continue
+            if year_to and (movie_year is None or movie_year > year_to):
+                continue
+            
             boost = get_kazakhstan_boost_score(kz_df.iloc[i])
             rating_num = float(kz_df['rating_norm'].iloc[i]) if 'rating_norm' in kz_df.columns else 0.0
             scores.append(rating_num * boost)
@@ -686,12 +726,29 @@ def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):
             
     if not indices:
         return []
-        
-    import numpy as np
-    indices = np.array(indices)
-    scores = np.array(scores)
-    top_idxs = indices[scores.argsort()[::-1][:limit]]
-    top_scores = scores[scores.argsort()[::-1][:limit]]
-    top_reasons = [reasons[0]] * len(top_idxs)
     
-    return _format_recs(kz_df, top_idxs, top_scores, top_reasons)
+    # Сортировка
+    if sort_by == "year":
+        indices.sort(key=lambda i: _safe_year(kz_df['year'].iloc[i]) or 0, reverse=True)
+    elif sort_by == "rating":
+        indices.sort(key=lambda i: float(kz_df['rating_norm'].iloc[i]) if 'rating_norm' in kz_df.columns else 0, reverse=True)
+    # default: relevance — сортируем по score
+    else:
+        score_arr = np.array(scores)
+        sorted_order = score_arr.argsort()[::-1]
+        indices = [indices[j] for j in sorted_order]
+        scores = [scores[j] for j in sorted_order]
+    
+    # Обрезаем до лимита
+    final_indices = indices[:limit]
+    
+    # Пересчитываем scores для итогового набора
+    final_scores = []
+    for idx in final_indices:
+        rating_num = float(kz_df['rating_norm'].iloc[idx]) if 'rating_norm' in kz_df.columns else 0.0
+        boost = get_kazakhstan_boost_score(kz_df.iloc[idx])
+        final_scores.append(rating_num * boost)
+    
+    final_reasons = ["Казахское кино"] * len(final_indices)
+    
+    return _format_recs(kz_df, np.array(final_indices), np.array(final_scores), final_reasons)

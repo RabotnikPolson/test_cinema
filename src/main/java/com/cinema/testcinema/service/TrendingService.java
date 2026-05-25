@@ -143,5 +143,4 @@ public class TrendingService {
         log.info("[TRENDING] Тренды успешно обновлены. Записей: {}", result.size());
         return result;
     }
-
 }
