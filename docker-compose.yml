@@ -38,21 +38,19 @@ services:
       - redis_data:/data
 
   # ── AI Recommendation Service (Python) ──
-  test-ai:
+  rec-ai:
     build:
-      context: ./test_ai/test_ai
-    container_name: test-ai
+      context: ./rec_ai
+    container_name: rec-ai
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=host.docker.internal   # Java backend's local Windows postgres
+      - DB_HOST=host.docker.internal
       - DB_PORT=5432
       - DB_USER=test_user
       - DB_PASS=pass1
       - DB_NAME=testdb
-    volumes:
-      - ./test_ai/test_ai:/app          # hot-reload: edit .py → auto-restart
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

@@ -124,7 +124,7 @@ export default function MovieDetailsPage() {
   useEffect(() => {
     if (movie) {
       document.title = `${movie.title} — INSIGHT`;
-      logClick(normalizedUserId, movie.id, "browse");
+      logClick(movie.id);
     }
   }, [movie, normalizedUserId]);
 

@@ -14,9 +14,7 @@ export default function TrendingPage() {
 
   const handleMovieClick = (movie) => {
     const movieId = movie.movie_id || movie.id;
-    if (user?.id) {
-      logClick(user.id, movieId, "trending_page");
-    }
+    logClick(movieId);
     navigate(`/movie/${movieId}`);
   };
 

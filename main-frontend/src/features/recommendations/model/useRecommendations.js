@@ -32,13 +32,14 @@ export const useRightRail = (movieId, limit = 15) =>
 export const useSmartFeed = (userId) =>
   useQuery({
     queryKey: ["smartFeed", userId],
-    queryFn: () => getSmartFeed(userId),
+    queryFn: () => getSmartFeed(),
+    enabled: !!userId,
   });
 
 export const useBecauseYouLiked = (userId, limit = 15) =>
   useQuery({
     queryKey: ["recommendationsBecauseYouLiked", userId, limit],
-    queryFn: () => listBecauseYouLiked(userId, limit),
+    queryFn: () => listBecauseYouLiked(limit),
     enabled: !!userId,
   });
 

@@ -68,20 +68,23 @@ export async function getMovieStream(movieId) {
     return null;
   }
 
-  const response = await fetch(resolvePublicAsset("storage/videos/catalog.json"), {
-    cache: "no-store",
+  const { default: http } = await import("@/shared/api/http-client");
+  const response = await http.get(`/stream/${movieId}`);
+  const data = response.data;
+
+  const videoUrl = data.videoUrl || null;
+  const format = videoUrl && videoUrl.includes(".m3u8") ? "HLS" : "MP4";
+  // Proxy subtitle through Java to avoid MinIO CORS block on <track> elements
+  const subtitleUrl = data.subtitleUrl
+    ? `${http.defaults.baseURL}/stream/${movieId}/subtitle`
+    : null;
+
+  return normalizeStream({
+    movieId,
+    videoUrl,
+    videoFormat: format,
+    subtitles: subtitleUrl
+      ? [{ lang: "kk", label: "Казахский", url: subtitleUrl }]
+      : [],
   });
-
-  if (!response.ok) {
-    throw new Error("Unable to load local stream catalog.");
-  }
-
-  const catalog = await response.json();
-  const entry = catalog?.movies?.[String(movieId)];
-
-  if (!entry) {
-    return null;
-  }
-
-  return normalizeStream(entry);
 }

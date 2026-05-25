@@ -1,36 +1,24 @@
-const REC_AI_URL = import.meta.env.VITE_REC_AI_URL || "http://localhost:8000";
+import http from "./http-client.js";
 
-export const logClick = async (userId, movieId, source = "browse") => {
+export const logClick = async (movieId) => {
   try {
-    await fetch(`${REC_AI_URL}/api/v1/metrics/click`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, movie_id: movieId, source }),
-    });
+    await http.post("/metrics/clicks", { movieId });
   } catch (e) {
     console.warn("logClick failed:", e);
   }
 };
 
-export const logSearch = async (query, userId = null) => {
+export const logSearch = async (query, resultCount = 0) => {
   try {
-    await fetch(`${REC_AI_URL}/api/v1/metrics/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, user_id: userId }),
-    });
+    await http.post("/metrics/searches", { query, resultCount });
   } catch (e) {
     console.warn("logSearch failed:", e);
   }
 };
 
-export const logSubtitleEvent = async (userId, movieId, action) => {
+export const logSubtitleEvent = async (movieId, action, lang = null) => {
   try {
-    await fetch(`${REC_AI_URL}/api/v1/metrics/subtitle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, movie_id: movieId, action }),
-    });
+    await http.post("/metrics/subtitles", { movieId, action, lang });
   } catch (e) {
     console.warn("logSubtitleEvent failed:", e);
   }

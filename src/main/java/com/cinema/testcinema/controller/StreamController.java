@@ -4,6 +4,7 @@ import com.cinema.testcinema.service.StreamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,5 +26,18 @@ public class StreamController {
     @Operation(summary = "Получить ссылки на видео и субтитры", description = "Генерирует временные presigned-ссылки на MinIO")
     public ResponseEntity<Map<String, String>> stream(@PathVariable Long id) {
         return ResponseEntity.ok(streamService.getStreamUrls(id));
+    }
+
+    @GetMapping("/{id}/subtitle")
+    @PermitAll
+    @Operation(summary = "Прокси субтитров (VTT)", description = "Стримит VTT через Java чтобы обойти CORS MinIO")
+    public ResponseEntity<byte[]> subtitle(@PathVariable Long id) {
+        byte[] content = streamService.getSubtitleBytes(id);
+        if (content == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "text/vtt; charset=utf-8")
+                .body(content);
     }
 }

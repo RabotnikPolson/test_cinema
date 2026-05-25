@@ -4,17 +4,22 @@ import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.model.MovieSubtitle;
 import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.MovieSubtitleRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class StreamService {
+
+    private static final Logger log = LoggerFactory.getLogger(StreamService.class);
 
     private final MovieRepository movieRepository;
     private final MovieSubtitleRepository movieSubtitleRepository;
@@ -73,5 +78,28 @@ public class StreamService {
         }
 
         return response;
+    }
+
+    public byte[] getSubtitleBytes(Long movieId) {
+        List<MovieSubtitle> subtitles = movieSubtitleRepository.findByMovieId(movieId);
+        String s3Path = null;
+        for (MovieSubtitle sub : subtitles) {
+            String path = sub.getS3Path();
+            if (path != null && !path.isBlank()) {
+                if ("kk".equalsIgnoreCase(sub.getLanguage())) {
+                    s3Path = path;
+                    break;
+                } else if (s3Path == null) {
+                    s3Path = path;
+                }
+            }
+        }
+        if (s3Path == null) return null;
+        try (InputStream is = s3StorageService.getObjectStream(defaultBucket, s3Path)) {
+            return is.readAllBytes();
+        } catch (Exception e) {
+            log.error("[Stream] Failed to fetch subtitle from MinIO for movie {}: {}", movieId, e.getMessage());
+            return null;
+        }
     }
 }

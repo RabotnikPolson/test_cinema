@@ -1,5 +1,6 @@
 package com.cinema.testcinema.service;
 
+import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.http.Method;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,6 +41,15 @@ public class S3StorageService {
      * @param expiryHours Время жизни ссылки в часах
      * @return Presigned URL в виде строки
      */
+    public InputStream getObjectStream(String bucketName, String objectPath) throws Exception {
+        return minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectPath)
+                        .build()
+        );
+    }
+
     public String generatePresignedUrl(String bucketName, String objectPath, int expiryHours) {
         if (objectPath == null || objectPath.isBlank()) {
             return null;

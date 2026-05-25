@@ -196,9 +196,9 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
 
     setActiveSubtitle(lang);
     if (lang !== "off") {
-      logSubtitleEvent(user?.id, movieId, `enabled_lang_${lang}`);
+      logSubtitleEvent(movieId, "enable", lang);
     } else {
-      logSubtitleEvent(user?.id, movieId, "disabled");
+      logSubtitleEvent(movieId, "disable");
     }
     setCaptionMenuOpen(false);
     setSubtitleNotice(

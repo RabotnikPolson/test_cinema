@@ -121,7 +121,7 @@ export default function Header({ onMenuClick }) {
   const navigateWith = (value) => {
     const nextValue = value.trim();
     if (nextValue) {
-      logSearch(nextValue, user?.id);
+      logSearch(nextValue);
       navigate(`/?q=${encodeURIComponent(nextValue)}`);
       return;
     }
