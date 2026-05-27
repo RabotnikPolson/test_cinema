@@ -5,6 +5,7 @@ import com.cinema.testcinema.security.AuthenticatedUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -83,6 +84,13 @@ public class RecommendationController {
         Map<String, Object> result = aiClient.getBecauseYouLiked(userId, limit);
         saveImpressions(userId, result, "because_you_liked");
         return result;
+    }
+
+    @PostMapping("/retrain")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Запустить переобучение ML-модели (только ADMIN)")
+    public Map<String, Object> retrain() {
+        return aiClient.retrain();
     }
 
     @SuppressWarnings("unchecked")

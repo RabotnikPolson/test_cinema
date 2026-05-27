@@ -55,3 +55,7 @@
 2026-05-27T23:27:19.132+05:00  INFO 18880 --- [testCinema] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
 2026-05-27T23:27:19.133+05:00  INFO 18880 --- [testCinema] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
 2026-05-27T23:27:19.136+05:00  INFO 18880 --- [testCinema] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-05-28T00:08:55.110+05:00  INFO 18880 --- [testCinema] [nio-8080-exec-9] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 1875 ms
+
+> Task :bootRun FAILED
+4 actionable tasks: 1 executed, 3 up-to-date

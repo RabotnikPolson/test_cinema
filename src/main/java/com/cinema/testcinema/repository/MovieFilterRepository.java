@@ -58,7 +58,11 @@ public class MovieFilterRepository {
 
         if (q != null && !q.trim().isEmpty()) {
             String pattern = "%" + q.trim().toLowerCase() + "%";
-            predicates.add(cb.like(cb.lower(movieRoot.get("title")), pattern));
+            predicates.add(cb.or(
+                cb.like(cb.lower(movieRoot.get("title")), pattern),
+                cb.like(cb.lower(movieRoot.get("nameOriginal")), pattern),
+                cb.like(cb.lower(movieRoot.get("nameEn")), pattern)
+            ));
         }
         if (genreId != null) {
             // inner join on genres when filtering by genre id

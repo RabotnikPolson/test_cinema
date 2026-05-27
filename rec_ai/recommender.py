@@ -678,6 +678,8 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
 
     scores = []
     for i in candidate_indices:
+        if i == target_idx:
+            continue
         movie_director = df["director_clean"].iloc[i].strip().lower()
         movie_actors = set(a.strip().lower() for a in df["actors_clean"].iloc[i].split(",") if a.strip())
         movie_genres = set(g.strip().lower() for g in df["genre_clean"].iloc[i].split(",") if g.strip())

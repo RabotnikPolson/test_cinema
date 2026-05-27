@@ -107,6 +107,15 @@ public class AiRecommendationClient {
         }
     }
 
+    public Map<String, Object> retrain() {
+        try {
+            return restTemplate.postForObject(aiServiceUrl + "/api/v1/ml/retrain", null, Map.class);
+        } catch (Exception e) {
+            log.warn("AI retrain failed: {}", e.getMessage());
+            return Map.of("status", "error", "message", e.getMessage());
+        }
+    }
+
     @Cacheable(value = "rec_trending", key = "#weekly")
     @SuppressWarnings("unchecked")
     public Map<String, Object> getTrending(boolean weekly) {
