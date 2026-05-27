@@ -1,6 +1,7 @@
 package com.cinema.testcinema.service;
 
 import com.cinema.testcinema.dto.AnalyticsSummaryDto;
+import com.cinema.testcinema.dto.UserProfileStatsDto;
 import com.cinema.testcinema.dto.WatchBeatDto;
 import com.cinema.testcinema.model.Movie;
 import com.cinema.testcinema.model.User;
@@ -9,6 +10,7 @@ import com.cinema.testcinema.repository.MovieRepository;
 import com.cinema.testcinema.repository.WatchHistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +24,12 @@ public class WatchService {
     private static final Logger log = LoggerFactory.getLogger(WatchService.class);
     private final WatchHistoryRepository whRepo;
     private final MovieRepository movieRepo;
+    private final JdbcTemplate jdbc;
 
-    public WatchService(WatchHistoryRepository whRepo, MovieRepository movieRepo) {
+    public WatchService(WatchHistoryRepository whRepo, MovieRepository movieRepo, JdbcTemplate jdbc) {
         this.whRepo = whRepo;
         this.movieRepo = movieRepo;
+        this.jdbc = jdbc;
     }
 
     @Transactional
@@ -57,7 +61,7 @@ public class WatchService {
             Integer runtimeMinutes = parseRuntimeMinutes(movie.getRuntime());
             if (runtimeMinutes != null && runtimeMinutes > 0) {
                 int runtimeSeconds = runtimeMinutes * 60;
-                if (wh.getSecondsWatched() >= runtimeSeconds * 0.9) {
+                if (wh.getSecondsWatched() >= runtimeSeconds * 0.85) {
                     wh.setCompleted(true);
                     log.debug("[WATCH] session {} marked as completed ({} sec / {} sec)",
                             dto.sessionId(), wh.getSecondsWatched(), runtimeSeconds);
@@ -120,5 +124,74 @@ public class WatchService {
         }
 
         return new AnalyticsSummaryDto(total, genresPie, points);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileStatsDto myProfile(Long userId) {
+        long totalSeconds = Optional.ofNullable(whRepo.getTotalSecondsWatched(userId)).orElse(0L);
+
+        Integer completedMovies = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM watch_history WHERE user_id = ? AND completed = true", Integer.class, userId);
+
+        Integer kazakhstanMovies = jdbc.queryForObject("""
+                SELECT COUNT(DISTINCT wh.movie_id)
+                FROM watch_history wh
+                JOIN movies m ON m.id = wh.movie_id
+                WHERE wh.user_id = ? AND m.is_domestic = true
+                """, Integer.class, userId);
+
+        Integer streak = jdbc.queryForObject("""
+                WITH consecutive AS (
+                    SELECT DISTINCT CAST(started_at AS DATE) AS d
+                    FROM watch_history WHERE user_id = ?
+                ),
+                ordered AS (
+                    SELECT d, ROW_NUMBER() OVER (ORDER BY d DESC) AS rn FROM consecutive
+                )
+                SELECT COUNT(*) FROM ordered
+                WHERE d = CURRENT_DATE - CAST(rn - 1 AS INT)
+                """, Integer.class, userId);
+
+        String favoriteGenre = null;
+        List<Object[]> topGenres = whRepo.getTopGenresWatched(userId);
+        if (topGenres != null && !topGenres.isEmpty()) {
+            favoriteGenre = (String) topGenres.get(0)[0];
+        }
+
+        String favoriteDirector = null;
+        List<Map<String, Object>> directorRows = jdbc.queryForList("""
+                SELECT m.director, SUM(wh.seconds_watched) AS total
+                FROM watch_history wh JOIN movies m ON m.id = wh.movie_id
+                WHERE wh.user_id = ? AND m.director IS NOT NULL AND m.director != ''
+                GROUP BY m.director ORDER BY total DESC LIMIT 1
+                """, userId);
+        if (!directorRows.isEmpty()) {
+            favoriteDirector = (String) directorRows.get(0).get("director");
+        }
+
+        Integer userRatings = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ratings WHERE user_id = ?", Integer.class, userId);
+
+        Integer nightOwlCount = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM watch_history
+                WHERE user_id = ? AND EXTRACT(HOUR FROM started_at) >= 23
+                """, Integer.class, userId);
+
+        List<String> achievements = new ArrayList<>();
+        if (Optional.ofNullable(kazakhstanMovies).orElse(0) >= 5)  achievements.add("Казахстанец");
+        if (Optional.ofNullable(completedMovies).orElse(0) >= 20)  achievements.add("Киноман");
+        if (Optional.ofNullable(userRatings).orElse(0) >= 15)      achievements.add("Критик");
+        if (Optional.ofNullable(streak).orElse(0) >= 3)            achievements.add("Марафонщик");
+        if (Optional.ofNullable(nightOwlCount).orElse(0) >= 5)     achievements.add("Ночная сова");
+
+        return new UserProfileStatsDto(
+                totalSeconds,
+                Optional.ofNullable(completedMovies).orElse(0),
+                Optional.ofNullable(kazakhstanMovies).orElse(0),
+                Optional.ofNullable(streak).orElse(0),
+                favoriteGenre,
+                favoriteDirector,
+                achievements
+        );
     }
 }

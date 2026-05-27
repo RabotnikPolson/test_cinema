@@ -395,6 +395,18 @@ def _get_click_genre_weights(user_id, df, engine):
         return {}
 
 
+def _get_subtitle_kz_events(user_id, engine):
+    """Count of KZ subtitle enable events — signal for Kazakh content affinity."""
+    try:
+        result = pd.read_sql(
+            text("SELECT COUNT(*) AS cnt FROM subtitle_events WHERE user_id = :uid AND lang = 'kk' AND action = 'enable'"),
+            engine, params={"uid": user_id}
+        )
+        return int(result['cnt'].iloc[0]) if not result.empty else 0
+    except Exception:
+        return 0
+
+
 def _get_search_genre_weights(user_id, df, engine):
     """Genre weights from search queries — content preference signal."""
     try:
@@ -419,6 +431,54 @@ def _get_search_genre_weights(user_id, df, engine):
         return genre_counts
     except Exception:
         return {}
+
+
+def _get_user_kz_affinity_boost(watched_movie_ids, df) -> float:
+    """Return a personalized KZ boost multiplier based on what % of user's history is KZ content."""
+    if not watched_movie_ids:
+        return 1.3  # new user: moderate KZ introduction
+
+    kz_count = 0
+    total_count = 0
+    for m_id in watched_movie_ids:
+        row = df[df['id'] == m_id]
+        if row.empty:
+            continue
+        total_count += 1
+        country = str(row['country'].iloc[0]).lower() if 'country' in row.columns and pd.notna(row['country'].iloc[0]) else ''
+        language = str(row['language'].iloc[0]).lower() if 'language' in row.columns and pd.notna(row['language'].iloc[0]) else ''
+        if 'казахстан' in country or 'kazakhstan' in country or 'казахский' in language or 'kazakh' in language:
+            kz_count += 1
+
+    if total_count == 0:
+        return 1.3
+
+    kz_ratio = kz_count / total_count
+    if kz_ratio >= 0.5:
+        return 1.8   # KZ fan: maximize KZ content
+    elif kz_ratio >= 0.2:
+        return 1.4   # mixed taste: moderate KZ boost
+    else:
+        return 1.15  # mostly foreign: KZ still present, just not dominant
+
+
+def _apply_personalized_kz_boost(movie_row, kz_affinity_boost: float) -> float:
+    """Like get_kazakhstan_boost_score but with personalized KZ multiplier and Russia excluded."""
+    country = str(movie_row.get('country', '')).lower() if pd.notna(movie_row.get('country', '')) else ''
+    language = str(movie_row.get('language', '')).lower() if pd.notna(movie_row.get('language', '')) else ''
+
+    if 'россия' in country or 'russia' in country:
+        return DEFAULT_BOOST  # Russia: no boost
+
+    if 'казахстан' in country or 'kazakhstan' in country or 'kz' in country:
+        return kz_affinity_boost
+    if 'казахский' in language or 'kazakh' in language or 'қазақ' in language:
+        return kz_affinity_boost
+    if any(c in country for c in ['кыргыз', 'узбек', 'таджик', 'туркмен']):
+        return CENTRAL_ASIA_BOOST
+    if any(c in country for c in ['беларусь', 'украина', 'азербайджан']):
+        return CIS_BOOST
+    return DEFAULT_BOOST
 
 
 def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
@@ -451,15 +511,12 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
         except IndexError:
             continue
 
-    # Enrich profile with click + search genre signals
+    # Enrich profile with click genre signals
     click_genres = _get_click_genre_weights(user_id, df, engine)
-    search_genres = _get_search_genre_weights(user_id, df, engine)
 
     merged_genres = {}
     for g, w in click_genres.items():
         merged_genres[g] = merged_genres.get(g, 0) + w * 0.3
-    for g, w in search_genres.items():
-        merged_genres[g] = merged_genres.get(g, 0) + w * 0.15
 
     if merged_genres:
         max_w = max(merged_genres.values())
@@ -476,8 +533,20 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
         except IndexError:
             pass
 
+    personal_kz_boost = _get_user_kz_affinity_boost(watched_movie_ids, df)
     for i in range(len(df)):
-        user_profile_scores[i] *= get_kazakhstan_boost_score(df.iloc[i])
+        user_profile_scores[i] *= _apply_personalized_kz_boost(df.iloc[i], personal_kz_boost)
+
+    # Subtitle KZ signal: each kk-subtitle enable adds a small extra boost to KZ films
+    kz_subtitle_count = _get_subtitle_kz_events(user_id, engine)
+    if kz_subtitle_count > 0:
+        subtitle_boost = min(kz_subtitle_count * 0.05, 0.3)  # cap at +30%
+        for i in range(len(df)):
+            row = df.iloc[i]
+            country = str(row.get('country', '')).lower()
+            language = str(row.get('language', '')).lower()
+            if 'казахстан' in country or 'kazakhstan' in country or 'казахский' in language or 'kazakh' in language:
+                user_profile_scores[i] *= (1.0 + subtitle_boost)
 
     if user_profile_scores.max() == 0:
         return None

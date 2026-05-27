@@ -234,18 +234,28 @@ async def frontend_kazakhstan_tab(user_id: Optional[int] = None, limit: int = 20
     return {"recommendations": recs, "method": "kazakhstan", "total": len(recs)}
 
 
+@app.get("/api/v1/recommendations/tab/because-you-liked", response_model=schemas.RecommendationResponse)
+async def frontend_because_you_liked_early(user_id: int, limit: int = 15):
+    check_model()
+    recs = recommender.get_because_you_liked(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    if not recs:
+        recs = recommender.get_collaborative_recommendations(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    if not recs:
+        recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
+    return {"user_id": user_id, "recommendations": recs, "method": "because_you_liked", "total": len(recs)}
+
 @app.get("/api/v1/recommendations/tab/{type}")
 async def frontend_tab_recommendations_no_movie_id(type: str, limit: int = 15, user_id: Optional[int] = None, tab: Optional[str] = None, genre: Optional[str] = None):
     check_model()
     request_type = tab if tab else type
-    
+
     if request_type == "new" or request_type == "popular":
         recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
         return {"recommendations": recs, "method": request_type}
     elif request_type == "comedies" or request_type == "comedy":
         recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
         return {"recommendations": recs, "method": request_type}
-        
+
     raise HTTPException(status_code=400, detail=f"Неизвестный тип: {request_type}")
 
 @app.get("/api/v1/recommendations/tab")
@@ -289,16 +299,6 @@ async def frontend_tab_recommendations(type: str, movie_id: int, limit: int = 15
     except Exception as e:
         print(f"Tab rec error [{type}] movie={movie_id}: {e}")
         return {"movie_id": movie_id, "recommendations": [], "method": type, "total": 0}
-
-@app.get("/api/v1/recommendations/tab/because-you-liked", response_model=schemas.RecommendationResponse)
-async def frontend_because_you_liked(user_id: int, limit: int = 15):
-    check_model()
-    recs = recommender.get_because_you_liked(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
-    if not recs:
-        recs = recommender.get_collaborative_recommendations(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
-    if not recs:
-        recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
-    return {"user_id": user_id, "recommendations": recs, "method": "because_you_liked", "total": len(recs)}
 
 @app.get("/api/v1/trending", response_model=schemas.RecommendationResponse)
 async def get_trending(weekly: bool = False, db: Session = Depends(get_db)):

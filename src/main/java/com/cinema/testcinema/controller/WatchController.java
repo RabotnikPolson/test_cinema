@@ -1,6 +1,7 @@
 package com.cinema.testcinema.controller;
 
 import com.cinema.testcinema.dto.AnalyticsSummaryDto;
+import com.cinema.testcinema.dto.UserProfileStatsDto;
 import com.cinema.testcinema.dto.WatchBeatDto;
 import com.cinema.testcinema.model.User;
 import com.cinema.testcinema.repository.UserRepository;
@@ -41,6 +42,12 @@ public class WatchController {
     public ResponseEntity<AnalyticsSummaryDto> mySummary(Authentication authentication) {
         Long userId = authenticatedUserService.requireCurrentUserId(authentication);
         return ResponseEntity.ok(watchService.mySummary(userId));
+    }
+
+    @GetMapping("/analytics/me/profile")
+    public ResponseEntity<UserProfileStatsDto> myProfile(Authentication authentication) {
+        Long userId = authenticatedUserService.requireCurrentUserId(authentication);
+        return ResponseEntity.ok(watchService.myProfile(userId));
     }
 
     private User loadUser(Long userId) {
