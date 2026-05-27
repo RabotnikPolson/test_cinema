@@ -3,11 +3,13 @@ package com.cinema.testcinema.client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -18,7 +20,14 @@ public class AiRecommendationClient {
     @Value("${ai.service.url:http://localhost:8000}")
     private String aiServiceUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public AiRecommendationClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(5));
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> getTabRecommendations(String type, Long movieId, Long userId, int limit) {
@@ -36,6 +45,7 @@ public class AiRecommendationClient {
         }
     }
 
+    @Cacheable(value = "rec_kazakhstan", key = "#limit")
     @SuppressWarnings("unchecked")
     public Map<String, Object> getKazakhstan(Long userId, int limit) {
         try {
@@ -97,6 +107,7 @@ public class AiRecommendationClient {
         }
     }
 
+    @Cacheable(value = "rec_trending", key = "#weekly")
     @SuppressWarnings("unchecked")
     public Map<String, Object> getTrending(boolean weekly) {
         try {

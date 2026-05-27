@@ -3,7 +3,7 @@ FAILURE: Build failed with an exception.
 
 * What went wrong:
 Execution failed for task ':bootRun'.
-> Process 'command 'C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot\bin\java.exe'' finished with non-zero exit value 1
+> Process 'command 'C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot\bin\java.exe'' finished with non-zero exit value -1
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -11,4 +11,4 @@ Execution failed for task ':bootRun'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 58s
+BUILD FAILED in 24m 31s

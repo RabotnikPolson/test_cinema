@@ -5,6 +5,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from database import DATABASE_URL
 from functools import lru_cache
+
+engine = create_engine(DATABASE_URL)
 import time
 
 KAZAKHSTAN_BOOST = 1.8
@@ -29,7 +31,7 @@ def get_kazakhstan_boost_score(movie_row) -> float:
     return DEFAULT_BOOST
 
 def get_recommendations_model():
-    engine = create_engine(DATABASE_URL)
+
     try:
         query = "SELECT id, title, genre_text, description, imdb_rating, director, actors, is_domestic, poster_url, year, country, language FROM movies"
         df = pd.read_sql(query, engine)
@@ -306,7 +308,7 @@ def get_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5):
     return _format_recs(df, top_indices, final_scores[top_indices], reasons)
 
 def get_collaborative_users_also_watched(movie_id, df, top_n=5):
-    engine = create_engine(DATABASE_URL)
+
     query = text("""
     SELECT movie_id as recommended_movie_id, COUNT(*) as watch_count
     FROM watch_history
@@ -483,7 +485,7 @@ def _apply_personalized_kz_boost(movie_row, kz_affinity_boost: float) -> float:
 
 def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
     import numpy as np
-    engine = create_engine(DATABASE_URL)
+
     query = text("SELECT movie_id, seconds_watched, completed FROM watch_history WHERE user_id = :user_id")
     try:
         history_df = pd.read_sql(query, engine, params={"user_id": user_id})
@@ -556,7 +558,7 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
 def get_youtube_like_feed(user_id, df, cosine_sim):
     # Old logic kept intact
     import numpy as np
-    engine = create_engine(DATABASE_URL)
+
     query = text("SELECT movie_id, seconds_watched, completed, id as watch_id FROM watch_history WHERE user_id = :user_id ORDER BY id DESC")
     try:
         history_df = pd.read_sql(query, engine, params={"user_id": user_id})
@@ -699,7 +701,7 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
     watched_ids = set()
     if user_id is not None:
         try:
-            engine = create_engine(DATABASE_URL)
+        
             wh = pd.read_sql(text("SELECT movie_id FROM watch_history WHERE user_id = :user_id"), engine, params={"user_id": user_id})
             watched_ids = set(wh["movie_id"].tolist())
         except Exception:
@@ -733,7 +735,7 @@ def get_smart_hybrid_recommendations(movie_id, df, cosine_sim, top_n=5, user_id=
 
 def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
     """Рекомендации на основе высоко оценённых фильмов (>= 7)"""
-    engine = create_engine(DATABASE_URL)
+
     try:
         ratings_df = pd.read_sql(
             text("SELECT movie_id, score FROM ratings WHERE user_id = :user_id AND score >= 7 ORDER BY score DESC LIMIT 10"),
@@ -781,7 +783,7 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
 
 
 def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):
-    engine = create_engine(DATABASE_URL)
+
     watched_ids = set()
     if user_id is not None:
         try:

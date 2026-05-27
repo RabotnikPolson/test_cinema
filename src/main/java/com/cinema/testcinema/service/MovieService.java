@@ -22,13 +22,16 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final GenreRepository genreRepository;
     private final MovieFilterRepository movieFilterRepository;
+    private final MoviesCache moviesCache;
 
     public MovieService(MovieRepository movieRepository,
                         GenreRepository genreRepository,
-                        MovieFilterRepository movieFilterRepository) {
+                        MovieFilterRepository movieFilterRepository,
+                        MoviesCache moviesCache) {
         this.movieRepository = movieRepository;
         this.genreRepository = genreRepository;
         this.movieFilterRepository = movieFilterRepository;
+        this.moviesCache = moviesCache;
     }
 
     public Movie addMovie(MovieDto movieDto) {
@@ -89,7 +92,19 @@ public class MovieService {
         if (effectivePage == null && effectiveSize != null) {
             effectivePage = 0; // default page index
         }
-        return movieFilterRepository.searchMovies(q, genreId, yearFrom, yearTo, effectivePage, effectiveSize);
+
+        boolean isFullList = q == null && genreId == null && yearFrom == null && yearTo == null
+                && effectivePage == null && effectiveSize == null;
+        if (isFullList) {
+            List<Movie> cached = moviesCache.get();
+            if (cached != null) return cached;
+        }
+
+        List<Movie> movies = movieFilterRepository.searchMovies(q, genreId, yearFrom, yearTo, effectivePage, effectiveSize);
+        movies.forEach(m -> m.setGenres(new HashSet<>(m.getGenres())));
+
+        if (isFullList) moviesCache.put(movies);
+        return movies;
     }
 
     @Cacheable(value = "movie_detail", key = "#id")
@@ -103,6 +118,10 @@ public class MovieService {
 
     @CacheEvict(value = "movie_detail", key = "#id")
     public void evictMovieCache(Long id) {
-        // просто сбрасывает кэш
+        moviesCache.evict();
+    }
+
+    public void evictMoviesListCache() {
+        moviesCache.evict();
     }
 }

@@ -64,6 +64,7 @@ public class MovieController {
     @Operation(summary = "Массовый импорт фильмов по списку Kinopoisk ID (ADMIN)")
     @CacheEvict(value = "home_collections", allEntries = true)
     public BulkImportResponse bulkImport(@Valid @RequestBody BulkImportRequest request) {
+        movieService.evictMoviesListCache();
         return bulkImportService.bulkImport(request.kinopoiskIds());
     }
 
@@ -104,6 +105,7 @@ public class MovieController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм с ID " + id + " не найден");
         }
         movieRepository.deleteById(id);
+        movieService.evictMoviesListCache();
         return ResponseEntity.noContent().build();
     }
 }

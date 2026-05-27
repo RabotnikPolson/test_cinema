@@ -60,10 +60,16 @@ public class RedisConfig {
         // Кастомная конфигурация для карточки фильма (TTL 1 час)
         RedisCacheConfiguration movieDetailConfig = defaultConfig.entryTtl(Duration.ofHours(1));
 
+        // AI-рекомендации: trending и kazakhstan меняются редко, но свежесть важна (TTL 10 минут)
+        RedisCacheConfiguration recTrendingConfig = defaultConfig.entryTtl(Duration.ofMinutes(10));
+        RedisCacheConfiguration recKazakhstanConfig = defaultConfig.entryTtl(Duration.ofMinutes(10));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withCacheConfiguration("home_collections", homeCollectionsConfig)
                 .withCacheConfiguration("movie_detail", movieDetailConfig)
+                .withCacheConfiguration("rec_trending", recTrendingConfig)
+                .withCacheConfiguration("rec_kazakhstan", recKazakhstanConfig)
                 .build();
     }
 }
