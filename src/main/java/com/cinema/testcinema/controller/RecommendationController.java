@@ -38,11 +38,21 @@ public class RecommendationController {
     @GetMapping("/kazakhstan")
     @Operation(summary = "Казахстанское кино (публичный)")
     public Map<String, Object> kazakhstan(@RequestParam(defaultValue = "20") int limit,
+                                          @RequestParam(required = false) String genre,
+                                          @RequestParam(required = false) Integer yearFrom,
+                                          @RequestParam(required = false) Integer yearTo,
+                                          @RequestParam(required = false) String sortBy,
                                           Authentication authentication) {
         Long userId = authService.getCurrentUserIdIfAuthenticated(authentication);
-        Map<String, Object> result = aiClient.getKazakhstan(userId, limit);
+        Map<String, Object> result = aiClient.getKazakhstan(userId, limit, genre, yearFrom, yearTo, sortBy);
         saveImpressions(userId, result, "kazakhstan");
         return result;
+    }
+
+    @GetMapping("/kazakhstan/genres")
+    @Operation(summary = "Жанры казахстанского кино (публичный)")
+    public Map<String, Object> kazakhstanGenres() {
+        return aiClient.getKazakhstanGenres();
     }
 
     @GetMapping("/movie/{movieId}")

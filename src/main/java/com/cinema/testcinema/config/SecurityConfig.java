@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/trending/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/trending").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/kazakhstan").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/recommendations/kazakhstan/genres").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/movie/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/metrics/**").permitAll()
                         .requestMatchers("/profile/me/**").authenticated()

@@ -45,19 +45,32 @@ public class AiRecommendationClient {
         }
     }
 
-    @Cacheable(value = "rec_kazakhstan", key = "#limit")
+    @Cacheable(value = "rec_kazakhstan", key = "{#limit, #genre, #yearFrom, #yearTo, #sortBy}")
     @SuppressWarnings("unchecked")
-    public Map<String, Object> getKazakhstan(Long userId, int limit) {
+    public Map<String, Object> getKazakhstan(Long userId, int limit, String genre, Integer yearFrom, Integer yearTo, String sortBy) {
         try {
-            String url = UriComponentsBuilder
+            UriComponentsBuilder builder = UriComponentsBuilder
                     .fromHttpUrl(aiServiceUrl + "/api/v1/recommendations/tab/kazakhstan")
-                    .queryParam("limit", limit)
-                    .queryParamIfPresent("user_id", java.util.Optional.ofNullable(userId))
-                    .toUriString();
-            return restTemplate.getForObject(url, Map.class);
+                    .queryParam("limit", limit);
+            if (userId != null) builder.queryParam("user_id", userId);
+            if (genre != null && !genre.isBlank()) builder.queryParam("genre", genre);
+            if (yearFrom != null) builder.queryParam("year_from", yearFrom);
+            if (yearTo != null) builder.queryParam("year_to", yearTo);
+            if (sortBy != null && !sortBy.isBlank()) builder.queryParam("sort_by", sortBy);
+            return restTemplate.getForObject(builder.toUriString(), Map.class);
         } catch (Exception e) {
             log.warn("AI kazakhstan recommendations failed: {}", e.getMessage());
             return Map.of("recommendations", java.util.List.of(), "method", "kazakhstan", "total", 0);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getKazakhstanGenres() {
+        try {
+            return restTemplate.getForObject(aiServiceUrl + "/api/v1/recommend/kazakhstan/genres", Map.class);
+        } catch (Exception e) {
+            log.warn("AI kazakhstan genres failed: {}", e.getMessage());
+            return Map.of("genres", java.util.List.of());
         }
     }
 

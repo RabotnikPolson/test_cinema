@@ -238,11 +238,13 @@ async def frontend_kazakhstan_tab(user_id: Optional[int] = None, limit: int = 20
 async def frontend_because_you_liked_early(user_id: int, limit: int = 15):
     check_model()
     recs = recommender.get_because_you_liked(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
+    method = "because_you_liked"
     if not recs:
         recs = recommender.get_collaborative_recommendations(user_id, ML_MODEL["df"], ML_MODEL["similarity"], limit)
     if not recs:
         recs = recommender.get_popular_fallback(ML_MODEL["df"], limit)
-    return {"user_id": user_id, "recommendations": recs, "method": "because_you_liked", "total": len(recs)}
+        method = "popular"
+    return {"user_id": user_id, "recommendations": recs, "method": method, "total": len(recs)}
 
 @app.get("/api/v1/recommendations/tab/{type}")
 async def frontend_tab_recommendations_no_movie_id(type: str, limit: int = 15, user_id: Optional[int] = None, tab: Optional[str] = None, genre: Optional[str] = None):

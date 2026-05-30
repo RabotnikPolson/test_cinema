@@ -9,7 +9,7 @@ from functools import lru_cache
 engine = create_engine(DATABASE_URL)
 import time
 
-KAZAKHSTAN_BOOST = 1.8
+KAZAKHSTAN_BOOST = 1.4
 CENTRAL_ASIA_BOOST = 1.8
 CIS_BOOST = 1.3
 DEFAULT_BOOST = 1.0
@@ -100,6 +100,31 @@ def _format_recs(df, indices, scores=None, reasons=None):
             "reason": reason
         })
     return recs
+
+def _is_kz_film(df, idx: int) -> bool:
+    country = str(df['country'].iloc[idx]).lower() if 'country' in df.columns and pd.notna(df['country'].iloc[idx]) else ''
+    language = str(df['language'].iloc[idx]).lower() if 'language' in df.columns and pd.notna(df['language'].iloc[idx]) else ''
+    return ('казахстан' in country or 'kazakhstan' in country or
+            'казахский' in language or 'kazakh' in language or 'қазақ' in language)
+
+
+def _apply_kz_ratio(df, indices, scores, reasons, top_n, max_kz_ratio=0.35):
+    """Cap KZ films at max_kz_ratio of results (default 35%). Gathers top_n * 3 candidates first."""
+    max_kz = max(1, round(top_n * max_kz_ratio))
+    kz, foreign = [], []
+    for idx, score, reason in zip(indices, scores, reasons):
+        if _is_kz_film(df, int(idx)):
+            kz.append((idx, score, reason))
+        else:
+            foreign.append((idx, score, reason))
+    selected = kz[:max_kz] + foreign[:top_n - min(len(kz), max_kz)]
+    selected.sort(key=lambda x: float(x[1]), reverse=True)
+    selected = selected[:top_n]
+    if not selected:
+        return list(indices[:top_n]), list(scores[:top_n]), list(reasons[:top_n])
+    out_i, out_s, out_r = zip(*selected)
+    return list(out_i), list(out_s), list(out_r)
+
 
 def get_popular_fallback(df, top_n=5):
     df['rating_num'] = pd.to_numeric(df['imdb_rating'], errors='coerce').fillna(0)
@@ -552,8 +577,10 @@ def get_collaborative_recommendations(user_id, df, cosine_sim, top_n=5):
 
     if user_profile_scores.max() == 0:
         return None
-    top_indices = user_profile_scores.argsort()[::-1][:top_n]
-    return _format_recs(df, top_indices, user_profile_scores[top_indices])
+    candidates = user_profile_scores.argsort()[::-1][:top_n * 3]
+    cand_reasons = ["" for _ in candidates]
+    indices, scores, reasons = _apply_kz_ratio(df, candidates, user_profile_scores[candidates], cand_reasons, top_n)
+    return _format_recs(df, indices, scores, reasons)
 
 def get_youtube_like_feed(user_id, df, cosine_sim):
     # Old logic kept intact
@@ -778,10 +805,11 @@ def get_because_you_liked(user_id, df, cosine_sim, top_n=5):
     if profile.max() == 0:
         return []
 
-    top_indices = profile.argsort()[::-1][:top_n]
+    candidates = profile.argsort()[::-1][:top_n * 3]
     best_title = df[df["id"] == best_movie_id]["title"].iloc[0] if best_movie_id else "фильма"
-    reasons = [f"Потому что вам понравился «{best_title}»" for _ in top_indices]
-    return _format_recs(df, top_indices, profile[top_indices], reasons)
+    cand_reasons = [f"Потому что вам понравился «{best_title}»" for _ in candidates]
+    indices, scores, reasons = _apply_kz_ratio(df, candidates, profile[candidates], cand_reasons, top_n)
+    return _format_recs(df, indices, scores, reasons)
 
 
 def get_kazakhstan_tab_recommendations(df, user_id=None, limit=20, genre=None):

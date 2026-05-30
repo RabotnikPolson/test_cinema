@@ -3,7 +3,6 @@ package com.cinema.testcinema.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -42,7 +41,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films/{id} — основные метаданные фильма.
      */
-    @Cacheable(value = "kinopoisk_film", key = "#kinopoiskId")
     public JsonNode fetchFilm(String kinopoiskId) {
         return get("/api/v2.2/films/" + kinopoiskId);
     }
@@ -50,7 +48,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films?keyword={keyword} — поиск фильма по ключевому слову.
      */
-    @Cacheable(value = "kinopoisk_search", key = "#keyword")
     public JsonNode searchFilms(String keyword) {
         String query = "?keyword=" + encode(keyword);
         return get("/api/v2.2/films" + query);
@@ -61,7 +58,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films/collections?type=TOP_POPULAR_ALL&page={page} — ТОП популярных
      */
-    @Cacheable(value = "kinopoisk_top", key = "#page")
     public JsonNode fetchTopPopular(int page) {
         return get("/api/v2.2/films/collections?type=TOP_POPULAR_ALL&page=" + page);
     }
@@ -69,7 +65,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films/{id}/similars — список похожих фильмов (для AI-графа).
      */
-    @Cacheable(value = "kinopoisk_similars", key = "#kinopoiskId")
     public JsonNode fetchSimilars(String kinopoiskId) {
         return get("/api/v2.2/films/" + kinopoiskId + "/similars");
     }
@@ -79,7 +74,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v1/staff?filmId={id} — актёры, режиссёры, продюсеры фильма.
      */
-    @Cacheable(value = "kinopoisk_staff", key = "#kinopoiskId")
     public JsonNode fetchStaff(String kinopoiskId) {
         return get("/api/v1/staff?filmId=" + kinopoiskId);
     }
@@ -89,7 +83,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films/{id}/facts — интересные факты и ляпы (для AI RAG).
      */
-    @Cacheable(value = "kinopoisk_facts", key = "#kinopoiskId")
     public JsonNode fetchFacts(String kinopoiskId) {
         return get("/api/v2.2/films/" + kinopoiskId + "/facts");
     }
@@ -97,7 +90,6 @@ public class KinopoiskClient {
     /**
      * GET /api/v2.2/films/{id}/reviews — рецензии критиков и зрителей (для AI RAG).
      */
-    @Cacheable(value = "kinopoisk_reviews", key = "#kinopoiskId")
     public JsonNode fetchReviews(String kinopoiskId) {
         return get("/api/v2.2/films/" + kinopoiskId + "/reviews?page=1");
     }

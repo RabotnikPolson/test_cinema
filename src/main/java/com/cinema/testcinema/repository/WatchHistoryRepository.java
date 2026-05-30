@@ -19,11 +19,14 @@ public interface WatchHistoryRepository extends JpaRepository<WatchHistory, Long
     @Query(value = "SELECT COALESCE(SUM(seconds_watched), 0) FROM watch_history WHERE user_id = :userId", nativeQuery = true)
     Long getTotalSecondsWatched(@Param("userId") Long userId);
 
-    @Query(value = "SELECT g.name AS genre, CAST(SUM(wh.seconds_watched) AS BIGINT) AS totalSeconds " +
+    @Query(value = "SELECT g.name AS genre, " +
+            "CAST(SUM(wh.seconds_watched::numeric / gc.genre_count) AS BIGINT) AS totalSeconds " +
             "FROM watch_history wh " +
             "JOIN movies m ON wh.movie_id = m.id " +
             "JOIN movie_genres mg ON m.id = mg.movie_id " +
             "JOIN genres g ON mg.genre_id = g.id " +
+            "JOIN (SELECT movie_id, COUNT(*) AS genre_count FROM movie_genres GROUP BY movie_id) gc " +
+            "  ON gc.movie_id = m.id " +
             "WHERE wh.user_id = :userId " +
             "GROUP BY g.name " +
             "ORDER BY totalSeconds DESC " +

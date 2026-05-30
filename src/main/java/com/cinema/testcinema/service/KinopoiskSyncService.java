@@ -158,6 +158,7 @@ public class KinopoiskSyncService {
         }
 
         // -- Genres --------------------------------------------------------
+        movie.getGenres().clear();
         if (data.hasNonNull("genres") && data.get("genres").isArray()) {
             StringBuilder genreText = new StringBuilder();
             for (JsonNode g : data.get("genres")) {
