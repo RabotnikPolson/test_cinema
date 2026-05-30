@@ -4,6 +4,7 @@ import { History, Menu, Search, Shield, User2, X } from "lucide-react";
 import { logSearch } from "@/shared/api/metricsApi";
 import { useAuth } from "@/features/auth";
 import { useMovies } from "@/features/movies";
+import { getMovieGenres } from "@/shared/lib/insight";
 import "@/widgets/header/ui/Header.css";
 
 const HISTORY_KEY = "search_history_v1";
@@ -56,21 +57,10 @@ export default function Header({ onMenuClick }) {
 
   const dictionary = useMemo(() => {
     const terms = new Set();
-
     for (const movie of movies) {
-      if (movie?.title) {
-        terms.add(movie.title);
-      }
-
-      if (movie?.genre) {
-        String(movie.genre)
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .forEach((genre) => terms.add(genre));
-      }
+      if (movie?.title) terms.add(movie.title);
+      getMovieGenres(movie).forEach((g) => terms.add(g));
     }
-
     return Array.from(terms);
   }, [movies]);
 
@@ -122,11 +112,10 @@ export default function Header({ onMenuClick }) {
     const nextValue = value.trim();
     if (nextValue) {
       logSearch(nextValue, user?.id);
-      navigate(`/?q=${encodeURIComponent(nextValue)}`);
+      navigate(`/genres?q=${encodeURIComponent(nextValue)}`);
       return;
     }
-
-    navigate("/");
+    navigate("/genres");
   };
 
   const submit = (event) => {
@@ -148,7 +137,7 @@ export default function Header({ onMenuClick }) {
 
   const clearQuery = () => {
     setQ("");
-    navigate("/", { replace: true });
+    navigate("/genres", { replace: true });
     setOpen(false);
     setHighlight(-1);
     inputRef.current?.focus();

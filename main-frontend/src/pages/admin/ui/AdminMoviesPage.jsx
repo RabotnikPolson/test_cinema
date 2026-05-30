@@ -1,54 +1,69 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { Upload } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addFromKinopoisk, deleteMovie, useMovies } from "@/features/movies";
+import { getMovieGenres } from "@/shared/lib/insight";
 import http from "@/shared/api/http-client";
 import "@/pages/admin/ui/AddMovie.css";
 
-const STATUS_COLORS = {
-  none: { bg: "rgba(122,127,153,0.15)", color: "#707070" },
-  pending: { bg: "rgba(201,168,76,0.15)", color: "#C9A84C" },
-  in_progress: { bg: "rgba(201,168,76,0.2)", color: "#C9A84C" },
-  completed: { bg: "rgba(34,197,94,0.15)", color: "#22c55e" },
-  failed: { bg: "rgba(239,68,68,0.15)", color: "#ef4444" },
+function parseBulkIds(value) {
+  return value
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+const STATUS_LABEL = {
+  success: "Добавлен",
+  already_exists: "Уже есть",
+  error: "Ошибка",
 };
 
-function StatusBadge({ status }) {
-  const s = STATUS_COLORS[status] || STATUS_COLORS.none;
-  return (
-    <span
-      style={{
-        padding: "4px 10px",
-        borderRadius: "999px",
-        fontSize: "0.8rem",
-        fontWeight: 600,
-        background: s.bg,
-        color: s.color,
-        textTransform: "capitalize",
-      }}
-    >
-      {status || "none"}
-    </span>
-  );
-}
+const STATUS_COLOR = {
+  success: "#22c55e",
+  already_exists: "#C9A84C",
+  error: "#ef4444",
+};
 
 export default function AdminMoviesPage() {
   const { data: movies = [], isLoading, isError, error } = useMovies();
-  const [kpId, setKpId] = useState("");
-  const [genreName, setGenreName] = useState("");
-  const [msg, setMsg] = useState("");
-  const [toast, setToast] = useState("");
   const qc = useQueryClient();
+
+  // single import
+  const [kpId, setKpId] = useState("");
+  const [singleMsg, setSingleMsg] = useState("");
+
+  // bulk import
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResults, setBulkResults] = useState(null);
+
+  // movie list
+  const [search, setSearch] = useState("");
+  const [deleteMsg, setDeleteMsg] = useState("");
+
+  const bulkIds = useMemo(() => parseBulkIds(bulkText), [bulkText]);
 
   const addMut = useMutation({
     mutationFn: (id) => addFromKinopoisk(id),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["movies"] });
-      setMsg(`Фильм "${data?.title || `ID: ${kpId}`}" успешно добавлен`);
+      setSingleMsg(`Добавлен: "${data?.title || `ID ${kpId}`}"`);
       setKpId("");
     },
     onError: (err) => {
-      const errorMsg = err.response?.data?.message || err.message || "Ошибка сервера";
-      setMsg(`Ошибка: ${errorMsg}`);
+      setSingleMsg(`Ошибка: ${err.response?.data?.message || err.message || "Ошибка сервера"}`);
+    },
+  });
+
+  const bulkMut = useMutation({
+    mutationFn: (ids) => http.post("/movies/bulkImport", { kinopoiskIds: ids }).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["movies"] });
+      setBulkResults(data);
+      setBulkText("");
+    },
+    onError: (err) => {
+      setBulkResults({ total: 0, success: 0, failed: bulkIds.length, results: [], error: err.response?.data?.message || err.message });
     },
   });
 
@@ -56,133 +71,148 @@ export default function AdminMoviesPage() {
     mutationFn: (id) => deleteMovie(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["movies"] });
-      setMsg("Фильм удален.");
+      setDeleteMsg("Фильм удалён.");
     },
     onError: (err) => {
       const status = err.response?.status;
       const backend = err.response?.data?.message || err.response?.data || "Ошибка сервера";
-      setMsg(`Ошибка удаления: ${status ? `[${status}] ` : ""}${backend}`);
+      setDeleteMsg(`Ошибка удаления: ${status ? `[${status}] ` : ""}${backend}`);
     },
   });
 
-  const triggerMut = useMutation({
-    mutationFn: () => http.post("/api/test/subtitles/trigger-worker"),
-    onSuccess: () => {
-      setToast("Задача отправлена AI-агенту");
-      setTimeout(() => setToast(""), 3000);
-    },
-    onError: () => {
-      setToast("Ошибка запуска AI-воркера");
-      setTimeout(() => setToast(""), 3000);
-    },
-  });
-
-  const addGenreMut = useMutation({
-    mutationFn: (name) => http.post("/api/genres", { name }),
-    onSuccess: () => {
-      setMsg(`Жанр "${genreName}" успешно добавлен`);
-      setGenreName("");
-    },
-    onError: (err) => {
-      const errorMsg = err.response?.data?.message || err.message || "Ошибка сервера";
-      setMsg(`Ошибка добавления жанра: ${errorMsg}`);
-    },
-  });
-
-  const onSubmit = (event) => {
+  const onSingleSubmit = (event) => {
     event.preventDefault();
     const id = kpId.trim();
-    if (!/^[0-9]+$/.test(id)) {
-      setMsg("Введите числовой Kinopoisk ID");
-      return;
-    }
+    if (!/^\d+$/.test(id)) { setSingleMsg("Введите числовой Kinopoisk ID"); return; }
+    setSingleMsg("");
     addMut.mutate(id);
   };
 
-  const onGenreSubmit = (event) => {
+  const onBulkSubmit = (event) => {
     event.preventDefault();
-    const name = genreName.trim();
-    if (!name) {
-      setMsg("Введите название жанра");
-      return;
-    }
-    addGenreMut.mutate(name);
+    if (!bulkIds.length) return;
+    const invalid = bulkIds.find((id) => !/^\d+$/.test(id));
+    if (invalid) { setBulkResults({ error: `Некорректный ID: ${invalid}` }); return; }
+    setBulkResults(null);
+    bulkMut.mutate(bulkIds);
   };
 
-  if (isLoading) {
-    return <div className="container"><p>Загрузка списка фильмов...</p></div>;
-  }
+  const filteredMovies = search.trim()
+    ? movies.filter((m) => {
+        const q = search.toLowerCase();
+        return (
+          String(m.id).includes(q) ||
+          (m.title || "").toLowerCase().includes(q) ||
+          getMovieGenres(m).join(" ").toLowerCase().includes(q)
+        );
+      })
+    : movies;
 
-  if (isError) {
-    return <div className="container"><p>Ошибка: {error?.message || "Не удалось получить фильмы"}</p></div>;
-  }
+  if (isLoading) return <div className="addmovie-shell"><p>Загрузка...</p></div>;
+  if (isError) return <div className="addmovie-shell"><p>Ошибка: {error?.message}</p></div>;
 
   return (
-    <div className="container addmovie-page">
-      <h1>Админ: управление фильмами</h1>
+    <div className="addmovie-shell">
+      <div className="addmovie-hero">
+        <div className="addmovie-eyebrow">Admin</div>
+        <h1>Управление фильмами</h1>
+      </div>
 
-      {/* Toast */}
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            top: 24,
-            right: 24,
-            zIndex: 9999,
-            padding: "14px 24px",
-            borderRadius: 12,
-            background: "rgba(13,18,32,0.95)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(201,168,76,0.3)",
-            color: "#C9A84C",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          }}
-        >
-          {toast}
+      {/* Import row: single + bulk side by side */}
+      <div className="addmovie-grid">
+        {/* Single import */}
+        <section className="addmovie-panel">
+          <div className="addmovie-panel-head">
+            <h2>Одиночный импорт</h2>
+            <span>POST /movies/addFromKinopoisk</span>
+          </div>
+          <form onSubmit={onSingleSubmit} className="imdb-import">
+            <input
+              className="input"
+              value={kpId}
+              onChange={(e) => setKpId(e.target.value)}
+              placeholder="Например: 301"
+            />
+            <button className="button" type="submit" disabled={addMut.isPending}>
+              {addMut.isPending ? "Импорт..." : "Импортировать"}
+            </button>
+          </form>
+          {singleMsg ? <p className="status-message">{singleMsg}</p> : null}
+        </section>
+
+        {/* Bulk import */}
+        <section className="addmovie-panel">
+          <div className="addmovie-panel-head">
+            <h2>Массовый импорт</h2>
+            <span>POST /movies/bulkImport</span>
+          </div>
+          <form onSubmit={onBulkSubmit} className="bulk-import-form">
+            <textarea
+              value={bulkText}
+              onChange={(e) => { setBulkText(e.target.value); setBulkResults(null); }}
+              placeholder={"301 326 405\nили по одному на строке"}
+            />
+            <div className="bulk-actions">
+              <span className="bulk-count">{bulkIds.length} ID в очереди</span>
+              <button className="button primary" type="submit" disabled={bulkMut.isPending || !bulkIds.length}>
+                <Upload size={14} />
+                {bulkMut.isPending ? "Импорт..." : "Импортировать список"}
+              </button>
+            </div>
+          </form>
+
+          {bulkResults?.error ? (
+            <p className="status-message error">{bulkResults.error}</p>
+          ) : null}
+
+          {bulkResults?.results?.length ? (
+            <>
+              <p className="status-message" style={{ marginTop: "0.75rem" }}>
+                Итог: <strong style={{ color: "#22c55e" }}>{bulkResults.success}</strong> добавлено,{" "}
+                <strong style={{ color: "#ef4444" }}>{bulkResults.failed}</strong> ошибок из {bulkResults.total}
+              </p>
+              <div className="bulk-results">
+                {bulkResults.results.map((item) => (
+                  <div
+                    key={item.kinopoiskId}
+                    className="bulk-result"
+                    style={{
+                      borderColor: (STATUS_COLOR[item.status] || "#555") + "44",
+                    }}
+                  >
+                    <span className="bulk-result-id">kp_{item.kinopoiskId}</span>
+                    <span className="bulk-result-title">
+                      {item.title || item.errorMessage || "—"}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: STATUS_COLOR[item.status] || "#888", flexShrink: 0 }}>
+                      {STATUS_LABEL[item.status] || item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </section>
+      </div>
+
+      {/* Movie list */}
+      <section className="addmovie-panel">
+        <div className="admin-list-head">
+          <h2>
+            Список фильмов{" "}
+            <span className="admin-movie-count">({filteredMovies.length} из {movies.length})</span>
+          </h2>
+          <input
+            className="input admin-search-input"
+            placeholder="Поиск по ID, названию, жанру..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      )}
 
-      <section className="admin-add-section">
-        <h2>Добавить фильм по Kinopoisk ID</h2>
-        <form onSubmit={onSubmit} className="imdb-import">
-          <input
-            className="input"
-            value={kpId}
-            onChange={(event) => setKpId(event.target.value)}
-            placeholder="Пример: 301"
-          />
-          <button className="button" disabled={addMut.isPending}>
-            {addMut.isPending ? "Импорт..." : "Импортировать"}
-          </button>
-        </form>
-      </section>
+        {deleteMsg ? <p className="status-message" style={{ marginBottom: "0.75rem" }}>{deleteMsg}</p> : null}
 
-      <section className="admin-add-section" style={{ marginTop: '2rem' }}>
-        <h2>Добавить новый жанр</h2>
-        <form onSubmit={onGenreSubmit} className="imdb-import">
-          <input
-            className="input"
-            value={genreName}
-            onChange={(event) => setGenreName(event.target.value)}
-            placeholder="Название жанра (например, Аниме)"
-          />
-          <button className="button" disabled={addGenreMut.isPending}>
-            {addGenreMut.isPending ? "Добавление..." : "Добавить"}
-          </button>
-        </form>
-      </section>
-
-      {msg && (
-        <p className={`status-message ${addMut.isError || deleteMut.isError ? "error" : "success"}`} role="status">
-          {msg}
-        </p>
-      )}
-
-      <section className="admin-list-section">
-        <h2>Список фильмов</h2>
-        {movies.length === 0 ? (
+        {filteredMovies.length === 0 ? (
           <p>Фильмы не найдены.</p>
         ) : (
           <div className="movie-table-wrap">
@@ -192,35 +222,24 @@ export default function AdminMoviesPage() {
                   <th>ID</th>
                   <th>Название</th>
                   <th>Год</th>
-                  <th>Жанр</th>
-                  <th>Статус перевода</th>
+                  <th>Жанры</th>
                   <th>Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {movies.map((movie) => (
+                {filteredMovies.map((movie) => (
                   <tr key={movie.id}>
                     <td>{movie.id}</td>
                     <td>{movie.title}</td>
-                    <td>{movie.year || "-"}</td>
-                    <td>{movie.genre || "-"}</td>
+                    <td>{movie.year || "—"}</td>
+                    <td>{getMovieGenres(movie).join(", ") || "—"}</td>
                     <td>
-                      <StatusBadge status={movie.translationStatus} />
-                    </td>
-                    <td style={{ display: "flex", gap: 8 }}>
                       <button
-                        className="button button--ghost"
-                        style={{ fontSize: "0.8rem", padding: "4px 10px", color: "#C9A84C" }}
-                        disabled={triggerMut.isPending}
-                        onClick={() => triggerMut.mutate()}
-                      >
-                        AI-перевод (KZ)
-                      </button>
-                      <button
-                        className="button button--ghost"
+                        className="button button--danger"
                         disabled={deleteMut.isPending}
                         onClick={() => {
-                          if (!window.confirm(`Удалить фильм "${movie.title}" (ID ${movie.id})?`)) return;
+                          if (!window.confirm(`Удалить "${movie.title}" (ID ${movie.id})?`)) return;
+                          setDeleteMsg("");
                           deleteMut.mutate(movie.id);
                         }}
                       >
@@ -237,4 +256,3 @@ export default function AdminMoviesPage() {
     </div>
   );
 }
-

@@ -9,7 +9,6 @@ import {
   Heart,
   History,
   Home,
-  Plus,
   Settings,
   ShoppingBag,
   User,
@@ -43,7 +42,6 @@ export default function Sidebar({ isOpen = false }) {
 
   if (isAdmin) {
     items.push({ to: "/admin/movies", label: "Фильмы", icon: FilmIcon });
-    items.push({ to: "/add-movie", label: "Импорт", icon: Plus });
     items.push({ to: "/analytics", label: "Аналитика", icon: BarChart3 });
   }
 

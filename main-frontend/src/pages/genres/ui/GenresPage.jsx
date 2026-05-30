@@ -129,7 +129,7 @@ export default function GenresPage() {
     });
 
     return nextMovies;
-  }, [movies, query, selectedGenre, sortBy]);
+  }, [movies, query, selectedGenre, sortBy, onlyKz]);
 
   const selectedGenreMeta = useMemo(() => {
     if (!selectedGenre) {
@@ -153,6 +153,7 @@ export default function GenresPage() {
     setSelectedGenre("");
     setSortBy("rating");
     setOnlyKz(false);
+    setSearchParams({}, { replace: true });
   };
 
   return (
@@ -212,7 +213,7 @@ export default function GenresPage() {
               <span>Фильтры каталога</span>
             </div>
 
-            {(selectedGenre || sortBy !== "rating") ? (
+            {(selectedGenre || sortBy !== "rating" || onlyKz || query) ? (
               <button type="button" className="genres-reset" onClick={resetFilters}>
                 Сбросить фильтры
               </button>

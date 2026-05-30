@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { useUserSettings } from "@/features/user-profile";
-import { useTheme } from "@/shared/hooks";
 import "@/pages/settings/ui/Settings.css";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
   const username = user?.username || localStorage.getItem("username") || "";
   const userId = username || "user1";
 
@@ -22,11 +20,10 @@ export default function SettingsPage() {
 
   const initial = useMemo(
     () => ({
-      theme,
       language: "ru",
       ...(settingsResp?.data || {}),
     }),
-    [settingsResp, theme],
+    [settingsResp],
   );
 
   const [settings, setSettings] = useState(initial);
@@ -39,7 +36,6 @@ export default function SettingsPage() {
       delete payload.region;
       delete payload.newsletter;
       await saveSettings(payload);
-      setTheme(settings.theme);
     } catch {}
   };
 
@@ -61,31 +57,8 @@ export default function SettingsPage() {
           <h2>Настройки просмотра</h2>
 
           <div className="settings-grid">
-            <Link to="/history" className="setting-tile">
-              История просмотров
-            </Link>
-            <Link to="/favorites" className="setting-tile">
-              Избранное
-            </Link>
-
             <div className="setting-row">
-              <label className="setting-label">Тема</label>
-              <select
-                className="setting-input"
-                value={settings.theme}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSettings((state) => ({ ...state, theme: value }));
-                  setTheme(value);
-                }}
-              >
-                <option value="dark">Тёмная</option>
-                <option value="light">Светлая</option>
-              </select>
-            </div>
-
-            <div className="setting-row">
-              <label className="setting-label">Язык</label>
+              <label className="setting-label">Язык интерфейса</label>
               <select
                 className="setting-input"
                 value={settings.language}
@@ -94,7 +67,7 @@ export default function SettingsPage() {
                 }
               >
                 <option value="ru">Русский</option>
-                <option value="kk">Казахский</option>
+                <option value="kk">Қазақша</option>
                 <option value="en">English</option>
               </select>
             </div>
@@ -108,10 +81,9 @@ export default function SettingsPage() {
         <div className="settings-section">
           <h2>Прочее</h2>
           <div className="settings-grid">
-            <Link to="/analytics" className="setting-tile">Аналитика</Link>
-            <Link to="/subscription" className="setting-tile">Подписка</Link>
-            <div className="setting-tile">Привязанная карта</div>
-            <div className="setting-tile">FAQ</div>
+            <div className="setting-tile setting-tile--stub">Подписка</div>
+            <div className="setting-tile setting-tile--stub">Привязанная карта</div>
+            <div className="setting-tile setting-tile--stub">FAQ</div>
           </div>
         </div>
 

@@ -7,7 +7,6 @@ import "@/app/styles/theme.css";
 
 const HomePage = lazy(() => import("@/pages/home/ui/HomePage"));
 const GenresPage = lazy(() => import("@/pages/genres/ui/GenresPage"));
-const AddMoviePage = lazy(() => import("@/pages/admin/ui/AddMoviePage"));
 const AdminMoviesPage = lazy(() => import("@/pages/admin/ui/AdminMoviesPage"));
 const AdminAnalyticsPage = lazy(() => import("@/pages/admin/ui/AdminAnalyticsPage"));
 const AdminShopManager = lazy(() => import("@/pages/admin/ui/AdminShopManager"));
@@ -120,14 +119,6 @@ export default function App() {
             <Route path="movie/:id/reviews" element={<MovieReviewsPage />} />
             <Route path="bot" element={<ChatBotPage />} />
 
-            <Route
-              path="add-movie"
-              element={
-                <AdminRoute>
-                  <AddMoviePage />
-                </AdminRoute>
-              }
-            />
             <Route
               path="admin/movies"
               element={

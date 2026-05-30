@@ -78,6 +78,17 @@
   background: var(--cv-glass-hover);
 }
 
+.setting-tile--stub {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.setting-tile--stub:hover {
+  transform: none;
+  background: var(--cv-glass);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

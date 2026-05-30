@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { MovieCard } from "@/entities/movie";
 import { useAuth } from "@/features/auth";
@@ -152,9 +152,7 @@ export default function HomePage() {
     limit: 7,
     sortBy: "rating",
   });
-  const [searchParams] = useSearchParams();
   const [activeKazakhIndex, setActiveKazakhIndex] = useState(0);
-  const q = (searchParams.get("q") || "").toLowerCase();
 
   const movieLookup = useMemo(() => buildMovieLookup(movies), [movies]);
 
@@ -178,17 +176,6 @@ export default function HomePage() {
       })
       .slice(0, 18);
   }, [movies]);
-
-  const filtered = useMemo(() => {
-    return movies.filter((movie) => {
-      if (!q) {
-        return true;
-      }
-
-      const genresText = getMovieGenres(movie).join(" ").toLowerCase();
-      return getMovieTitle(movie).toLowerCase().includes(q) || genresText.includes(q);
-    });
-  }, [movies, q]);
 
   const popularFallback = useMemo(() => {
     return dedupeMovies(
@@ -417,17 +404,6 @@ export default function HomePage() {
 
       {isLoading ? <div className="container section-state">Загрузка каталога...</div> : null}
       {isError ? <div className="container section-state error">Ошибка: {error.message}</div> : null}
-
-      {q ? (
-        <section className="home-section">
-          <div className="container">
-            <div className="section-header">
-              <h2 className="section-title">Результаты поиска</h2>
-            </div>
-            {!isLoading ? <MovieGrid movies={filtered} /> : null}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

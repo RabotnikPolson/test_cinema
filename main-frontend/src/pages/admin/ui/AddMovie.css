@@ -97,10 +97,44 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.78rem;
+  white-space: nowrap;
 }
 
-.button.primary {
-  background: var(--cv-gold);
+.button--danger {
+  background: var(--cv-crimson, #8b1a2d);
+  color: #fff;
+  border: 0;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.78rem;
+}
+
+.button--danger:hover {
+  background: #a01f35;
+}
+
+.admin-list-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.admin-list-head h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.admin-movie-count {
+  color: var(--cv-text-dim);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.admin-search-input {
+  max-width: 320px;
+  flex: 1;
+  padding: 0.6rem 1rem;
 }
 
 .bulk-actions {
@@ -124,11 +158,13 @@
 
 .bulk-result {
   display: grid;
-  grid-template-columns: 88px 1fr;
+  grid-template-columns: 100px 1fr auto;
   gap: 0.75rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.55rem 0.85rem;
   border-radius: var(--cv-r-md);
   background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  align-items: center;
 }
 
 .bulk-result.ok {

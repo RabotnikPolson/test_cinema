@@ -1,13 +1,21 @@
-import React from "react";
-import { CheckCircle2, RotateCcw } from "lucide-react";
-import { Link } from "react-router-dom";
-import { getMovieId, getMoviePoster, getMovieTitle, getMovieYear } from "@/shared/lib/insight";
+import React, { useMemo } from "react";
+import { RotateCcw } from "lucide-react";
+import { getMovieId } from "@/shared/lib/insight";
 import { getSavedMovieProgressPercent, useHistoryStorage } from "@/shared/utils";
+import { MovieGrid } from "@/shared/ui";
 import "@/pages/history/ui/History.css";
 
 export default function HistoryPage() {
   const { read, clear } = useHistoryStorage();
-  const items = read();
+  const raw = read();
+
+  const items = useMemo(() => {
+    return raw.map((item) => {
+      const movieId = getMovieId(item);
+      const progress = getSavedMovieProgressPercent(movieId);
+      return { ...item, progress };
+    });
+  }, [raw]);
 
   if (!items.length) {
     return (
@@ -40,40 +48,7 @@ export default function HistoryPage() {
         </button>
       </div>
 
-      <div className="history-list">
-        {items.map((item) => {
-          const movieId = getMovieId(item);
-          const progress = getSavedMovieProgressPercent(movieId);
-          const completed = progress === 0;
-
-          return (
-            <Link key={movieId} to={`/movie/${movieId}`} className="history-card">
-              <div className="history-poster-wrap">
-                <img src={getMoviePoster(item)} alt={getMovieTitle(item)} className="history-poster" />
-                <div className="history-progress">
-                  <div style={{ width: `${progress}%` }} />
-                </div>
-              </div>
-              <div className="history-meta">
-                <div className="history-title-row">
-                  <h3>{getMovieTitle(item)}</h3>
-                  {completed ? (
-                    <span className="history-status history-status-done">
-                      <CheckCircle2 size={14} />
-                      Просмотрено
-                    </span>
-                  ) : (
-                    <span className="history-status">{progress}%</span>
-                  )}
-                </div>
-                <div className="history-subtitle">
-                  {getMovieYear(item) || "Каталог"} · {new Date(item.timestamp).toLocaleString("ru-RU")}
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+      <MovieGrid movies={items} showProgress />
     </div>
   );
 }
