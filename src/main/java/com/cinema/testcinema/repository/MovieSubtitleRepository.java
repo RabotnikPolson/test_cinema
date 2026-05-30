@@ -30,4 +30,28 @@ public interface MovieSubtitleRepository extends JpaRepository<MovieSubtitle, Lo
             WHERE is_downloaded = true
             """, nativeQuery = true)
     List<Object[]> getSubtitleQueueStats();
+
+    @Query(value = """
+            SELECT ms.id,
+                   m.title,
+                   ms.language,
+                   ms.translation_status,
+                   ms.created_at::text,
+                   ms.lines_translated
+            FROM movie_subtitles ms
+            JOIN movies m ON m.id = ms.movie_id
+            WHERE ms.is_downloaded = true
+            ORDER BY
+                CASE ms.translation_status
+                    WHEN 'in_progress' THEN 1
+                    WHEN 'pending'     THEN 2
+                    WHEN 'none'        THEN 3
+                    WHEN 'failed'      THEN 4
+                    WHEN 'success'     THEN 5
+                    ELSE 6
+                END,
+                ms.created_at DESC
+            LIMIT 100
+            """, nativeQuery = true)
+    List<Object[]> getSubtitleQueueRows();
 }

@@ -112,4 +112,18 @@ public class AdminAnalyticsService {
                 ((Number) row[4]).longValue()
         );
     }
+
+    @Transactional(readOnly = true)
+    public List<SubtitleQueueRowDto> getSubtitleQueueRows() {
+        return movieSubtitleRepository.getSubtitleQueueRows().stream()
+                .map(row -> new SubtitleQueueRowDto(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        (String) row[2],
+                        (String) row[3],
+                        row[4] != null ? row[4].toString() : null,
+                        row[5] != null ? ((Number) row[5]).intValue() : 0
+                ))
+                .toList();
+    }
 }

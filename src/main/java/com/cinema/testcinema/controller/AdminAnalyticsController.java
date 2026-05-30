@@ -1,6 +1,7 @@
 package com.cinema.testcinema.controller;
 
 import com.cinema.testcinema.dto.analytics.AdminDashboardDto;
+import com.cinema.testcinema.dto.analytics.SubtitleQueueRowDto;
 import com.cinema.testcinema.service.AdminAnalyticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +37,12 @@ public class AdminAnalyticsController {
     ) {
         int safeLimit = Math.min(Math.max(topLimit, 1), 100);
         return analyticsService.getDashboard(safeLimit, period);
+    }
+
+    @GetMapping("/subtitle-queue")
+    @Operation(summary = "Список фильмов в очереди субтитров (is_downloaded=true)")
+    public List<SubtitleQueueRowDto> getSubtitleQueue() {
+        return analyticsService.getSubtitleQueueRows();
     }
 
     @GetMapping("/rec-stats")
