@@ -1,0 +1,58 @@
+.app-layout {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(201, 168, 76, 0.08), transparent 30%),
+    var(--cv-void);
+}
+
+.main-content {
+  min-height: 100vh;
+  padding-top: 0;
+  transition: margin-left var(--cv-ease-normal);
+}
+
+.main-content.with-sidebar {
+  margin-left: 72px;
+}
+
+
+.chatbot-action {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 130;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--cv-gold);
+  color: var(--cv-void);
+  box-shadow: var(--cv-shadow-gold);
+  text-decoration: none;
+  transition: transform var(--cv-ease-fast), box-shadow var(--cv-ease-fast);
+}
+
+.chatbot-action:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 30px rgba(201, 168, 76, 0.45);
+}
+
+.chatbot-action-text {
+  display: none;
+}
+
+.loading {
+  min-height: 40vh;
+  display: grid;
+  place-items: center;
+  color: var(--cv-gold);
+  font-family: var(--cv-font-display);
+  font-size: 1.4rem;
+}
+
+@media (max-width: 1199px) {
+  .main-content.with-sidebar {
+    margin-left: 0;
+  }
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80" role="img" aria-label="INSIGHT mark">
+  
+  <circle cx="40" cy="40" r="36" fill="#0D0D1C"></circle>
+  <path d="M40 8 a32 32 0 1 0 22.6 54.6 l-7.8 -7.8 a21 21 0 1 1 0 -29.6 l7.8 -7.8 A31.9 31.9 0 0 0 40 8z" fill="#C9A84C"></path>
+  <circle cx="40" cy="40" r="6" fill="#0D0D1C"></circle>
+  <circle cx="40" cy="40" r="3" fill="#C9A84C"></circle>
+</svg>

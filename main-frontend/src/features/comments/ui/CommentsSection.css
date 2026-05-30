@@ -1,0 +1,137 @@
+.comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 0;
+}
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.comments-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ice);
+}
+
+.comments-header h3 span {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+/* Custom Select Dropdown for sorting */
+.cselect {
+  position: relative;
+  outline: none;
+}
+
+.cselect__btn {
+  background: transparent;
+  border: none;
+  color: var(--ice);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.cselect__btn:hover {
+  background-color: var(--glass);
+}
+
+.cselect__chev {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.cselect__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background-color: var(--space);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 0;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.cselect__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  color: var(--ice);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cselect__item:hover {
+  background-color: var(--glass);
+}
+
+.cselect__item.is-active {
+  background-color: var(--glass-hover);
+  color: var(--gold);
+}
+
+/* Thread specific styles */
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+}
+
+.show-replies,
+.hide-replies {
+  background: transparent;
+  border: none;
+  color: #3ea6ff; /* YouTube style reply color */
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 16px;
+  margin-left: 40px; /* Aligned with comment body, assuming 40px avatar width */
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  transition: background-color 0.2s;
+}
+
+.show-replies:hover,
+.hide-replies:hover {
+  background-color: rgba(62, 166, 255, 0.1);
+}
+
+.show-replies svg,
+.hide-replies svg {
+  width: 16px;
+  height: 16px;
+}
+
+.thread-replies {
+  margin-left: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.thread-replies > .comment {
+  margin-top: 12px;
+}

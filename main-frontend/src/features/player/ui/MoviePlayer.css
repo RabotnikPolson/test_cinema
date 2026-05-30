@@ -1,0 +1,278 @@
+/* Custom Video Player — Dark Luxury Glassmorphism */
+.cv-player-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-glass);
+  border: 1px solid var(--glass-border);
+}
+
+.cv-player-wrapper.theater-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  border-radius: 0;
+  border: none;
+}
+
+/* Video element */
+.cv-player-wrapper video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  cursor: pointer;
+}
+
+.cv-player-wrapper.theater-mode video {
+  height: 100vh;
+  aspect-ratio: unset;
+  object-fit: contain;
+}
+
+/* Controls overlay */
+.cv-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 32px 16px 12px;
+  background: linear-gradient(transparent, rgba(17, 17, 17, 0.92));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+
+.cv-player-wrapper:hover .cv-controls,
+.cv-player-wrapper.cv-controls-visible .cv-controls {
+  opacity: 1;
+}
+
+/* Timeline / Progress bar */
+.cv-timeline {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  transition: height 0.15s ease;
+}
+
+.cv-timeline:hover {
+  height: 6px;
+}
+
+.cv-timeline-filled {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  pointer-events: none;
+  position: relative;
+}
+
+.cv-timeline-filled::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  transition: transform 0.15s ease;
+}
+
+.cv-timeline:hover .cv-timeline-filled::after {
+  transform: translateY(-50%) scale(1);
+}
+
+/* Bottom controls row */
+.cv-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-controls-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Control buttons */
+.cv-btn {
+  background: none;
+  border: none;
+  color: var(--ice);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+  font-size: 0;
+  line-height: 1;
+}
+
+.cv-btn:hover {
+  color: var(--gold);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cv-btn:focus {
+  outline: none;
+}
+
+.cv-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+/* Time display */
+.cv-time {
+  color: var(--text);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+/* Volume group */
+.cv-volume-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cv-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: width 0.2s ease, opacity 0.2s ease;
+  opacity: 0;
+}
+
+.cv-volume-group:hover .cv-volume-slider {
+  width: 70px;
+  opacity: 1;
+}
+
+.cv-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
+}
+
+.cv-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: none;
+  cursor: pointer;
+}
+
+/* Subtitle menu */
+.cv-cc-wrapper {
+  position: relative;
+}
+
+.cv-cc-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 8px;
+  min-width: 160px;
+  background: rgba(13, 18, 32, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 6px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.cv-cc-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cv-cc-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ice);
+}
+
+.cv-cc-menu button.cv-cc-active {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+/* Big play overlay */
+.cv-big-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cv-player-wrapper.cv-paused .cv-big-play {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.cv-big-play-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(201, 168, 76, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(201, 168, 76, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.cv-big-play-circle:hover {
+  transform: scale(1.08);
+}
+
+.cv-big-play-circle svg {
+  width: 30px;
+  height: 30px;
+  fill: var(--void);
+  margin-left: 3px;
+}
+

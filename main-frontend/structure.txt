@@ -1,0 +1,322 @@
+src/
+├── app/
+│   ├── providers/
+│   │   └── index.jsx
+│   ├── router/
+│   │   └── index.jsx
+│   ├── styles/
+│   │   ├── global.css
+│   │   └── theme.css
+│   ├── App.jsx
+│   ├── index.jsx
+│   └── setupTests.js
+│
+├── pages/
+│   ├── admin/
+│   │   ├── ui/
+│   │   │   ├── AddMoviePage.jsx
+│   │   │   ├── AddMoviePage.css
+│   │   │   ├── AdminAnalyticsPage.jsx
+│   │   │   ├── AdminAnalyticsPage.css
+│   │   │   ├── AdminMoviesPage.jsx
+│   │   │   ├── AdminMoviesPage.css
+│   │   │   ├── AdminShopManager.jsx
+│   │   │   ├── AdminShopManager.css
+│   │   │   ├── UserActivityPage.jsx
+│   │   │   └── UserActivityPage.css
+│   │   └── index.js
+│   ├── auth/
+│   │   ├── ui/
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── LoginPage.css
+│   │   │   ├── RegisterPage.jsx
+│   │   │   └── RegisterPage.css
+│   │   └── index.js
+│   ├── chat-bot/
+│   │   ├── ui/
+│   │   │   ├── ChatBotPage.jsx
+│   │   │   └── ChatBotPage.css
+│   │   └── index.js
+│   ├── favorites/
+│   │   ├── ui/
+│   │   │   ├── FavoritesPage.jsx
+│   │   │   └── FavoritesPage.css
+│   │   └── index.js
+│   ├── genres/
+│   │   ├── ui/
+│   │   │   ├── GenresPage.jsx
+│   │   │   └── GenresPage.css
+│   │   └── index.js
+│   ├── history/
+│   │   ├── ui/
+│   │   │   ├── HistoryPage.jsx
+│   │   │   └── HistoryPage.css
+│   │   └── index.js
+│   ├── home/
+│   │   ├── ui/
+│   │   │   ├── HomePage.jsx
+│   │   │   └── HomePage.css
+│   │   └── index.js
+│   ├── movie-details/
+│   │   ├── ui/
+│   │   │   ├── MovieDetailsPage.jsx
+│   │   │   └── MovieDetailsPage.css
+│   │   └── index.js
+│   ├── movie-reviews/
+│   │   ├── ui/
+│   │   │   ├── MovieReviewsPage.jsx
+│   │   │   └── MovieReviewsPage.css
+│   │   └── index.js
+│   ├── movie-watch/
+│   │   ├── ui/
+│   │   │   ├── MovieWatchPage.jsx
+│   │   │   └── MovieWatchPage.css
+│   │   └── index.js
+│   ├── settings/
+│   │   ├── ui/
+│   │   │   ├── SettingsPage.jsx
+│   │   │   └── SettingsPage.css
+│   │   └── index.js
+│   ├── shop/
+│   │   ├── ui/
+│   │   │   ├── ShopPage.jsx
+│   │   │   └── ShopPage.css
+│   │   └── index.js
+│   ├── subscription/
+│   │   ├── ui/
+│   │   │   ├── SubscriptionPage.jsx
+│   │   │   └── SubscriptionPage.css
+│   │   └── index.js
+│   └── user-profile/
+│       ├── ui/
+│       │   ├── ProfilePage.jsx
+│       │   └── ProfilePage.css
+│       └── index.js
+│
+├── widgets/
+│   ├── app-layout/
+│   │   ├── ui/
+│   │   │   ├── AppLayout.jsx
+│   │   │   └── AppLayout.css
+│   │   └── index.js
+│   ├── footer/
+│   │   ├── ui/
+│   │   │   ├── Footer.jsx
+│   │   │   └── Footer.css
+│   │   └── index.js
+│   ├── header/
+│   │   ├── ui/
+│   │   │   ├── Header.jsx
+│   │   │   └── Header.css
+│   │   └── index.js
+│   ├── hero-carousel/
+│   │   ├── ui/
+│   │   │   ├── HeroCarousel.jsx
+│   │   │   └── HeroCarousel.css
+│   │   └── index.js
+│   ├── movie-hero/
+│   │   ├── ui/
+│   │   │   ├── MovieHero.jsx
+│   │   │   └── MovieHero.css
+│   │   └── index.js
+│   ├── movie-rail/
+│   │   ├── ui/
+│   │   │   ├── MovieRail.jsx
+│   │   │   └── MovieRail.css
+│   │   └── index.js
+│   ├── reviews-section/
+│   │   ├── ui/
+│   │   │   ├── ReviewsSection.jsx
+│   │   │   └── ReviewsSection.css
+│   │   └── index.js
+│   ├── right-rail/
+│   │   ├── ui/
+│   │   │   ├── RightRail.jsx
+│   │   │   └── RightRail.css
+│   │   └── index.js
+│   └── sidebar/
+│       ├── ui/
+│       │   ├── Sidebar.jsx
+│       │   └── Sidebar.css
+│       └── index.js
+│
+├── features/
+│   ├── auth/
+│   │   ├── api/
+│   │   │   └── authApi.js
+│   │   ├── model/
+│   │   │   └── useAuth.js
+│   │   ├── ui/
+│   │   │   ├── AdminRoute.jsx
+│   │   │   └── RequireAuth.jsx
+│   │   └── index.js
+│   ├── comments/
+│   │   ├── api/
+│   │   │   └── commentsApi.js
+│   │   ├── model/
+│   │   │   └── useComments.js
+│   │   ├── ui/
+│   │   │   ├── CommentItem.jsx
+│   │   │   ├── CommentItem.css
+│   │   │   ├── CommentsSection.jsx
+│   │   │   └── CommentsSection.css
+│   │   └── index.js
+│   ├── favorites/
+│   │   ├── api/
+│   │   │   └── favoritesApi.js
+│   │   ├── model/
+│   │   │   └── useFavorites.js
+│   │   ├── ui/
+│   │   │   ├── FavoriteButton.jsx
+│   │   │   └── FavoriteButton.css
+│   │   └── index.js
+│   ├── player/
+│   │   ├── api/
+│   │   │   └── playerApi.js
+│   │   ├── model/
+│   │   │   └── useMovieStream.js
+│   │   ├── ui/
+│   │   │   ├── HlsPlayer.jsx
+│   │   │   ├── MoviePlayer.jsx
+│   │   │   ├── MoviePlayer.css
+│   │   │   ├── Mp4Player.jsx
+│   │   │   └── PlayerSurface.jsx
+│   │   └── index.js
+│   ├── recommendations/
+│   │   ├── api/
+│   │   │   └── recommendationsApi.js
+│   │   ├── model/
+│   │   │   └── useRecommendations.js
+│   │   └── index.js
+│   ├── reviews/
+│   │   ├── api/
+│   │   │   ├── ratingsApi.js
+│   │   │   └── reviewsApi.js
+│   │   ├── model/
+│   │   │   └── useReviews.js
+│   │   ├── ui/
+│   │   │   ├── ReviewCard.jsx
+│   │   │   ├── ReviewCard.css
+│   │   │   ├── ReviewFormModal.jsx
+│   │   │   ├── ReviewFormModal.css
+│   │   │   ├── ReviewReadModal.jsx
+│   │   │   └── ReviewReadModal.css
+│   │   └── index.js
+│   ├── search/
+│   │   ├── api/
+│   │   │   └── searchApi.js
+│   │   ├── model/
+│   │   │   └── useSearch.js
+│   │   ├── ui/
+│   │   │   ├── SearchBar.jsx
+│   │   │   └── SearchBar.css
+│   │   └── index.js
+│   ├── shop/
+│   │   ├── api/
+│   │   │   └── shopApi.js
+│   │   ├── model/
+│   │   │   └── useShop.js
+│   │   ├── ui/
+│   │   │   ├── BuyButton.jsx
+│   │   │   └── BuyButton.css
+│   │   └── index.js
+│   ├── subscription/
+│   │   ├── api/
+│   │   │   └── subscriptionApi.js
+│   │   ├── model/
+│   │   │   └── useSubscription.js
+│   │   ├── ui/
+│   │   │   ├── UpgradeButton.jsx
+│   │   │   └── UpgradeButton.css
+│   │   └── index.js
+│   ├── user-profile/
+│   │   ├── api/
+│   │   │   └── userProfileApi.js
+│   │   ├── model/
+│   │   │   ├── useUserProfile.js
+│   │   │   └── useUserSettings.js
+│   │   └── index.js
+│   └── watch-history/
+│       ├── api/
+│       │   └── watchHistoryApi.js
+│       ├── model/
+│       │   └── useWatchHistory.js
+│       ├── ui/
+│       │   ├── WatchTracker.jsx
+│       │   └── WatchTracker.css
+│       └── index.js
+│
+├── entities/
+│   ├── genre/
+│   │   ├── ui/
+│   │   │   ├── GenreBadge.jsx
+│   │   │   └── GenreBadge.css
+│   │   └── index.js
+│   ├── movie/
+│   │   ├── lib/
+│   │   │   └── mapMovie.js
+│   │   ├── ui/
+│   │   │   ├── MovieBadge.jsx
+│   │   │   ├── MovieBadge.css
+│   │   │   ├── MovieCard.jsx
+│   │   │   └── MovieCard.css
+│   │   └── index.js
+│   ├── review/
+│   │   ├── ui/
+│   │   │   ├── ReviewCard.jsx
+│   │   │   └── ReviewCard.css
+│   │   └── index.js
+│   └── user/
+│       ├── ui/
+│       │   ├── UserAvatar.jsx
+│       │   └── UserAvatar.css
+│       └── index.js
+│
+└── shared/
+    ├── api/
+    │   ├── ai-http-client.js
+    │   └── http-client.js
+    ├── assets/
+    │   ├── insight/
+    │   │   ├── backdrop-cinema.svg
+    │   │   ├── cineverse-logomark.svg
+    │   │   ├── insight-mark.svg
+    │   │   ├── insight-wordmark.svg
+    │   │   ├── poster-placeholder.svg
+    │   │   └── posters/
+    │   │       ├── altyn-emel.svg
+    │   │       ├── arka.svg
+    │   │       ├── kobyz.svg
+    │   │       ├── nomad.svg
+    │   │       ├── otan-root.svg
+    │   │       ├── steppe.svg
+    │   │       ├── tulpar.svg
+    │   │       └── zhez-tyrnak.svg
+    │   ├── no-images.png
+    │   └── react.svg
+    ├── config/
+    │   └── index.js
+    ├── hooks/
+    │   ├── index.js
+    │   ├── useDebounce.js
+    │   └── useTheme.js
+    ├── lib/
+    │   ├── formatters.js
+    │   ├── index.js
+    │   └── insight.js
+    ├── ui/
+    │   ├── index.js
+    │   ├── PlayerPlaceholder/
+    │   │   ├── PlayerPlaceholder.css
+    │   │   └── PlayerPlaceholder.jsx
+    │   ├── RatingStars/
+    │   │   ├── RatingStars.css
+    │   │   └── RatingStars.jsx
+    │   └── WelcomeModal/
+    │       ├── WelcomeModal.css
+    │       └── WelcomeModal.jsx
+    └── utils/
+        ├── guestFavorites.js
+        ├── index.js
+        ├── localHistory.js
+        └── watchProgress.js

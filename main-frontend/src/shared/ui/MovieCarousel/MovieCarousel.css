@@ -1,0 +1,58 @@
+.movie-carousel-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.movie-carousel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding-block: 8px;
+}
+
+.movie-carousel .swiper-wrapper {
+  align-items: stretch;
+}
+
+.movie-carousel .swiper-slide {
+  height: auto;
+}
+
+.movie-carousel .movie-card {
+  height: 100%;
+}
+
+.movie-carousel-btn {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(7, 11, 20, 0.9);
+  color: var(--ice, #e8eaf0);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.14s, opacity 0.18s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.movie-carousel-btn:hover {
+  background: rgba(30, 40, 60, 0.95);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: scale(1.06);
+}
+
+.movie-carousel-btn.swiper-button-disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .movie-carousel-btn {
+    display: none;
+  }
+}

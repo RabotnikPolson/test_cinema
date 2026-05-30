@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Cinema backdrop">
+  <defs>
+    <radialGradient id="glow" cx="30%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.25"></stop>
+      <stop offset="60%" stop-color="#C9A84C" stop-opacity="0.04"></stop>
+      <stop offset="100%" stop-color="#07070F" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#07070F" stop-opacity="0.1"></stop>
+      <stop offset="70%" stop-color="#07070F" stop-opacity="0.85"></stop>
+      <stop offset="100%" stop-color="#07070F" stop-opacity="1"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="#0D0D1C"></rect>
+  
+  <path d="M0 320 Q120 280 220 305 T420 295 T620 310 T800 285 L800 450 L0 450 Z" fill="#131325"></path>
+  <path d="M0 360 Q160 330 320 345 T620 340 T800 355 L800 450 L0 450 Z" fill="#07070F"></path>
+  
+  <g opacity="0.18">
+    <polygon points="240,0 270,0 360,450 200,450" fill="#C9A84C"></polygon>
+    <polygon points="540,0 580,0 660,450 480,450" fill="#C9A84C"></polygon>
+  </g>
+  <rect width="800" height="450" fill="url(#glow)"></rect>
+  <rect width="800" height="450" fill="url(#fade)"></rect>
+</svg>

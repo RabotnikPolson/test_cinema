@@ -1,0 +1,181 @@
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 78px;
+  background: rgba(17, 17, 17, 0.55);
+  backdrop-filter: var(--cv-blur);
+  -webkit-backdrop-filter: var(--cv-blur);
+  z-index: 105;
+  overflow: hidden;
+  transform: translateX(-100%);
+  transition: width var(--cv-ease-normal), transform var(--cv-ease-normal), background var(--cv-ease-normal), box-shadow var(--cv-ease-normal);
+}
+
+.sidebar:hover,
+.sidebar.open {
+  width: 280px;
+  background: rgba(17, 17, 17, 0.88);
+  box-shadow: var(--cv-shadow-glass);
+}
+
+.sidebar-content {
+  padding: 1.4rem 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: rgba(201, 168, 76, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 76, 0.4);
+}
+
+.sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  height: 48px;
+  overflow: hidden;
+  /* center 20px icon in (72 - 16) = 56px: (56 - 20) / 2 = 18px */
+  padding: 0 0 0 18px;
+  color: var(--cv-text);
+  text-decoration: none;
+  border-radius: 12px;
+  white-space: nowrap;
+  transition:
+    background var(--cv-ease-fast),
+    color var(--cv-ease-fast),
+    gap var(--cv-ease-normal),
+    padding-left var(--cv-ease-normal);
+}
+
+.sidebar:hover .sidebar-link,
+.sidebar.open .sidebar-link {
+  gap: 0.9rem;
+  padding-left: 1rem;
+}
+
+.sidebar-link:hover {
+  background: var(--cv-glass-hover);
+  color: var(--cv-ice);
+}
+
+.sidebar-link.active {
+  background: var(--cv-gold);
+  color: var(--cv-void);
+  box-shadow: var(--cv-shadow-gold);
+}
+
+.sidebar-link.active .sidebar-icon {
+  color: var(--cv-void);
+}
+
+.sidebar-icon {
+  color: var(--cv-text-dim);
+  flex-shrink: 0;
+  transition: color var(--cv-ease-fast);
+}
+
+.sidebar:hover .sidebar-icon,
+.sidebar.open .sidebar-icon {
+  color: var(--cv-gold);
+}
+
+.sidebar:hover .sidebar-link.active .sidebar-icon,
+.sidebar.open .sidebar-link.active .sidebar-icon {
+  color: var(--cv-void);
+}
+
+/* collapses to zero width so it doesn't push icon off-center */
+.sidebar-label {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity var(--cv-ease-fast), max-width var(--cv-ease-normal);
+  font-weight: 300;
+}
+
+.sidebar:hover .sidebar-label,
+.sidebar.open .sidebar-label {
+  max-width: 180px;
+  opacity: 1;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--cv-ease-normal), visibility var(--cv-ease-normal);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.sidebar-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (min-width: 1200px) {
+  .sidebar {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 1199px) {
+  .sidebar {
+    width: 280px;
+    transform: translateX(-100%);
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-link {
+    gap: 0.9rem;
+    padding-left: 1rem;
+  }
+
+  .sidebar-label {
+    max-width: 180px;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  .sidebar-content {
+    padding: 1rem 0;
+  }
+}

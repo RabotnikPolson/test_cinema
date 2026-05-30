@@ -1,0 +1,123 @@
+.settings-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #ccc;
+}
+
+.settings-container {
+  background: #1a1a1a;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+
+.separator {
+  border: 0;
+  height: 1px;
+  background: #333;
+  margin: 30px 0;
+}
+
+.settings-section {
+  margin-bottom: 40px;
+}
+
+.settings-section h2 {
+  color: #fff;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+/* Контейнер настроек */
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: flex-start;
+  max-width: 600px; /* ограничиваем ширину формы */
+}
+
+/* Ряд формы */
+.setting-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Подписи */
+.setting-label {
+  font-size: 14px;
+  color: #bbb;
+}
+
+/* Поля ввода */
+.setting-input {
+  width: 100%;
+  background: #0f0f0f;
+  border: 1px solid #333;
+  color: #eee;
+  border-radius: 8px;
+  padding: 10px 12px;
+  outline: none;
+}
+.setting-input:focus {
+  border-color: #555;
+}
+
+/* Чекбокс */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+/* Плитки-ссылки */
+.setting-tile {
+  padding: 12px 14px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  transition: background 0.3s ease;
+  color: #ccc;
+  width: 100%;
+  text-decoration: none;
+}
+.setting-tile:hover { background: #333; }
+
+/* Кнопки — НЕ на всю ширину */
+.btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #2a2a2a;
+  color: #eee;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+.btn:hover { background: #333; }
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+.btn-primary { background: #3a3a3a; }
+.btn-primary:hover { background: #4a4a4a; }
+
+.btn-danger { background: #ff6b6b; color: #fff; }
+.btn-danger:hover { background: #e05252; }
+
+/* Сообщения */
+.loading,
+.error {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 18px;
+  color: #666;
+}
+.error { color: #ff6b6b; }
+
+/* Мобилки */
+@media (max-width: 768px) {
+  .settings-grid { max-width: 100%; gap: 10px; }
+  .btn, .setting-tile { width: 100%; } /* на мобильных можно растянуть */
+}
