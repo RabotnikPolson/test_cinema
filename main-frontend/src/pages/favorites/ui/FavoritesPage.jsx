@@ -45,9 +45,6 @@ export default function FavoritesPage() {
         <div>
           <div className="favorites-eyebrow">Ваша коллекция</div>
           <h1>Избранное</h1>
-          <p>
-            Сохраняйте фильмы, к которым хочется вернуться вечером или показать друзьям.
-          </p>
         </div>
         <div className="favorites-count">
           <Heart size={18} />

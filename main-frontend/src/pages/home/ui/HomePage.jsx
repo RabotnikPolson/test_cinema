@@ -265,8 +265,6 @@ export default function HomePage() {
       <MovieRail
         title="Популярное сейчас"
         items={popularItems}
-        linkTo="/trending"
-        linkLabel="Вся лента"
       />
 
       <section className="home-section home-section--spotlight">

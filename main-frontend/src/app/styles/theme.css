@@ -205,10 +205,10 @@ body {
   opacity: 0.9;
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling — thin for page, hidden for carousels */
 ::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -216,16 +216,16 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-* {
-  -ms-overflow-style: none !important;
-  scrollbar-width: none !important;
 }
 
 .no-scrollbar {

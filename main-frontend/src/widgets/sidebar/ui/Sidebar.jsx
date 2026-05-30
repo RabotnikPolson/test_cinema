@@ -9,8 +9,6 @@ import {
   Heart,
   History,
   Home,
-  Flame,
-  Landmark,
   Plus,
   Settings,
   ShoppingBag,
@@ -33,9 +31,7 @@ export default function Sidebar({ isOpen = false }) {
 
   const items = [
     { to: "/", label: "Главная", icon: Home },
-    { to: "/trending", label: "Тренды", icon: Flame },
-    { to: "/kazakhstan", label: "Казахстанское кино", icon: Landmark },
-    { to: "/genres", label: "Жанры", icon: Film },
+    { to: "/genres", label: "Все фильмы", icon: Film },
     { to: "/favorites", label: "Избранное", icon: Heart },
     { to: "/history", label: "История", icon: History },
     { to: "/profile", label: "Профиль", icon: User },

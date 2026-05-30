@@ -42,6 +42,30 @@
   display: none;
 }
 
+.scroll-top-btn {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 5.5rem;
+  z-index: 130;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(8px);
+  color: var(--cv-ice);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background var(--cv-ease-fast), border-color var(--cv-ease-fast), transform var(--cv-ease-fast);
+}
+
+.scroll-top-btn:hover {
+  background: rgba(50, 50, 50, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
 .loading {
   min-height: 40vh;
   display: grid;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { ChevronUp, MessageCircle } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import Footer from "@/widgets/footer/ui/Footer";
 import Header from "@/widgets/header/ui/Header";
@@ -11,6 +11,7 @@ export default function AppLayout() {
   const loc = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1200);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const hideUI = /^\/(login|register)(\/|$)/.test(loc.pathname);
 
@@ -24,6 +25,12 @@ export default function AppLayout() {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 320);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const toggleSidebar = () => {
@@ -61,6 +68,17 @@ export default function AppLayout() {
         </Link>
       )}
       {!hideUI && <WelcomeModal />}
+
+      {!hideUI && showScrollTop && (
+        <button
+          type="button"
+          className="scroll-top-btn"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Наверх"
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
     </div>
   );
 }

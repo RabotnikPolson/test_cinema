@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Clapperboard, SlidersHorizontal, Sparkles, Star } from "lucide-react";
+import { SlidersHorizontal, Star } from "lucide-react";
 import { useGenres, useMovies } from "@/features/movies";
 import { MovieGrid } from "@/shared/ui";
 import {
@@ -29,6 +29,7 @@ export default function GenresPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedGenre, setSelectedGenre] = useState(searchParams.get("filter") || "");
   const [sortBy, setSortBy] = useState(searchParams.get("sort") || "rating");
+  const [onlyKz, setOnlyKz] = useState(false);
   const query = searchParams.get("q") || "";
 
   useEffect(() => {
@@ -71,12 +72,19 @@ export default function GenresPage() {
     return counts;
   }, [movies]);
 
+  const kazakhCount = useMemo(() => {
+    return movies.filter((m) => m.raw?.isDomestic || m.raw?.domestic).length;
+  }, [movies]);
+
+  const hasCyrillic = (name) => /[а-яёА-ЯЁ]/.test(name);
+
   const genresWithCounts = useMemo(() => {
     return genres
       .map((genre) => ({
         ...genre,
         count: genreCounts.get(genre.name) || genre.movieCount || 0,
       }))
+      .filter((genre) => !genre.name.includes("?") && hasCyrillic(genre.name))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }, [genreCounts, genres]);
 
@@ -92,6 +100,8 @@ export default function GenresPage() {
       const synopsis = normalizeText(getMovieSynopsis(movie));
       const yearText = String(getMovieYear(movie) || "");
 
+      const matchesKz = onlyKz ? !!(movie.raw?.isDomestic || movie.raw?.domestic) : true;
+
       const matchesGenre = normalizedSelectedGenre
         ? getMovieGenres(movie).some((genre) => normalizeText(genre) === normalizedSelectedGenre)
         : true;
@@ -103,7 +113,7 @@ export default function GenresPage() {
           yearText.includes(normalizedQuery)
         : true;
 
-      return matchesGenre && matchesQuery;
+      return matchesKz && matchesGenre && matchesQuery;
     });
 
     nextMovies.sort((left, right) => {
@@ -142,6 +152,7 @@ export default function GenresPage() {
   const resetFilters = () => {
     setSelectedGenre("");
     setSortBy("rating");
+    setOnlyKz(false);
   };
 
   return (
@@ -149,10 +160,9 @@ export default function GenresPage() {
       <div className="container genres-shell">
         <section className="genres-hero">
           <div className="genres-hero-copy">
-            <span className="genres-kicker">Каталог</span>
-            <h1 className="genres-title">Жанры и фильмы</h1>
+            <h1 className="genres-title">Все фильмы</h1>
             <p className="genres-lead">
-              Один чистый экран для выбора фильмов по жанру. Поиск уже работает сверху через хедер, здесь оставляем только нормальную навигацию по каталогу.
+              Полный каталог платформы. Фильтруйте по жанрам, сортируйте как удобно.
             </p>
 
             <div className="genres-stats">
@@ -165,39 +175,13 @@ export default function GenresPage() {
                 <strong>{genresWithCounts.length}</strong>
               </div>
               <div className="genres-stat">
+                <span>Казахских</span>
+                <strong>{kazakhCount}</strong>
+              </div>
+              <div className="genres-stat">
                 <span>Средний рейтинг</span>
                 <strong>{averageRating ? averageRating.toFixed(1) : "—"}</strong>
               </div>
-            </div>
-          </div>
-
-          <div className="genres-hero-panel">
-            <div className="genres-hero-card genres-hero-card--accent">
-              <Sparkles size={18} />
-              <strong>{selectedGenreMeta?.name || "Выберите настроение"}</strong>
-              <span>
-                {selectedGenreMeta
-                  ? `${selectedGenreMeta.count} фильмов в жанре`
-                  : "Сначала жанр, потом уже конкретный фильм."}
-              </span>
-            </div>
-
-            {query ? (
-              <div className="genres-hero-card">
-                <Star size={18} />
-                <strong>Поиск из хедера: {query}</strong>
-                <span>Каталог уже отфильтрован по вашему общему поисковому запросу.</span>
-              </div>
-            ) : null}
-
-            <div className="genres-hero-card">
-              <Clapperboard size={18} />
-              <strong>{highlightedMovie ? getMovieTitle(highlightedMovie) : "Каталог готов"}</strong>
-              <span>
-                {highlightedMovie
-                  ? getMovieSynopsis(highlightedMovie) || "Первый сильный результат по текущим фильтрам."
-                  : "Фильмы появятся здесь после загрузки."}
-              </span>
             </div>
           </div>
         </section>
@@ -249,6 +233,13 @@ export default function GenresPage() {
                     {option.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={`genres-sort-pill${onlyKz ? " is-active" : ""}`}
+                  onClick={() => setOnlyKz((v) => !v)}
+                >
+                  Только KZ
+                </button>
               </div>
             </div>
 
@@ -292,13 +283,6 @@ export default function GenresPage() {
                 {query ? ` по запросу "${query}"` : ""}
               </p>
             </div>
-
-            {highlightedMovie ? (
-              <Link to={`/movie/${getMovieId(highlightedMovie)}`} className="genres-highlight">
-                <Star size={16} />
-                <span>{getMovieTitle(highlightedMovie)}</span>
-              </Link>
-            ) : null}
           </div>
 
           {isMoviesLoading || isGenresLoading ? <div className="genres-state">Загрузка каталога...</div> : null}

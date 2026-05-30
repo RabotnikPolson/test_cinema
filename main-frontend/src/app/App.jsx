@@ -6,8 +6,6 @@ import { ThemeProvider } from "@/shared/hooks";
 import "@/app/styles/theme.css";
 
 const HomePage = lazy(() => import("@/pages/home/ui/HomePage"));
-const KazakhstanPage = lazy(() => import("@/pages/home/ui/KazakhstanPage"));
-const TrendingPage = lazy(() => import("@/pages/trending/ui/TrendingPage"));
 const GenresPage = lazy(() => import("@/pages/genres/ui/GenresPage"));
 const AddMoviePage = lazy(() => import("@/pages/admin/ui/AddMoviePage"));
 const AdminMoviesPage = lazy(() => import("@/pages/admin/ui/AdminMoviesPage"));
@@ -109,8 +107,6 @@ export default function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
-            <Route path="kazakhstan" element={<KazakhstanPage />} />
-            <Route path="trending" element={<TrendingPage />} />
             <Route path="genres" element={<GenresPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="history" element={<HistoryPage />} />
