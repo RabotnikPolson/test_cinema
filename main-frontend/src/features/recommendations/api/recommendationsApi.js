@@ -22,8 +22,15 @@ export const listBecauseYouLiked = async (_userId, limit = 15) => {
   return res.data;
 };
 
-export const listTrending = async (weekly = false) => {
-  const res = await http.get("/api/recommendations/trending", { params: { weekly } });
+export const listTrending = async () => {
+  const res = await http.get("/trending");
+  // Java /trending returns [{movieId, title, posterUrl, score, isDomestic}]
+  // wrap to match existing {recommendations:[]} shape used by HomePage
+  return { recommendations: Array.isArray(res.data) ? res.data : [] };
+};
+
+export const listHeroMovies = async () => {
+  const res = await http.get("/trending/hero");
   return res.data;
 };
 

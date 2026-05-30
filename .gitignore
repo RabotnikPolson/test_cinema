@@ -47,3 +47,4 @@ main-frontend/node_modules/
 
 /storage/
 /.claude/
+/api_docs/

@@ -27,6 +27,8 @@ export function getMovieBackdrop(movie) {
     movie?.backdrop_url ||
     movie?.raw?.backdrop ||
     movie?.raw?.backdropUrl ||
+    movie?.coverUrl ||
+    movie?.raw?.coverUrl ||
     getMoviePoster(movie) ||
     backdropCinema
   );
@@ -48,6 +50,8 @@ export function getMovieYear(movie) {
 
 export function getMovieRating(movie) {
   const rawRating =
+    movie?.ratingKinopoisk ??
+    movie?.raw?.ratingKinopoisk ??
     movie?.rating ??
     movie?.imdbRating ??
     movie?.raw?.rating ??

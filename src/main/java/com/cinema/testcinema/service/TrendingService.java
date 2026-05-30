@@ -34,8 +34,37 @@ public class TrendingService {
         this.movieClickRepository = movieClickRepository;
     }
 
-    @Cacheable(value = "trending", key = "'daily'")
+    /**
+     * Топ-10 из Kinopoisk TOP_POPULAR_MOVIES — IDs для Hero-баннера.
+     * Кэшируем только ID чтобы не класть JPA-сущности в Redis.
+     * TTL = 24ч (дефолт), авто-импортирует фильмы которых нет в БД.
+     */
+    @Cacheable(value = "hero_movies", key = "'top10'")
+    public List<Long> getHeroMovieIds() {
+        log.info("[HERO] Загружаем TOP_POPULAR_MOVIES из Кинопоиска...");
+        List<Long> ids = new ArrayList<>();
+        try {
+            JsonNode data = kinopoiskClient.fetchTopPopularMovies(1);
+            if (data == null || !data.has("items")) return ids;
+            for (JsonNode item : data.get("items")) {
+                if (ids.size() >= 10) break;
+                String kinopoiskId = item.path("kinopoiskId").asText("");
+                if (kinopoiskId.isEmpty()) continue;
+                try {
+                    Movie movie = syncService.fetchAndSave(kinopoiskId);
+                    ids.add(movie.getId());
+                } catch (Exception e) {
+                    log.warn("[HERO] Ошибка импорта {}: {}", kinopoiskId, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("[HERO] Ошибка загрузки TOP_POPULAR_MOVIES", e);
+        }
+        log.info("[HERO] Готово, фильмов в баннере: {}", ids.size());
+        return ids;
+    }
 
+    @Cacheable(value = "trending", key = "'daily'")
     public List<TrendingMovieDto> getTrendingMovies() {
         log.info("[TRENDING] Вычисляем тренды. Прогрев кэша...");
         Map<Long, Double> scores = new HashMap<>();
@@ -101,8 +130,8 @@ public class TrendingService {
             page++;
         }
 
-        // 2. Внутренние тренды: Клики за последние 7 дней
-        Instant lastWeek = Instant.now().minus(7, ChronoUnit.DAYS);
+        // 2. Внутренние тренды: Клики за последние 10 дней
+        Instant lastWeek = Instant.now().minus(10, ChronoUnit.DAYS);
         List<TrendingClickProjection> internalTrends = movieClickRepository.findTopTrendingMovies(lastWeek, PageRequest.of(0, 20));
 
         for (TrendingClickProjection projection : internalTrends) {
@@ -123,9 +152,9 @@ public class TrendingService {
             Movie movie = entry.getValue();
             double finalScore = scores.getOrDefault(movie.getId(), 0.0);
 
-            // Буст для казахстанских фильмов (x2.0)
+            // Буст для казахстанских фильмов (x1.4)
             if (movie.isDomestic()) {
-                finalScore *= 2.0;
+                finalScore *= 1.4;
             }
 
             result.add(new TrendingMovieDto(

@@ -56,10 +56,17 @@ public class KinopoiskClient {
     // ─── Похожие и Тренды ─────────────────────────────────────────────────────
 
     /**
-     * GET /api/v2.2/films/collections?type=TOP_POPULAR_ALL&page={page} — ТОП популярных
+     * GET /api/v2.2/films/collections?type=TOP_POPULAR_ALL&page={page} — ТОП популярных (все типы)
      */
     public JsonNode fetchTopPopular(int page) {
         return get("/api/v2.2/films/collections?type=TOP_POPULAR_ALL&page=" + page);
+    }
+
+    /**
+     * GET /api/v2.2/films/collections?type=TOP_POPULAR_MOVIES&page={page} — только фильмы (без сериалов)
+     */
+    public JsonNode fetchTopPopularMovies(int page) {
+        return get("/api/v2.2/films/collections?type=TOP_POPULAR_MOVIES&page=" + page);
     }
 
     /**

@@ -1,6 +1,10 @@
-import React from "react";
-import { Info, Play } from "lucide-react";
+import React, { useRef } from "react";
+import { ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Autoplay, Navigation } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import { useHeroMovies } from "@/features/recommendations";
 import {
   formatRuntimeLabel,
   getMovieBackdrop,
@@ -13,13 +17,7 @@ import {
 } from "@/shared/lib/insight";
 import "@/widgets/movie-hero/ui/MovieHero.css";
 
-export default function HeroBanner({ movie }) {
-  const navigate = useNavigate();
-
-  if (!movie) {
-    return null;
-  }
-
+function HeroSlide({ movie, navigate }) {
   const movieId = getMovieId(movie);
   const title = getMovieTitle(movie);
   const year = getMovieYear(movie);
@@ -28,37 +26,22 @@ export default function HeroBanner({ movie }) {
   const genres = getMovieGenres(movie);
   const filledStars = Math.max(0, Math.min(5, Math.floor((ratingValue || 0) / 2)));
 
-  const openMovie = () => {
-    if (movieId) {
-      navigate(`/movie/${movieId}`);
-    }
-  };
-
-  const openWatch = () => {
-    if (movieId) {
-      navigate(`/movie/${movieId}/watch`);
-    }
-  };
-
   return (
-    <header className="hero-banner">
-      <img
-        src={getMovieBackdrop(movie)}
-        alt={title}
-        className="hero-banner-image"
-      />
-
+    <div
+      className="hero-slide"
+      style={{ backgroundImage: `url(${getMovieBackdrop(movie)})` }}
+    >
       <div className="hero-banner-overlay" />
       <div className="hero-banner-gradient-left" />
       <div className="hero-banner-gradient-top" />
 
       <div className="hero-banner-content">
-        <div className="hero-banner-label">Эксклюзивная премьера</div>
+        <div className="hero-banner-label">В тренде сейчас</div>
 
         <h1 className="hero-banner-title">{title}</h1>
 
         <p className="hero-banner-description">
-          {getMovieSynopsis(movie) || "Откройте для себя новые истории, собранные для тихого кинозала дома."}
+          {getMovieSynopsis(movie) || "Откройте для себя новые истории, собранные для вас."}
         </p>
 
         <div className="hero-banner-rating">
@@ -77,17 +60,76 @@ export default function HeroBanner({ movie }) {
         </div>
 
         <div className="hero-banner-actions">
-          <button className="hero-btn hero-btn-primary" onClick={openWatch} type="button">
+          <button
+            className="hero-btn hero-btn-primary"
+            onClick={() => navigate(`/movie/${movieId}/watch`)}
+            type="button"
+          >
             <Play size={18} />
-            Смотреть сейчас
+            Смотреть
           </button>
 
-          <button className="hero-btn hero-btn-secondary" onClick={openMovie} type="button">
+          <button
+            className="hero-btn hero-btn-secondary"
+            onClick={() => navigate(`/movie/${movieId}`)}
+            type="button"
+          >
             <Info size={18} />
             Подробнее
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function HeroBanner() {
+  const navigate = useNavigate();
+  const prevRef = useRef(null);
+  const nextRef = useRef(null);
+  const { data: heroMovies = [] } = useHeroMovies();
+
+  if (!heroMovies.length) return null;
+
+  return (
+    <header className="hero-banner">
+      <button
+        ref={prevRef}
+        type="button"
+        className="hero-nav-btn hero-nav-btn--prev"
+        aria-label="Предыдущий фильм"
+      >
+        <ChevronLeft size={22} />
+      </button>
+
+      <Swiper
+        className="hero-swiper"
+        modules={[Autoplay, Navigation]}
+        navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
+        onBeforeInit={(swiper) => {
+          swiper.params.navigation.prevEl = prevRef.current;
+          swiper.params.navigation.nextEl = nextRef.current;
+        }}
+        autoplay={{ delay: 7000, disableOnInteraction: false, pauseOnMouseEnter: true }}
+        loop={heroMovies.length > 1}
+        slidesPerView={1}
+        speed={700}
+      >
+        {heroMovies.map((movie, i) => (
+          <SwiperSlide key={getMovieId(movie) ?? i}>
+            <HeroSlide movie={movie} navigate={navigate} />
+          </SwiperSlide>
+        ))}
+      </Swiper>
+
+      <button
+        ref={nextRef}
+        type="button"
+        className="hero-nav-btn hero-nav-btn--next"
+        aria-label="Следующий фильм"
+      >
+        <ChevronRight size={22} />
+      </button>
     </header>
   );
 }

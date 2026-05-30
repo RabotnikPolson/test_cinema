@@ -47,6 +47,8 @@ export function mapMovie(dto = {}) {
     ratingAge: dto.ratingAge || null,
     country: dto.country || null,
     contentType: dto.contentType || null,
+    coverUrl: dto.coverUrl || null,
+    createdAt: dto.createdAt || null,
     raw: dto,
   };
 }

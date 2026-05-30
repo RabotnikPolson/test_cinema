@@ -219,6 +219,13 @@ export default function HomePage() {
     return dedupeMovies(filterExcluded(source, curatedIds)).slice(0, 12);
   }, [curatedIds, movies, newReleases]);
 
+  const recentlyAddedItems = useMemo(() => {
+    return [...movies]
+      .filter((movie) => movie.createdAt)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 15);
+  }, [movies]);
+
   const topRatedItems = useMemo(() => {
     const excluded = buildExclusionSet([
       popularItems,
@@ -241,22 +248,6 @@ export default function HomePage() {
     : 0;
   const activeKazakhMovie = kazakhSpotlightItems[safeKazakhIndex];
 
-  const featuredMovie = useMemo(() => {
-    return kazakhSpotlightItems[0] || freshItems[0] || popularItems[0] || topRatedItems[0] || movies[0] || null;
-  }, [freshItems, kazakhSpotlightItems, movies, popularItems, topRatedItems]);
-
-  const promoLead = useMemo(() => {
-    return activeKazakhMovie || freshItems[0] || popularItems[0] || topRatedItems[0] || null;
-  }, [activeKazakhMovie, freshItems, popularItems, topRatedItems]);
-
-  const promoPosters = useMemo(() => {
-    const promoLeadId = getMovieId(promoLead);
-
-    return dedupeMovies([...kazakhSpotlightItems, ...freshItems, ...popularItems, ...topRatedItems])
-      .filter((movie) => String(getMovieId(movie)) !== String(promoLeadId))
-      .slice(0, 3);
-  }, [freshItems, kazakhSpotlightItems, popularItems, promoLead, topRatedItems]);
-
   const stepKazakhCarousel = (direction) => {
     if (!kazakhSpotlightItems.length) {
       return;
@@ -269,7 +260,7 @@ export default function HomePage() {
 
   return (
     <div className="home-page">
-      {featuredMovie ? <HeroBanner movie={featuredMovie} /> : null}
+      <HeroBanner />
 
       <MovieRail
         title="Популярное сейчас"
@@ -404,53 +395,22 @@ export default function HomePage() {
         linkLabel="Все жанры"
       />
 
-      {promoLead ? (
-        <section className="home-section">
-          <div className="container">
-            <div
-              className="home-promo"
-              style={{ "--promo-image": `url("${getMoviePoster(promoLead)}")` }}
-            >
-              <div className="home-promo-copy">
-                <span className="home-promo-eyebrow">Рекомендация от сайта</span>
-                <h2 className="home-promo-title">{getMovieTitle(promoLead)}</h2>
-                <p className="home-promo-description">
-                  {getMovieSynopsis(promoLead) || "Фильм, который стоит вынести в отдельный акцентный баннер между главными лентами."}
-                </p>
-
-                <div className="home-promo-meta">
-                  {getMovieYear(promoLead) ? <span>{getMovieYear(promoLead)}</span> : null}
-                  {formatRuntimeLabel(promoLead) ? <span>{formatRuntimeLabel(promoLead)}</span> : null}
-                  {getMovieRating(promoLead) ? <span>★ {getMovieRating(promoLead).toFixed(1)}</span> : null}
-                </div>
-
-                <Link to={`/movie/${getMovieId(promoLead)}`} className="home-promo-link">
-                  Смотреть подробнее
-                  <ArrowRight size={16} />
-                </Link>
-              </div>
-
-              <div className="home-promo-posters">
-                {promoPosters.map((movie) => (
-                  <Link
-                    key={`promo-${getMovieId(movie)}`}
-                    to={`/movie/${getMovieId(movie)}`}
-                    className="home-promo-poster"
-                  >
-                    <img src={getMoviePoster(movie)} alt={getMovieTitle(movie)} loading="lazy" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
+      <MovieRail
+        title="Последние добавленные"
+        items={recentlyAddedItems}
+        linkTo="/genres"
+        linkLabel="Все фильмы"
+      />
 
       {topRatedItems.length > 0 ? (
         <section className="home-section">
           <div className="container home-rated-grid">
             <div className="section-header">
               <h2 className="section-title">Высокий рейтинг</h2>
+              <Link to="/genres" className="section-link">
+                Все фильмы
+                <ArrowRight size={16} />
+              </Link>
             </div>
             <MovieGrid movies={topRatedItems} />
           </div>

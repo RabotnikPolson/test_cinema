@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import React, { Suspense, lazy, useEffect, useRef } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
 import { AdminRoute } from "@/features/auth";
 import AppLayout from "@/widgets/app-layout/ui/AppLayout";
 import { ThemeProvider } from "@/shared/hooks";
@@ -27,12 +27,76 @@ const SubscriptionPage = lazy(() => import("@/pages/subscription/ui/Subscription
 const ProfilePage = lazy(() => import("@/pages/user-profile/ui/ProfilePage"));
 const ShopPage = lazy(() => import("@/pages/shop/ui/ShopPage"));
 
-function ScrollToTop() {
-  const location = useLocation();
+// Отключаем браузерное авто-восстановление скролла — управляем им сами
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
 
-  React.useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+function ScrollManager() {
+  const location = useLocation();
+  const navType = useNavigationType();
+  const restoringRef = useRef(false);
+
+  // Сохраняем позицию при скролле — но НЕ во время программного восстановления
+  useEffect(() => {
+    const key = location.key;
+    let rafId;
+    const save = () => {
+      if (restoringRef.current) return;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        sessionStorage.setItem(`scroll:${key}`, String(Math.round(window.scrollY)));
+      });
+    };
+    window.addEventListener("scroll", save, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", save);
+      cancelAnimationFrame(rafId);
+    };
+  }, [location.key]);
+
+  // Навигация: восстановить позицию (POP) либо прокрутить наверх (PUSH/REPLACE)
+  useEffect(() => {
+    if (navType !== "POP") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return undefined;
+    }
+
+    const targetY = Number(sessionStorage.getItem(`scroll:${location.key}`));
+    if (!targetY) return undefined;
+
+    restoringRef.current = true;
+    let cancelled = false;
+    const startedAt = performance.now();
+
+    const stop = () => {
+      cancelled = true;
+      restoringRef.current = false;
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("keydown", stop);
+    };
+
+    // Если пользователь сам начал листать — прекращаем восстановление, не мешаем ему
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("keydown", stop);
+
+    // Крутим пока реально не достигнем цели (контент грузится асинхронно), максимум 3с
+    const tick = () => {
+      if (cancelled) return;
+      window.scrollTo({ top: targetY, behavior: "instant" });
+      const reached = Math.abs(window.scrollY - targetY) <= 2;
+      if (reached || performance.now() - startedAt > 3000) {
+        stop();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+
+    return stop;
+  }, [location.key, navType]);
 
   return null;
 }
@@ -40,7 +104,7 @@ function ScrollToTop() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ScrollToTop />
+      <ScrollManager />
       <Suspense fallback={<div style={{ padding: 20 }}>Загрузка...</div>}>
         <Routes>
           <Route element={<AppLayout />}>

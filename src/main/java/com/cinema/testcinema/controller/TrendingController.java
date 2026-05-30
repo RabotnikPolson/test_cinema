@@ -42,6 +42,23 @@ public class TrendingController {
         return ResponseEntity.ok(trendingService.getTrendingMovies());
     }
 
+    @GetMapping("/hero")
+    @PermitAll
+    @Operation(summary = "Топ-10 для Hero-баннера", description = "TOP_POPULAR_MOVIES из Кинопоиска, авто-импорт, полные данные")
+    public ResponseEntity<List<Movie>> getHeroMovies() {
+        List<Long> ids = trendingService.getHeroMovieIds();
+        if (ids.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        Map<Long, Movie> byId = movieRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Movie::getId, m -> m));
+        List<Movie> result = ids.stream()
+                .filter(byId::containsKey)
+                .map(byId::get)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/weekly")
     @PermitAll
     @Operation(summary = "Получить еженедельный ТОП фильмов (Redis ZSET)", description = "Достает ТОП-10 фильмов на основе кликов пользователей")

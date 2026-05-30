@@ -2,6 +2,7 @@ package com.cinema.testcinema.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -125,6 +126,9 @@ public class Movie {
 
     @Column(name = "video_s3_path", length = 500)
     private String videoS3Path;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     // ── Жанры (many-to-many) ──────────────────────────────────────────────
     @ManyToMany(fetch = FetchType.LAZY)
@@ -271,4 +275,6 @@ public class Movie {
 
     public String getVideoS3Path() { return videoS3Path; }
     public void setVideoS3Path(String videoS3Path) { this.videoS3Path = videoS3Path; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

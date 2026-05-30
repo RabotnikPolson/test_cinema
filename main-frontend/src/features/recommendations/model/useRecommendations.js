@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { mapMovie } from "@/entities/movie";
 import {
   listRightRail,
   getSmartFeed,
@@ -7,6 +8,7 @@ import {
   listTrending,
   listKazakhstanMovies,
   listKazakhstanGenres,
+  listHeroMovies,
 } from "@/features/recommendations/api/recommendationsApi";
 
 export const useRecommendationsTab = (type, movieId, limit = 15) =>
@@ -38,10 +40,11 @@ export const useBecauseYouLiked = (userId, limit = 15) =>
     enabled: !!userId,
   });
 
-export const useTrending = (weekly = false) =>
+export const useTrending = () =>
   useQuery({
-    queryKey: ["recommendationsTrending", weekly],
-    queryFn: () => listTrending(weekly),
+    queryKey: ["recommendationsTrending"],
+    queryFn: () => listTrending(),
+    staleTime: 5 * 60 * 1000,
   });
 
 export const useKazakhstanMovies = (filters = {}) =>
@@ -56,4 +59,14 @@ export const useKazakhstanGenres = () =>
     queryKey: ["kazakhstanGenres"],
     queryFn: () => listKazakhstanGenres(),
     staleTime: 30 * 60 * 1000,
+  });
+
+export const useHeroMovies = () =>
+  useQuery({
+    queryKey: ["heroMovies"],
+    queryFn: async () => {
+      const data = await listHeroMovies();
+      return Array.isArray(data) ? data.map(mapMovie) : [];
+    },
+    staleTime: 10 * 60 * 1000,
   });
