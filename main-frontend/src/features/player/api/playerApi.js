@@ -14,10 +14,9 @@ export async function getMovieStream(movieId) {
   if (!data?.videoUrl) return null;
 
   const format = detectFormat(data.videoUrl);
-  const baseUrl = http.defaults.baseURL ?? "http://localhost:8080";
 
   const subtitles = data.subtitleUrl
-    ? [{ lang: "kk", label: "Қазақша", url: `${baseUrl}/stream/${movieId}/subtitle` }]
+    ? [{ lang: "kk", label: "Қазақша", url: `/stream/${movieId}/subtitle` }]
     : [];
 
   return {

@@ -12,9 +12,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class StreamService {
@@ -56,25 +60,27 @@ public class StreamService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Видео для этого фильма еще не загружено (video_s3_path пуст)");
         }
 
-        // 2. Ссылка на субтитры
+        // 2. Ссылка на субтитры — учитываем и s3_path и local_path
         List<MovieSubtitle> subtitles = movieSubtitleRepository.findByMovieId(movieId);
-        String subtitleUrl = null;
+        boolean hasKazakh = false;
+        boolean hasAny = false;
 
         for (MovieSubtitle sub : subtitles) {
-            String s3Path = sub.getS3Path();
-            if (s3Path != null && !s3Path.isBlank()) {
-                if ("kk".equalsIgnoreCase(sub.getLanguage())) {
-                    subtitleUrl = s3StorageService.generatePresignedUrl(defaultBucket, s3Path, 3);
-                    break; // Нашли казахские субтитры - отдаем наивысший приоритет
-                } else if (subtitleUrl == null) {
-                    // Запоминаем первые попавшиеся субтитры на случай, если нет казахских
-                    subtitleUrl = s3StorageService.generatePresignedUrl(defaultBucket, s3Path, 3);
-                }
+            boolean hasPath = (sub.getS3Path() != null && !sub.getS3Path().isBlank())
+                    || (sub.getLocalPath() != null && !sub.getLocalPath().isBlank());
+            if (!hasPath) continue;
+
+            if ("kk".equalsIgnoreCase(sub.getLanguage())) {
+                hasKazakh = true;
+                break;
             }
+            hasAny = true;
         }
 
-        if (subtitleUrl != null) {
-            response.put("subtitleUrl", subtitleUrl);
+        if (hasKazakh || hasAny) {
+            // Фронтенд использует прокси-эндпоинт, а не этот URL напрямую.
+            // Значение нужно только как сигнал о наличии субтитров.
+            response.put("subtitleUrl", "proxy");
         }
 
         return response;
@@ -82,24 +88,65 @@ public class StreamService {
 
     public byte[] getSubtitleBytes(Long movieId) {
         List<MovieSubtitle> subtitles = movieSubtitleRepository.findByMovieId(movieId);
-        String s3Path = null;
+
+        MovieSubtitle best = null;
         for (MovieSubtitle sub : subtitles) {
-            String path = sub.getS3Path();
-            if (path != null && !path.isBlank()) {
-                if ("kk".equalsIgnoreCase(sub.getLanguage())) {
-                    s3Path = path;
-                    break;
-                } else if (s3Path == null) {
-                    s3Path = path;
-                }
+            boolean hasPath = (sub.getS3Path() != null && !sub.getS3Path().isBlank())
+                    || (sub.getLocalPath() != null && !sub.getLocalPath().isBlank());
+            if (!hasPath) continue;
+
+            if ("kk".equalsIgnoreCase(sub.getLanguage())) {
+                best = sub;
+                break;
+            }
+            if (best == null) best = sub;
+        }
+
+        if (best == null) return null;
+
+        byte[] raw = null;
+        String sourcePath = null;
+
+        // 1. Попытка из MinIO
+        if (best.getS3Path() != null && !best.getS3Path().isBlank()) {
+            try (InputStream is = s3StorageService.getObjectStream(defaultBucket, best.getS3Path())) {
+                raw = is.readAllBytes();
+                sourcePath = best.getS3Path();
+            } catch (Exception e) {
+                log.warn("[Stream] MinIO failed for s3_path={}, falling back to local: {}", best.getS3Path(), e.getMessage());
             }
         }
-        if (s3Path == null) return null;
-        try (InputStream is = s3StorageService.getObjectStream(defaultBucket, s3Path)) {
-            return is.readAllBytes();
-        } catch (Exception e) {
-            log.error("[Stream] Failed to fetch subtitle from MinIO for movie {}: {}", movieId, e.getMessage());
-            return null;
+
+        // 2. Fallback — локальный файл
+        if (raw == null && best.getLocalPath() != null && !best.getLocalPath().isBlank()) {
+            try {
+                Path localFile = Path.of(best.getLocalPath()).toAbsolutePath().normalize();
+                raw = Files.readAllBytes(localFile);
+                sourcePath = best.getLocalPath();
+            } catch (Exception e) {
+                log.error("[Stream] Local subtitle file not found for movie {}: {}", movieId, e.getMessage());
+            }
         }
+
+        if (raw == null) return null;
+        return ensureVtt(raw, sourcePath);
+    }
+
+    private static final Pattern SRT_TIMECODE = Pattern.compile("(\\d{2}:\\d{2}:\\d{2}),(\\d{3})");
+
+    private byte[] ensureVtt(byte[] raw, String sourcePath) {
+        String content = new String(raw, StandardCharsets.UTF_8)
+                .replace("\r\n", "\n")
+                .replace("\r", "\n");
+
+        // Если уже VTT — отдаём как есть
+        if (content.startsWith("WEBVTT")) {
+            return raw;
+        }
+
+        // SRT → VTT: заменяем запятую в таймкодах на точку
+        String vtt = "WEBVTT\n\n" + SRT_TIMECODE.matcher(content).replaceAll("$1.$2");
+        log.info("[Stream] Converted SRT→VTT for path={}", sourcePath);
+        return vtt.getBytes(StandardCharsets.UTF_8);
     }
 }

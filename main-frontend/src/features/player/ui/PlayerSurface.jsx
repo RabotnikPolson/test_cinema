@@ -6,6 +6,7 @@ import {
 } from "@/shared/utils";
 import { useAuth } from "@/features/auth";
 import { logSubtitleEvent } from "@/shared/api/metricsApi";
+import http from "@/shared/api/http-client";
 import "./player.css";
 
 const SEEK_STEP = 5;
@@ -73,6 +74,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
   const historyTrackedRef = useRef(false);
   const pendingSourceStateRef = useRef(null);
   const scrubbingRef = useRef(false);
+  const lastPointerRef = useRef({ x: -1, y: -1 });
 
   const { push } = useHistoryStorage();
 
@@ -90,10 +92,10 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
   const [qualityMenuOpen, setQualityMenuOpen] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState(() => stream?.sources?.[0]?.id || "source-default");
+  const [subtitles, setSubtitles] = useState([]);
 
   const movieId = movie?.id ?? stream?.movieId ?? null;
   const posterUrl = stream?.posterUrl || movie?.poster || movie?.posterUrl || null;
-  const subtitles = Array.isArray(stream?.subtitles) ? stream.subtitles.filter((item) => item?.url) : [];
   const sources = Array.isArray(stream?.sources) && stream.sources.length > 0 ? stream.sources : [];
   const selectedSource =
     sources.find((source) => source.id === selectedSourceId) ||
@@ -109,6 +111,46 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
     const nextId = stream?.sources?.[0]?.id || "source-default";
     setSelectedSourceId(nextId);
   }, [stream?.movieId, stream?.sources]);
+
+  // Subtitles are fetched via axios (CORS-enabled) and exposed as blob: URLs,
+  // so the native <track> loads them same-origin without CORS issues.
+  useEffect(() => {
+    const sourceTracks = Array.isArray(stream?.subtitles)
+      ? stream.subtitles.filter((item) => item?.url)
+      : [];
+
+    if (sourceTracks.length === 0) {
+      setSubtitles([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const objectUrls = [];
+
+    Promise.all(
+      sourceTracks.map(async (item) => {
+        try {
+          const response = await http.get(item.url, { responseType: "blob" });
+          const blobUrl = URL.createObjectURL(response.data);
+          objectUrls.push(blobUrl);
+          return { ...item, url: blobUrl };
+        } catch {
+          return null;
+        }
+      }),
+    ).then((resolved) => {
+      if (cancelled) {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+      setSubtitles(resolved.filter(Boolean));
+    });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [stream?.subtitles]);
 
   const saveProgressSnapshot = useCallback(
     (completed = false) => {
@@ -137,6 +179,21 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
       hideTimerRef.current = setTimeout(() => setControlsVisible(false), 2500);
     }
   }, [playing]);
+
+  // Chrome fires synthetic mousemove (same coords) when content under a still
+  // cursor changes — e.g. a subtitle cue appears or cursor:none is applied.
+  // Only react to real cursor movement, otherwise controls never auto-hide.
+  const handlePointerMove = useCallback(
+    (event) => {
+      const last = lastPointerRef.current;
+      if (event.clientX === last.x && event.clientY === last.y) {
+        return;
+      }
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      showControls();
+    },
+    [showControls],
+  );
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -195,17 +252,24 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
     }
 
     setActiveSubtitle(lang);
+    setSubtitleNotice("");
+
     if (lang !== "off") {
       logSubtitleEvent(user?.id, movieId, `enabled_lang_${lang}`);
+
+      // Cues load async — check after browser had time to parse the VTT
+      if (selectedTrack) {
+        setTimeout(() => {
+          if (selectedTrack.cues == null || selectedTrack.cues.length === 0) {
+            setSubtitleNotice("Субтитры не загрузились. Проверьте файл.");
+          }
+        }, 1500);
+      }
     } else {
       logSubtitleEvent(user?.id, movieId, "disabled");
     }
+
     setCaptionMenuOpen(false);
-    setSubtitleNotice(
-      lang !== "off" && selectedTrack && (!selectedTrack.cues || selectedTrack.cues.length === 0)
-        ? "Subtitle file is loaded, but this track has no visible cues at the current moment."
-        : "",
-    );
   }, [movieId, user?.id]);
 
   const seekFromClientX = useCallback(
@@ -504,10 +568,27 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
         case "ArrowLeft":
           event.preventDefault();
           video.currentTime = Math.max(0, video.currentTime - SEEK_STEP);
+          showControls();
           break;
         case "ArrowRight":
           event.preventDefault();
           video.currentTime = Math.min(video.duration || duration, video.currentTime + SEEK_STEP);
+          showControls();
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          video.volume = Math.min(1, Math.round((video.volume + 0.1) * 10) / 10);
+          video.muted = false;
+          setVolume(video.volume);
+          setMuted(false);
+          showControls();
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          video.volume = Math.max(0, Math.round((video.volume - 0.1) * 10) / 10);
+          setVolume(video.volume);
+          setMuted(video.volume === 0);
+          showControls();
           break;
         default:
           break;
@@ -516,7 +597,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [duration, toggleFullscreen, toggleMute, togglePlay]);
+  }, [duration, showControls, toggleFullscreen, toggleMute, togglePlay]);
 
   useEffect(() => {
     return () => {
@@ -530,6 +611,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
     "vp-shell",
     !playing && "vp-shell-paused",
     controlsVisible && "vp-shell-controls-visible",
+    playing && !controlsVisible && "vp-shell--hide-cursor",
   ]
     .filter(Boolean)
     .join(" ");
@@ -538,7 +620,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
     <div
       ref={wrapperRef}
       className={wrapperClassName}
-      onMouseMove={showControls}
+      onMouseMove={handlePointerMove}
       onMouseLeave={() => playing && setControlsVisible(false)}
     >
       <video ref={videoRef} poster={posterUrl || undefined} playsInline preload="metadata" onClick={togglePlay}>
@@ -582,11 +664,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
         <div className="vp-resume-badge">Resume from {formatTime(resumeTime)}</div>
       )}
 
-      <div className="vp-meta-strip">
-        <span className="vp-meta-pill">{stream?.videoFormat || "MP4"}</span>
-        {selectedSource?.quality ? <span className="vp-meta-pill">{selectedSource.quality}</span> : null}
-        {duration > 0 && <span className="vp-meta-pill">{formatTime(duration)}</span>}
-      </div>
+
 
       <div className="vp-controls">
         <div

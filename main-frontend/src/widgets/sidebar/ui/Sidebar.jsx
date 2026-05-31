@@ -2,7 +2,6 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   BarChart3,
-  Bot,
   CreditCard,
   Film,
   FilmIcon,
@@ -37,7 +36,6 @@ export default function Sidebar({ isOpen = false }) {
     { to: "/settings", label: "Настройки", icon: Settings },
     { to: "/subscription", label: "Подписка", icon: CreditCard },
     { to: "/shop", label: "Shop", icon: ShoppingBag },
-    { to: "/bot", label: "AI-помощник", icon: Bot },
   ];
 
   if (isAdmin) {

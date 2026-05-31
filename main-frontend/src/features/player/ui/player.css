@@ -21,9 +21,9 @@
 
 .vp-shell video::cue {
   color: #fffdf8;
-  font-size: 1.55rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
   text-shadow:
     0 2px 6px rgba(0, 0, 0, 0.9),
     0 0 2px rgba(0, 0, 0, 1);
@@ -38,6 +38,10 @@
 .vp-shell:fullscreen video {
   height: 100vh;
   aspect-ratio: auto;
+}
+
+.vp-shell:fullscreen video::cue {
+  font-size: 1.6rem;
 }
 
 .vp-state-overlay {
@@ -145,6 +149,11 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.vp-shell--hide-cursor,
+.vp-shell--hide-cursor video {
+  cursor: none !important;
+}
+
 .vp-controls {
   position: absolute;
   right: 0;
@@ -155,30 +164,33 @@
   background: linear-gradient(180deg, transparent, rgba(3, 6, 12, 0.92));
   opacity: 0;
   transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
-.vp-shell:hover .vp-controls,
 .vp-shell-controls-visible .vp-controls {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .vp-progress-track {
   position: relative;
   width: 100%;
-  height: 5px;
-  overflow: hidden;
+  height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
   cursor: pointer;
+  transition: height 0.15s ease;
 }
 
+.vp-progress-track:hover,
 .vp-progress-track-scrubbing {
-  height: 8px;
+  height: 7px;
 }
 
 .vp-progress-fill {
   position: relative;
   height: 100%;
+  max-width: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #e8c56a, #f4d88f);
 }
@@ -187,13 +199,19 @@
   content: "";
   position: absolute;
   top: 50%;
-  right: -6px;
-  width: 12px;
-  height: 12px;
+  right: -7px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #f4d88f;
-  transform: translateY(-50%);
-  box-shadow: 0 0 18px rgba(244, 216, 143, 0.45);
+  transform: translateY(-50%) scale(0);
+  box-shadow: 0 0 10px rgba(244, 216, 143, 0.7);
+  transition: transform 0.15s ease;
+}
+
+.vp-progress-track:hover .vp-progress-fill::after,
+.vp-progress-track-scrubbing .vp-progress-fill::after {
+  transform: translateY(-50%) scale(1);
 }
 
 .vp-controls-row,

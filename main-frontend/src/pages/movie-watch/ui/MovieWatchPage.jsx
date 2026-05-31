@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { MoviePlayer } from "@/features/player";
 import { CommentsSection } from "@/features/comments";
 import { useMovie } from "@/features/movies";
-import WatchRecommendationsRail from "@/features/recommendations/ui/RightRailTabs";
 import {
   ReviewFormModal,
   ReviewReadModal,
@@ -98,86 +97,57 @@ export default function MovieWatchPage() {
   }
 
   const title = movie.title || "Фильм";
-  const meta = [
-    movie.year && `Год: ${movie.year}`,
-    movie.runtime && `Длительность: ${movie.runtime} мин`,
-    movie.genre && `Жанр: ${movie.genre}`,
-    movie.imdbRating && `IMDb: ${movie.imdbRating}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <div className="watch-page">
       <div className="watch-topbar glass">
         <Link to={`/movie/${movieId}`} className="watch-back">
-          Вернуться к описанию
+          ← Вернуться к описанию
         </Link>
-        <span className="watch-badge">Смотреть</span>
+        <button className="button btn-primary btn-sm" onClick={() => setModalOpen(true)}>
+          Написать отзыв
+        </button>
       </div>
 
-      <div className="watch-grid">
-        <main className="watch-main">
-          <MoviePlayer movie={movie} />
+      <div className="watch-content">
+        <MoviePlayer movie={movie} />
 
-          <div className="watch-headline glass">
-            <div>
-              <h1>{title}</h1>
-              <p>{meta}</p>
-            </div>
-            <button className="button btn-primary" onClick={() => setModalOpen(true)}>
-              Написать отзыв
-            </button>
+        <section className="watch-section glass">
+          <div className="section-header">
+            <h3>Отзывы</h3>
           </div>
+          <div className="reviews-carousel no-scrollbar">
+            {reviewsQuery.isLoading ? <div className="status-text">Загрузка...</div> : null}
+            {reviewsQuery.isError ? <div className="status-text">Ошибка загрузки отзывов.</div> : null}
+            {!reviewsQuery.isLoading && reviews.length === 0 ? <div className="status-text">Пока нет отзывов.</div> : null}
+            {reviews.map((review) => (
+              <ReviewCard
+                key={review.id}
+                review={review}
+                moviePoster={movie.poster || movie.posterUrl}
+                onReadFull={openRead}
+                isOwner={false}
+                onEdit={() => {
+                  setEditing(review);
+                  setModalOpen(true);
+                }}
+                onDelete={() => onDelete(review.id)}
+              />
+            ))}
+            {!reviewsQuery.isLoading && reviews.length > 0 ? (
+              <div className="reviews-carousel-end">
+                <Link to={`/movie/${movieId}/reviews`} className="button btn-secondary">
+                  Читать все отзывы
+                </Link>
+              </div>
+            ) : null}
+          </div>
+        </section>
 
-          <section className="watch-section glass">
-            <div className="section-header">
-              <h3>Описание</h3>
-            </div>
-            <p>{movie.description || "Описание отсутствует."}</p>
-          </section>
-
-          <section className="watch-section glass">
-            <div className="section-header">
-              <h3>Отзывы</h3>
-            </div>
-            <div className="reviews-carousel no-scrollbar">
-              {reviewsQuery.isLoading ? <div className="status-text">Загрузка...</div> : null}
-              {reviewsQuery.isError ? <div className="status-text">Ошибка загрузки отзывов.</div> : null}
-              {!reviewsQuery.isLoading && reviews.length === 0 ? <div className="status-text">Пока нет отзывов.</div> : null}
-              {reviews.map((review) => (
-                <ReviewCard
-                  key={review.id}
-                  review={review}
-                  moviePoster={movie.poster || movie.posterUrl}
-                  onReadFull={openRead}
-                  isOwner={false}
-                  onEdit={() => {
-                    setEditing(review);
-                    setModalOpen(true);
-                  }}
-                  onDelete={() => onDelete(review.id)}
-                />
-              ))}
-              {!reviewsQuery.isLoading && reviews.length > 0 ? (
-                <div className="reviews-carousel-end">
-                  <Link to={`/movie/${movieId}/reviews`} className="button btn-secondary">
-                    Читать все отзывы
-                  </Link>
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="watch-section glass">
-            <h3>Комментарии</h3>
-            <CommentsSection movieId={movieId} />
-          </section>
-        </main>
-
-        <aside className="watch-sidebar">
-          <WatchRecommendationsRail movieId={movieId} />
-        </aside>
+        <section className="watch-section glass">
+          <h3>Комментарии</h3>
+          <CommentsSection movieId={movieId} />
+        </section>
       </div>
 
       <ReviewFormModal
