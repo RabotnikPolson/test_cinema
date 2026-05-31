@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { MoviePlayer } from "@/features/player";
 import { CommentsSection } from "@/features/comments";
+import { useAuth } from "@/features/auth";
 import { useMovie } from "@/features/movies";
 import {
   ReviewFormModal,
@@ -15,18 +16,21 @@ import "@/pages/movie-watch/ui/MovieWatch.css";
 export default function MovieWatchPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: movie, isLoading, isError, error } = useMovie(id);
   const movieId = movie?.id ?? (id ? Number(id) : null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [readOpen, setReadOpen] = useState(false);
   const [readReview, setReadReview] = useState(null);
+  const [reviewMsg, setReviewMsg] = useState("");
 
   useEffect(() => {
     setModalOpen(false);
     setEditing(null);
     setReadOpen(false);
     setReadReview(null);
+    setReviewMsg("");
   }, [id]);
 
   useEffect(() => {
@@ -39,12 +43,17 @@ export default function MovieWatchPage() {
   const reviews = reviewsQuery.data?.items || [];
   const mutations = useReviewMutations(movieId);
 
+  const isOwnReview = (review) =>
+    user?.id != null && String(review.userId) === String(user.id);
+  const myReview = reviews.find(isOwnReview) || null;
+
   const openRead = (review) => {
     setReadReview(review);
     setReadOpen(true);
   };
 
   const submitReview = async ({ content, score }) => {
+    setReviewMsg("");
     try {
       if (editing?.id) {
         await mutations.updateReview.mutateAsync({ id: editing.id, content, score });
@@ -55,18 +64,27 @@ export default function MovieWatchPage() {
       setEditing(null);
     } catch (reviewError) {
       console.error(reviewError);
-      alert("Не удалось отправить отзыв.");
+      const status = reviewError?.response?.status;
+      const serverMsg = reviewError?.response?.data?.message;
+      if (status === 409) {
+        setReviewMsg("Вы уже оставили отзыв на этот фильм.");
+      } else if (status === 403) {
+        setReviewMsg(serverMsg || "Отзыв можно изменить только один раз.");
+      } else {
+        setReviewMsg("Не удалось отправить отзыв.");
+      }
     }
   };
 
   const onDelete = async (reviewId) => {
     if (!reviewId) return;
     if (!window.confirm("Удалить отзыв?")) return;
+    setReviewMsg("");
     try {
       await mutations.deleteReview.mutateAsync(reviewId);
     } catch (reviewError) {
       console.error(reviewError);
-      alert("Не удалось удалить отзыв.");
+      setReviewMsg("Не удалось удалить отзыв.");
     }
   };
 
@@ -104,9 +122,32 @@ export default function MovieWatchPage() {
         <Link to={`/movie/${movieId}`} className="watch-back">
           ← Вернуться к описанию
         </Link>
-        <button className="button btn-primary btn-sm" onClick={() => setModalOpen(true)}>
-          Написать отзыв
-        </button>
+        <span className="watch-title-inline">{title}</span>
+        {myReview ? (
+          !myReview.edited && (
+            <button
+              className="button btn-primary btn-sm"
+              onClick={() => {
+                setEditing(myReview);
+                setReviewMsg("");
+                setModalOpen(true);
+              }}
+            >
+              Изменить мой отзыв
+            </button>
+          )
+        ) : (
+          <button
+            className="button btn-primary btn-sm"
+            onClick={() => {
+              setEditing(null);
+              setReviewMsg("");
+              setModalOpen(true);
+            }}
+          >
+            Написать отзыв
+          </button>
+        )}
       </div>
 
       <div className="watch-content">
@@ -116,6 +157,7 @@ export default function MovieWatchPage() {
           <div className="section-header">
             <h3>Отзывы</h3>
           </div>
+          {reviewMsg ? <div className="review-inline-msg">{reviewMsg}</div> : null}
           <div className="reviews-carousel no-scrollbar">
             {reviewsQuery.isLoading ? <div className="status-text">Загрузка...</div> : null}
             {reviewsQuery.isError ? <div className="status-text">Ошибка загрузки отзывов.</div> : null}
@@ -124,11 +166,11 @@ export default function MovieWatchPage() {
               <ReviewCard
                 key={review.id}
                 review={review}
-                moviePoster={movie.poster || movie.posterUrl}
                 onReadFull={openRead}
-                isOwner={false}
+                isOwner={isOwnReview(review)}
                 onEdit={() => {
                   setEditing(review);
+                  setReviewMsg("");
                   setModalOpen(true);
                 }}
                 onDelete={() => onDelete(review.id)}

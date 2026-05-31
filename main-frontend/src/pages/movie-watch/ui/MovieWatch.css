@@ -207,6 +207,16 @@
   padding: 16px;
 }
 
+.review-inline-msg {
+  margin-bottom: 16px;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  color: #f3b5be;
+  background: rgba(139, 26, 45, 0.18);
+  border: 1px solid rgba(139, 26, 45, 0.4);
+  font-size: 0.92rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .watch-content,

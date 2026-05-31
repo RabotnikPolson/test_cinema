@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -74,6 +73,11 @@ public class ReviewService {
                     "Replies to reviews are no longer supported");
         }
 
+        if (reviewRepository.existsByMovieIdAndUserIdAndParentIdIsNull(movie.getId(), user.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Вы уже оставили отзыв на этот фильм");
+        }
+
         Review review = new Review();
         review.setMovie(movie);
         review.setUser(user);
@@ -122,12 +126,12 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
 
-        Instant now = Instant.now();
-        if (!isAdmin && Duration.between(review.getCreatedAt(), now).compareTo(Duration.ofHours(1)) > 0) {
+        if (!isAdmin && review.isEdited()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Отзыв можно редактировать только в течение часа после создания");
+                    "Отзыв можно изменить только один раз");
         }
 
+        Instant now = Instant.now();
         review.setContent(request.content().trim());
         review.setEdited(true);
         review.setUpdatedAt(now);

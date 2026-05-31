@@ -19,4 +19,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     long countByParentId(Long parentId);
 
     List<Review> findByUserIdAndMovieIdIn(Long userId, Collection<Long> movieIds);
+
+    boolean existsByMovieIdAndUserIdAndParentIdIsNull(Long movieId, Long userId);
 }
