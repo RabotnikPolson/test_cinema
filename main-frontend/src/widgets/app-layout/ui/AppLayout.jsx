@@ -61,12 +61,12 @@ export default function AppLayout() {
         {!hideUI && <Footer />}
       </main>
 
-      {!hideUI && (
-        <Link to="/bot" className="chatbot-action" aria-label="AI-помощник">
-          <MessageCircle size={20} />
-          <span className="chatbot-action-text">AI-помощник</span>
-        </Link>
-      )}
+      {/*{!hideUI && (*/}
+      {/*  // <Link to="/bot" className="chatbot-action" aria-label="AI-помощник">*/}
+      {/*  //   <MessageCircle size={20} />*/}
+      {/*  //   <span className="chatbot-action-text">AI-помощник</span>*/}
+      {/*  // </Link>*/}
+      {/*)}*/}
       {!hideUI && <WelcomeModal />}
 
       {!hideUI && showScrollTop && (
