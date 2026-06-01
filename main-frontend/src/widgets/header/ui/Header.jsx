@@ -4,6 +4,8 @@ import { History, Menu, Search, Shield, User2, X } from "lucide-react";
 import { logSearch } from "@/shared/api/metricsApi";
 import { useAuth } from "@/features/auth";
 import { useMovies } from "@/features/movies";
+import { getMovieId } from "@/shared/lib/insight";
+import { useUserStore } from "@/insight-shop/entities/user/model/userStore";
 import "@/widgets/header/ui/Header.css";
 
 const HISTORY_KEY = "search_history_v1";
@@ -26,6 +28,7 @@ function saveHistory(arr) {
 
 export default function Header({ onMenuClick }) {
   const { user, logout, isAdmin } = useAuth();
+  const isPremiumUser = useUserStore(state => state.isPremiumUser);
   const { data: movies = [] } = useMovies();
   const [params] = useSearchParams();
   const location = useLocation();
@@ -122,6 +125,17 @@ export default function Header({ onMenuClick }) {
     const nextValue = value.trim();
     if (nextValue) {
       logSearch(nextValue, user?.id);
+
+      // Ищем точное совпадение по названию
+      const exactMovie = movies.find(
+        (m) => m?.title && m.title.toLowerCase() === nextValue.toLowerCase()
+      );
+
+      if (exactMovie) {
+        navigate(`/movie/${getMovieId(exactMovie)}`);
+        return;
+      }
+
       navigate(`/?q=${encodeURIComponent(nextValue)}`);
       return;
     }
@@ -285,17 +299,25 @@ export default function Header({ onMenuClick }) {
         <div className="header-right">
           {user ? (
             <>
-              <Link to="/profile" className="profile-link">
+              <Link to="/profile" className={`profile-link ${isPremiumUser ? 'premium-user' : ''}`}>
                 <span className="profile-link-icon">
                   <User2 size={16} />
                 </span>
                 <span>@{user.username}</span>
               </Link>
               {isAdmin ? (
-                <Link to="/admin/movies" className="auth-link auth-link-admin">
-                  <Shield size={14} />
-                  <span>Админ</span>
-                </Link>
+                <div className="admin-dropdown-container">
+                  <div className="auth-link auth-link-admin">
+                    <Shield size={14} />
+                    <span>Админ</span>
+                  </div>
+                  <div className="admin-dropdown-menu">
+                    <Link to="/admin/movies">Управление фильмами</Link>
+                    <Link to="/add-movie">Добавить фильм</Link>
+                    <Link to="/admin/shop">Магазин (мерч)</Link>
+                    <Link to="/analytics">Аналитика</Link>
+                  </div>
+                </div>
               ) : null}
               <button type="button" className="logout-btn" onClick={logout}>
                 Выйти

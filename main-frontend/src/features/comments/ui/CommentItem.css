@@ -328,3 +328,9 @@
 .comment-avatar-link:hover { opacity: 0.8; }
 .comment-author-link { color: #E0E0E0; text-decoration: none; cursor: pointer; transition: color 0.3s; }
 .comment-author-link:hover { color: #C9A84C; }
+
+.comment-author-link.premium-author strong {
+  color: var(--gold);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+}

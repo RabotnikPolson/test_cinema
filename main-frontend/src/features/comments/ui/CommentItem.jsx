@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import CommentForm from "./CommentForm";
+import { useAuth } from "@/features/auth";
+import { useUserStore } from "@/insight-shop/entities/user/model/userStore";
 
 export default function CommentItem({
                                         node,
@@ -11,6 +13,10 @@ export default function CommentItem({
                                     }) {
     const [replyText, setReplyText] = useState("");
     const [replying, setReplying] = useState(false);
+
+    const { user } = useAuth();
+    const isPremiumUser = useUserStore(state => state.isPremiumUser);
+    const isAuthorPremium = (user && (node.userId === user.id || node.authorUsername === user.username)) ? isPremiumUser : false;
 
     return (
         <div className={`comment ${isReply ? "reply" : ""}`}>
@@ -26,7 +32,7 @@ export default function CommentItem({
 
             <div className="comment-body">
                 <div className="comment-meta">
-                    <Link to={`/activity/${node.userId}`} state={{ username: node.authorUsername }} className="comment-author-link">
+                    <Link to={`/activity/${node.userId}`} state={{ username: node.authorUsername }} className={`comment-author-link ${isAuthorPremium ? 'premium-author' : ''}`}>
                         <strong>{node.authorUsername ?? "Удалённый пользователь"}</strong>
                     </Link>
                     <span className="comment-date">{new Date(node.createdAt).toLocaleString()}</span>

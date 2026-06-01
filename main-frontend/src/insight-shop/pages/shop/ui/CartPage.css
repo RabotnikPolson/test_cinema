@@ -1,0 +1,135 @@
+.cart-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 48px;
+  align-items: start;
+}
+
+.cart-items-container {
+  background: rgba(30, 30, 40, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cart-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px;
+  text-align: center;
+  background: rgba(30, 30, 40, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cart-empty-icon {
+  width: 160px;
+  height: 160px;
+  background: rgba(201, 168, 76, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  color: #C9A84C;
+}
+
+.cart-empty-title {
+  font-family: var(--font-heading);
+  font-size: 2.5rem;
+  color: #fff;
+  margin: 0 0 16px;
+}
+
+.cart-empty-desc {
+  color: #a0a0b0;
+  font-size: 1.1rem;
+  margin: 0 0 40px;
+  max-width: 400px;
+}
+
+.cart-empty-btn {
+  background: #C9A84C;
+  color: #000;
+  text-decoration: none;
+  padding: 16px 40px;
+  border-radius: 30px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+}
+
+.cart-empty-btn:hover {
+  background: #e6c86a;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(201, 168, 76, 0.2);
+}
+
+.qty-controls {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.qty-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.qty-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.qty-value {
+  padding: 0 12px;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+}
+
+.remove-item-btn {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.remove-item-btn:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+@media (max-width: 960px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}

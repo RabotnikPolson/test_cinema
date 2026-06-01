@@ -1,0 +1,242 @@
+const MOCK_PRODUCTS = [
+  {
+    id: 1,
+    name: "Худи Оверсайз «DUNE»",
+    description: "Премиальное оверсайз худи песочного цвета с минималистичным логотипом дома Атрейдесов. Плотный футер, согреет даже на Арракисе.",
+    price: 24500,
+    stock: 42,
+    category: "Одежда",
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["#d2b48c", "#000000"],
+    isNew: true,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #a0815c, #634b35)",
+    accent: "rgba(201, 168, 76, 0.6)",
+    slug: "hoodie-dune-oversize"
+  },
+  {
+    id: 2,
+    name: "Футболка «Breaking Bad»",
+    description: "Базовая черная футболка с химическими элементами Br и Ba. 100% органический хлопок.",
+    price: 12000,
+    stock: 120,
+    category: "Одежда",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["#000000", "#ffffff"],
+    isNew: false,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #1b3d22, #0a1f0f)",
+    accent: "rgba(50, 168, 82, 0.6)",
+    slug: "tshirt-breaking-bad"
+  },
+  {
+    id: 3,
+    name: "Бейсболка «Stranger Things»",
+    description: "Стильная ретро-бейсболка прямиком из 80-х. Логотип Hellfire Club.",
+    price: 8500,
+    stock: 0,
+    category: "Аксессуары",
+    sizes: ["One Size"],
+    colors: ["#ffffff", "#ff0000"],
+    isNew: false,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #8a1c1c, #3d0808)",
+    accent: "rgba(200, 50, 50, 0.6)",
+    slug: "cap-hellfire-club"
+  },
+  {
+    id: 4,
+    name: "Свитшот «Interstellar»",
+    description: "Космический черный свитшот с координатами черной дыры Гаргантюа.",
+    price: 19500,
+    stock: 15,
+    category: "Одежда",
+    sizes: ["S", "M", "L"],
+    colors: ["#000000"],
+    isNew: true,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #11111a, #000000)",
+    accent: "rgba(180, 180, 220, 0.6)",
+    slug: "sweatshirt-interstellar"
+  },
+  {
+    id: 5,
+    name: "Термокружка «Star Wars»",
+    description: "Матовая черная термокружка, которая сохранит ваш кофе горячим, как световой меч.",
+    price: 9900,
+    stock: 50,
+    category: "Аксессуары",
+    sizes: ["500 ml"],
+    colors: ["#000000"],
+    isNew: false,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #2a2a2a, #0d0d0d)",
+    accent: "rgba(220, 50, 50, 0.6)",
+    slug: "thermomug-star-wars"
+  },
+  {
+    id: 6,
+    name: "Артбук «The Art of Spider-Verse»",
+    description: "Коллекционное издание с концепт-артами и набросками анимационного шедевра.",
+    price: 15000,
+    stock: 5,
+    category: "Книги",
+    sizes: [],
+    colors: [],
+    isNew: true,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #2b1f33, #180d22)",
+    accent: "rgba(220, 80, 150, 0.6)",
+    slug: "artbook-spider-verse"
+  },
+  {
+    id: 7,
+    name: "Шоппер «A24 Collection»",
+    description: "Плотный шоппер с минималистичным логотипом любимой инди-студии A24.",
+    price: 4500,
+    stock: 200,
+    category: "Аксессуары",
+    sizes: ["One Size"],
+    colors: ["#f5f5dc", "#000000"],
+    isNew: false,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #d3d3d3, #8a8a8a)",
+    accent: "rgba(100, 100, 100, 0.6)",
+    slug: "shopper-a24"
+  },
+  {
+    id: 8,
+    name: "Значок «Director's Clapperboard»",
+    description: "Металлический пин в виде режиссерской хлопушки. Отличное дополнение к рюкзаку.",
+    price: 1500,
+    stock: 500,
+    category: "Аксессуары",
+    sizes: ["One Size"],
+    colors: ["#000000", "#ffffff"],
+    isNew: false,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #111, #000)",
+    accent: "rgba(255, 255, 255, 0.6)",
+    slug: "pin-clapperboard"
+  },
+  {
+    id: 9,
+    name: "Стикерпак «Тарантино»",
+    description: "Набор виниловых стикеров с культовыми цитатами из фильмов Квентина.",
+    price: 2000,
+    stock: 80,
+    category: "Канцелярия",
+    sizes: [],
+    colors: [],
+    isNew: true,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #b31b1b, #5e0d0d)",
+    accent: "rgba(255, 100, 100, 0.6)",
+    slug: "stickerpack-tarantino"
+  },
+  {
+    id: 10,
+    name: "Блокнот «Twin Peaks»",
+    description: "Блокнот агента Дейла Купера. Идеально для записи снов и странных расследований.",
+    price: 6000,
+    stock: 25,
+    category: "Канцелярия",
+    sizes: ["A5"],
+    colors: ["#2c1b12"],
+    isNew: false,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #24140b, #0f0804)",
+    accent: "rgba(200, 100, 50, 0.6)",
+    slug: "notebook-twin-peaks"
+  },
+  {
+    id: 11,
+    name: "Куртка Бомбер «Drive»",
+    description: "Тот самый бомбер со скорпионом на спине. Будьте настоящим Райаном Гослингом.",
+    price: 38000,
+    stock: 10,
+    category: "Одежда",
+    sizes: ["M", "L", "XL"],
+    colors: ["#ffffff", "#ffcc00"],
+    isNew: true,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #e6e6e6, #999999)",
+    accent: "rgba(255, 204, 0, 0.8)",
+    slug: "jacket-bomber-drive"
+  },
+  {
+    id: 12,
+    name: "Носки «Матрица»",
+    description: "Черные носки с зеленым кодом. Усиленная пятка, чтобы бегать от агентов.",
+    price: 3500,
+    stock: 150,
+    category: "Одежда",
+    sizes: ["36-40", "41-45"],
+    colors: ["#000000", "#00ff00"],
+    isNew: false,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #0d2b12, #041206)",
+    accent: "rgba(0, 255, 0, 0.6)",
+    slug: "socks-matrix"
+  },
+  {
+    id: 13,
+    name: "Подарочный Бокс «Marvel»",
+    description: "Секретный бокс с мерчом киновселенной Marvel на сумму от 30 000 тг.",
+    price: 20000,
+    stock: 8,
+    category: "Подарки",
+    sizes: [],
+    colors: [],
+    isNew: true,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #8a1014, #400508)",
+    accent: "rgba(226, 54, 54, 0.6)",
+    slug: "gift-box-marvel"
+  },
+  {
+    id: 14,
+    name: "Чехол «Fight Club»",
+    description: "Силиконовый чехол с мылом. Первое правило бойцовского клуба...",
+    price: 5500,
+    stock: 40,
+    category: "Аксессуары",
+    sizes: ["13 Pro", "14 Pro", "15 Pro"],
+    colors: ["#ffb6c1"],
+    isNew: false,
+    isHit: false,
+    imageColor: "linear-gradient(135deg, #b86a7a, #5c2d36)",
+    accent: "rgba(255, 182, 193, 0.6)",
+    slug: "case-iphone-fight-club"
+  },
+  {
+    id: 15,
+    name: "Рюкзак «Ghostbusters»",
+    description: "Городской рюкзак с отделением для протонного излучателя (или ноутбука 15.6\").",
+    price: 28000,
+    stock: 12,
+    category: "Аксессуары",
+    sizes: ["One Size"],
+    colors: ["#d9c5a0"],
+    isNew: true,
+    isHit: true,
+    imageColor: "linear-gradient(135deg, #8f8063, #3d3527)",
+    accent: "rgba(200, 180, 150, 0.6)",
+    slug: "backpack-ghostbusters"
+  }
+];
+
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+export const productApi = {
+  getProducts: async () => {
+    await delay(600);
+    return { data: MOCK_PRODUCTS };
+  },
+  getProductBySlug: async (slug) => {
+    await delay(400);
+    const product = MOCK_PRODUCTS.find(p => p.slug === slug);
+    if (!product) throw new Error("Not found");
+    return { data: product };
+  }
+};

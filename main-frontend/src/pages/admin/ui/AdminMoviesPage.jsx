@@ -193,7 +193,6 @@ export default function AdminMoviesPage() {
                   <th>Название</th>
                   <th>Год</th>
                   <th>Жанр</th>
-                  <th>Статус перевода</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -204,18 +203,7 @@ export default function AdminMoviesPage() {
                     <td>{movie.title}</td>
                     <td>{movie.year || "-"}</td>
                     <td>{movie.genre || "-"}</td>
-                    <td>
-                      <StatusBadge status={movie.translationStatus} />
-                    </td>
                     <td style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="button button--ghost"
-                        style={{ fontSize: "0.8rem", padding: "4px 10px", color: "#C9A84C" }}
-                        disabled={triggerMut.isPending}
-                        onClick={() => triggerMut.mutate()}
-                      >
-                        AI-перевод (KZ)
-                      </button>
                       <button
                         className="button button--ghost"
                         disabled={deleteMut.isPending}
