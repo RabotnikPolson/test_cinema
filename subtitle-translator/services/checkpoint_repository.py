@@ -241,6 +241,25 @@ class CheckpointRepository:
                     for row in rows
                 ]
 
+    async def get_job_status(self, job_id: str) -> str | None:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT status FROM translation_jobs WHERE job_id = ?", (job_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else None
+
+    async def cancel_active_job(self, movie_id: int) -> bool:
+        """Mark in_progress/awaiting_batch job as cancelled. Returns True if found."""
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                """UPDATE translation_jobs SET status = 'cancelled', updated_at = datetime('now')
+                   WHERE movie_id = ? AND status IN ('in_progress', 'awaiting_batch')""",
+                (movie_id,),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
     async def delete_job(self, job_id: str) -> None:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute("DELETE FROM chunk_results WHERE job_id = ?", (job_id,))

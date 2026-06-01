@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { RefreshCw, Rocket } from "lucide-react";
+import { RefreshCw, Rocket, Trash2, Play, Square } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import http from "@/shared/api/http-client";
 import {
@@ -219,14 +219,85 @@ const QUEUE_STATS = [
 ];
 
 const QUEUE_ROW_STATUS = {
-  in_progress: { label: "В работе",  color: "#C9A84C" },
-  pending:     { label: "В очереди", color: "#9A9EB8" },
-  none:        { label: "Ожидает",   color: "#9A9EB8" },
-  failed:      { label: "Ошибка",    color: "#ef4444" },
-  success:     { label: "Готово",    color: "#22c55e" },
+  in_progress:       { label: "Переводится",      color: "#C9A84C" },
+  pending:           { label: "Ожидает перевода", color: "#9A9EB8" },
+  none:              { label: "Ожидает",          color: "#9A9EB8" },
+  failed:            { label: "Ошибка",           color: "#ef4444" },
+  success:           { label: "Готово",           color: "#22c55e" },
+  awaiting_download: { label: "Не скачан",        color: "#6B6F8A" },
 };
 
-function SubtitleQueue({ queue, rows = [], onTriggerWorker, isPending }) {
+const TRANSLATABLE = new Set(["pending", "failed", "none"]);
+const CANCELLABLE  = new Set(["in_progress"]);
+
+function QueueRows({ rows, emptyText, onTranslate, onCancel, onDelete, loadingIds, markFirst }) {
+  if (!rows.length) return <div className="panel-empty">{emptyText}</div>;
+  return (
+    <div className="queue-rows">
+      {rows.map((row, idx) => {
+        const st = QUEUE_ROW_STATUS[row.status] || QUEUE_ROW_STATUS.none;
+        const isNext = markFirst && idx === 0;
+        const isDeleting = loadingIds?.has(`del-${row.id}`);
+        const isTranslating = loadingIds?.has(`tr-${row.id}`);
+        const isCancelling = loadingIds?.has(`cancel-${row.id}`);
+        return (
+          <div key={row.id} className="queue-row" style={isNext ? { borderLeft: "2px solid #C9A84C", paddingLeft: "0.5rem" } : {}}>
+            <span className="queue-row__status" style={{ color: st.color }}>{st.label}</span>
+            <span className="queue-row__title">
+              {isNext ? <span style={{ color: "#C9A84C", fontSize: "0.65rem", marginRight: "0.3rem" }}>▶ NEXT</span> : null}
+              {row.movieTitle}
+            </span>
+            <span className="queue-row__lang">{row.language}</span>
+            {row.linesTranslated > 0 ? (
+              <span className="queue-row__lines">{row.linesTranslated} строк</span>
+            ) : null}
+            <span className="queue-row__actions">
+              {onTranslate && TRANSLATABLE.has(row.status) ? (
+                <button
+                  className="queue-row__btn queue-row__btn--translate"
+                  title="Запустить перевод"
+                  disabled={isTranslating || isDeleting}
+                  onClick={() => onTranslate(row.id)}
+                  type="button"
+                >
+                  {isTranslating ? "…" : <Play size={11} />}
+                </button>
+              ) : null}
+              {onCancel && CANCELLABLE.has(row.status) ? (
+                <button
+                  className="queue-row__btn queue-row__btn--cancel"
+                  title="Остановить перевод"
+                  disabled={isCancelling || isDeleting}
+                  onClick={() => onCancel(row.id)}
+                  type="button"
+                >
+                  {isCancelling ? "…" : <Square size={11} />}
+                </button>
+              ) : null}
+              {onDelete ? (
+                <button
+                  className="queue-row__btn queue-row__btn--delete"
+                  title="Удалить"
+                  disabled={isDeleting || isTranslating}
+                  onClick={() => onDelete(row.id)}
+                  type="button"
+                >
+                  {isDeleting ? "…" : <Trash2 size={11} />}
+                </button>
+              ) : null}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SubtitleQueues({
+  queue, translationRows = [], downloadRows = [],
+  onTriggerWorker, isTriggerPending,
+  onTranslate, onCancel, onDelete, loadingIds,
+}) {
   return (
     <div>
       <div className="queue-counters">
@@ -238,35 +309,47 @@ function SubtitleQueue({ queue, rows = [], onTriggerWorker, isPending }) {
         ))}
         <div className="queue-counter">
           <span className="queue-counter__value" style={{ color: "#E0E0E0" }}>{queue.total}</span>
-          <span className="queue-counter__label">Всего</span>
+          <span className="queue-counter__label">Переведено</span>
+        </div>
+        <div className="queue-counter">
+          <span className="queue-counter__value" style={{ color: "#6B6F8A" }}>{downloadRows.length}</span>
+          <span className="queue-counter__label">Не скачано</span>
         </div>
       </div>
 
-      {rows.length > 0 ? (
-        <div className="queue-rows">
-          {rows.map((row) => {
-            const st = QUEUE_ROW_STATUS[row.status] || QUEUE_ROW_STATUS.none;
-            return (
-              <div key={row.id} className="queue-row">
-                <span className="queue-row__status" style={{ color: st.color }}>{st.label}</span>
-                <span className="queue-row__title">{row.movieTitle}</span>
-                <span className="queue-row__lang">{row.language}</span>
-                {row.linesTranslated > 0 ? (
-                  <span className="queue-row__lines">{row.linesTranslated} строк</span>
-                ) : null}
-              </div>
-            );
-          })}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
+        <div>
+          <p style={{ fontSize: "0.75rem", color: "#9A9EB8", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Очередь скачивания · is_downloaded = false
+          </p>
+          <QueueRows
+            rows={downloadRows}
+            emptyText="Нет файлов на скачивание."
+            onDelete={onDelete}
+            loadingIds={loadingIds}
+            markFirst
+          />
+          <div className="queue-actions" style={{ marginTop: "0.75rem" }}>
+            <button className="btn btn--primary" onClick={onTriggerWorker} disabled={isTriggerPending} type="button">
+              <Rocket size={14} />
+              {isTriggerPending ? "Скачивание..." : `Скачать следующий${downloadRows.length ? ` (${downloadRows.length})` : ""}`}
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="panel-empty">Нет скачанных субтитров в очереди.</div>
-      )}
 
-      <div className="queue-actions">
-        <button className="btn btn--primary" onClick={onTriggerWorker} disabled={isPending} type="button">
-          <Rocket size={14} />
-          {isPending ? "Запуск..." : "Запустить worker"}
-        </button>
+        <div>
+          <p style={{ fontSize: "0.75rem", color: "#9A9EB8", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Очередь перевода · is_downloaded = true
+          </p>
+          <QueueRows
+            rows={translationRows}
+            emptyText="Нет скачанных субтитров."
+            onTranslate={onTranslate}
+            onCancel={onCancel}
+            onDelete={onDelete}
+            loadingIds={loadingIds}
+          />
+        </div>
       </div>
     </div>
   );
@@ -276,6 +359,14 @@ export default function AdminAnalyticsPage() {
   const [period, setPeriod] = useState("week");
   const [topLimit, setTopLimit] = useState(10);
   const [retrainMsg, setRetrainMsg] = useState("");
+  const [loadingIds, setLoadingIds] = useState(new Set());
+
+  function markLoading(key) {
+    setLoadingIds((prev) => new Set(prev).add(key));
+  }
+  function unmarkLoading(key) {
+    setLoadingIds((prev) => { const s = new Set(prev); s.delete(key); return s; });
+  }
 
   const analyticsQuery = useQuery({
     queryKey: ["admin-analytics-dashboard", period, topLimit],
@@ -307,8 +398,45 @@ export default function AdminAnalyticsPage() {
     staleTime: 1000 * 30,
   });
 
+  const downloadRowsQuery = useQuery({
+    queryKey: ["subtitle-download-queue-rows"],
+    queryFn: async () => {
+      const res = await http.get("/admin/analytics/download-queue");
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 1000 * 30,
+  });
+
   const triggerWorker = useMutation({
     mutationFn: () => http.post("/api/test/subtitles/trigger-worker"),
+    onSuccess: () => {
+      subtitleRowsQuery.refetch();
+      downloadRowsQuery.refetch();
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => http.delete(`/api/test/subtitles/${id}`),
+    onMutate: (id) => markLoading(`del-${id}`),
+    onSettled: (_, __, id) => unmarkLoading(`del-${id}`),
+    onSuccess: () => {
+      subtitleRowsQuery.refetch();
+      downloadRowsQuery.refetch();
+      analyticsQuery.refetch();
+    },
+  });
+
+  const translateMut = useMutation({
+    mutationFn: (id) => http.post(`/api/test/subtitles/${id}/translate`),
+    onMutate: (id) => markLoading(`tr-${id}`),
+    onSettled: (_, __, id) => unmarkLoading(`tr-${id}`),
+    onSuccess: () => subtitleRowsQuery.refetch(),
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: (id) => http.delete(`/api/test/subtitles/${id}/translate`),
+    onMutate: (id) => markLoading(`cancel-${id}`),
+    onSettled: (_, __, id) => unmarkLoading(`cancel-${id}`),
     onSuccess: () => subtitleRowsQuery.refetch(),
   });
 
@@ -436,15 +564,20 @@ export default function AdminAnalyticsPage() {
       <section className="panel">
         <div className="panel__head">
           <div>
-            <h3 className="panel__title">Очередь субтитров</h3>
-            <span className="panel__sub">movie_subtitles · is_downloaded = true</span>
+            <h3 className="panel__title">Субтитры</h3>
+            <span className="panel__sub">movie_subtitles · очередь скачивания + перевода</span>
           </div>
         </div>
-        <SubtitleQueue
+        <SubtitleQueues
           queue={data.subtitleQueue}
-          rows={subtitleRowsQuery.data || []}
+          translationRows={subtitleRowsQuery.data || []}
+          downloadRows={downloadRowsQuery.data || []}
           onTriggerWorker={() => triggerWorker.mutate()}
-          isPending={triggerWorker.isPending}
+          isTriggerPending={triggerWorker.isPending}
+          onTranslate={(id) => translateMut.mutate(id)}
+          onCancel={(id) => cancelMut.mutate(id)}
+          onDelete={(id) => deleteMut.mutate(id)}
+          loadingIds={loadingIds}
         />
       </section>
     </div>

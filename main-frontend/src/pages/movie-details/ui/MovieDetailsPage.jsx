@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Heart, Play } from "lucide-react";
 import { MovieCard } from "@/entities/movie";
 import { useAuth } from "@/features/auth";
@@ -43,10 +44,9 @@ const COUNTRY_FLAGS = {
   'ссср': '🇷🇺', 'ссс': '🇷🇺',
 };
 
-const CONTENT_TYPE_LABEL = {
-  FILM: 'Фильм', SERIAL: 'Сериал', MINI_SERIES: 'Мини-сериал',
-  TV_SHOW: 'ТВ-шоу', VIDEO: 'Видео', SHORT_FILM: 'Короткометражка',
-};
+const KNOWN_CONTENT_TYPES = new Set([
+  "FILM", "SERIAL", "MINI_SERIES", "TV_SHOW", "VIDEO", "SHORT_FILM",
+]);
 
 const RAIL_BREAKPOINTS = {
   320: { slidesPerView: 1.2, spaceBetween: 12 },
@@ -65,6 +65,7 @@ const normalizeId = (value) => {
 };
 
 function RecommendationSection({ title, subtitle, movieId, type, movieLookup }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useRecommendationsTab(type, movieId, 10);
   const rawItems = data?.recommendations || [];
 
@@ -93,7 +94,7 @@ function RecommendationSection({ title, subtitle, movieId, type, movieLookup }) 
       </div>
 
       {isLoading ? (
-        <div className="section-empty">Загрузка...</div>
+        <div className="section-empty">{t("common.loading")}</div>
       ) : (
         <MovieCarousel
           items={items}
@@ -113,6 +114,7 @@ function RecommendationSection({ title, subtitle, movieId, type, movieLookup }) 
 }
 
 export default function MovieDetailsPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: movie, isLoading, isError, error } = useMovie(id);
@@ -207,15 +209,15 @@ export default function MovieDetailsPage() {
   }, [movie]);
 
   if (isLoading) {
-    return <div className="loading container">Загрузка фильма...</div>;
+    return <div className="loading container">{t("details.loadingMovie")}</div>;
   }
 
   if (isError) {
     return (
       <div className="container">
-        <div className="error">Ошибка: {error?.message || "Не удалось загрузить фильм"}</div>
+        <div className="error">{t("common.error")}: {error?.message || t("details.loadError")}</div>
         <button className="button button--ghost" onClick={() => navigate(-1)} type="button">
-          Назад
+          {t("common.back")}
         </button>
       </div>
     );
@@ -224,9 +226,9 @@ export default function MovieDetailsPage() {
   if (!movie) {
     return (
       <div className="container">
-        <div className="error">Фильм не найден</div>
+        <div className="error">{t("details.notFound")}</div>
         <Link to="/" className="button button--ghost">
-          На главную
+          {t("common.toHome")}
         </Link>
       </div>
     );
@@ -238,7 +240,7 @@ export default function MovieDetailsPage() {
   const ageLabel = getMovieAgeLabel(movie);
   const title = getMovieTitle(movie);
   const year = getMovieYear(movie);
-  const synopsis = getMovieSynopsis(movie) || "Описание отсутствует.";
+  const synopsis = getMovieSynopsis(movie) || t("details.noSynopsis");
 
   return (
     <div className="details-page">
@@ -259,7 +261,7 @@ export default function MovieDetailsPage() {
           </div>
 
           <div className="details-hero-copy glass">
-            <div className="details-tagline">{movie.slogan || movie.tagline || "Смотреть в высоком качестве"}</div>
+            <div className="details-tagline">{movie.slogan || movie.tagline || t("details.watchHq")}</div>
             <h1 className="details-title">{title}</h1>
             {(movie.nameOriginal || movie.nameEn) && (
               <p className="details-subtitle">{movie.nameOriginal || movie.nameEn}</p>
@@ -285,9 +287,9 @@ export default function MovieDetailsPage() {
               {movie.ratingAge && (
                 <span className="details-meta-chip details-meta-chip--age">{movie.ratingAge}</span>
               )}
-              {movie.contentType && CONTENT_TYPE_LABEL[movie.contentType] && (
+              {movie.contentType && KNOWN_CONTENT_TYPES.has(movie.contentType) && (
                 <span className="details-meta-chip details-meta-chip--type">
-                  {CONTENT_TYPE_LABEL[movie.contentType]}
+                  {t(`details.contentType.${movie.contentType}`)}
                 </span>
               )}
             </div>
@@ -312,7 +314,7 @@ export default function MovieDetailsPage() {
             <div className="details-actions">
               <button className="details-btn-watch" onClick={() => navigate(`/movie/${id}/watch`)} type="button">
                 <Play size={18} fill="currentColor" />
-                Смотреть
+                {t("hero.watch")}
               </button>
               <button
                 className={`details-btn-fav ${isFavorite ? "is-fav" : ""}`}
@@ -321,7 +323,7 @@ export default function MovieDetailsPage() {
                 type="button"
               >
                 <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
-                {isFavorite ? "В избранном" : "В избранное"}
+                {isFavorite ? t("details.inFavorites") : t("details.addToFavorites")}
               </button>
             </div>
           </div>
@@ -330,20 +332,20 @@ export default function MovieDetailsPage() {
 
       <div className="details-body">
         <section className="details-summary glass">
-          <h2>Описание</h2>
+          <h2>{t("details.description")}</h2>
           <p>{synopsis}</p>
         </section>
 
         <section className="details-crew glass">
           <div className="details-crew-block">
-            <h3>Авторы</h3>
+            <h3>{t("details.authors")}</h3>
             <div className="details-crew-grid">
               {creators.map((name) => (
                 <div key={name} className="details-crew-card">
                   <div className="details-crew-avatar">{getInitials(name)}</div>
                   <div className="details-person-meta">
                     <div className="details-crew-name">{name}</div>
-                    <div className="details-crew-role">Автор</div>
+                    <div className="details-crew-role">{t("details.author")}</div>
                   </div>
                 </div>
               ))}
@@ -351,7 +353,7 @@ export default function MovieDetailsPage() {
           </div>
 
           <div className="details-crew-block">
-            <h3>Актеры</h3>
+            <h3>{t("details.cast")}</h3>
             <div className="details-cast-grid">
               {cast.map((actor) => (
                 <div key={actor} className="details-cast-card">
@@ -367,32 +369,32 @@ export default function MovieDetailsPage() {
 
         <div className="details-sections">
           <RecommendationSection
-            title="Серия фильмов"
-            subtitle="Продолжения и связанные части"
+            title={t("details.rec.franchiseTitle")}
+            subtitle={t("details.rec.franchiseSub")}
             type="franchise"
             movieId={movieId}
             movieLookup={movieLookup}
           />
 
           <RecommendationSection
-            title="Похожие фильмы"
-            subtitle="Похожие по атмосфере и стилю истории"
+            title={t("details.rec.similarTitle")}
+            subtitle={t("details.rec.similarSub")}
             type="content"
             movieId={movieId}
             movieLookup={movieLookup}
           />
 
           <RecommendationSection
-            title="Рекомендации для вас"
-            subtitle="Подборка на основе ваших просмотров"
+            title={t("details.rec.forYouTitle")}
+            subtitle={t("details.rec.forYouSub")}
             type="hybrid"
             movieId={movieId}
             movieLookup={movieLookup}
           />
 
           <RecommendationSection
-            title="Другие истории жанра"
-            subtitle="Дополнительный контент из этой категории"
+            title={t("details.rec.genreTitle")}
+            subtitle={t("details.rec.genreSub")}
             type="genre"
             movieId={movieId}
             movieLookup={movieLookup}

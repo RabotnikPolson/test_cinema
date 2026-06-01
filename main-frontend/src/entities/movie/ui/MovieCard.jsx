@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Heart, Play } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { useFavorites } from "@/features/favorites";
@@ -19,6 +20,7 @@ import {
 import "@/entities/movie/ui/MovieCard.css";
 
 export default function MovieCard({ movie, showProgress = false, showFavorite = true, onClick }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userId = user?.id ? Number(user.id) : null;
   const { data: rawData = [], add, remove } = useFavorites(userId);
@@ -127,7 +129,7 @@ export default function MovieCard({ movie, showProgress = false, showFavorite = 
         <button
           className={btnClasses}
           onClick={handleFavClick}
-          title={isFav ? "Remove from favorites" : "Add to favorites"}
+          title={isFav ? t("movieCard.removeFav") : t("movieCard.addFav")}
           disabled={isLoading}
           type="button"
         >

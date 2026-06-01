@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { MovieCard } from "@/entities/movie";
 import { useAuth } from "@/features/auth";
@@ -142,6 +143,7 @@ function MovieRail({ title, items, linkTo, linkLabel }) {
 }
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userId = user?.profile?.userId || user?.id || null;
   const { data: movies = [], isLoading, isError, error } = useMovies();
@@ -250,18 +252,18 @@ export default function HomePage() {
       <HeroBanner />
 
       <MovieRail
-        title="Популярное сейчас"
+        title={t("home.popularNow")}
         items={popularItems}
       />
 
       <section className="home-section home-section--spotlight">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">Популярные казахстанские кино</h2>
+            <h2 className="section-title">{t("home.kazakhPopular")}</h2>
           </div>
 
           {isKazakhLoading && !activeKazakhMovie ? (
-            <div className="section-state">Загрузка подборки...</div>
+            <div className="section-state">{t("home.loadingCollection")}</div>
           ) : null}
 
           {!isKazakhLoading && activeKazakhMovie ? (
@@ -271,7 +273,7 @@ export default function HomePage() {
                   type="button"
                   className="kaz-spotlight-nav kaz-spotlight-nav--prev"
                   onClick={() => stepKazakhCarousel(-1)}
-                  aria-label="Предыдущий фильм"
+                  aria-label={t("home.prevMovie")}
                 >
                   <ChevronLeft size={18} />
                 </button>
@@ -296,7 +298,7 @@ export default function HomePage() {
                           opacity: 1 - absOffset * 0.22,
                           transform: `translate(-50%, -50%) translateX(calc(${offset} * clamp(88px, 12vw, 170px))) translateY(${absOffset * 18}px) scale(${1 - absOffset * 0.12}) rotateY(${offset * -18}deg)`,
                         }}
-                        aria-label={`Открыть ${getMovieTitle(movie)}`}
+                        aria-label={t("home.openMovieAria", { title: getMovieTitle(movie) })}
                       >
                         <img
                           src={getMoviePoster(movie)}
@@ -315,7 +317,7 @@ export default function HomePage() {
                   type="button"
                   className="kaz-spotlight-nav kaz-spotlight-nav--next"
                   onClick={() => stepKazakhCarousel(1)}
-                  aria-label="Следующий фильм"
+                  aria-label={t("home.nextMovie")}
                 >
                   <ChevronRight size={18} />
                 </button>
@@ -334,7 +336,7 @@ export default function HomePage() {
                 </div>
 
                 <p className="kaz-spotlight-description">
-                  {getMovieSynopsis(activeKazakhMovie) || "Локальный хит с сильной подачей прямо в центре главной."}
+                  {getMovieSynopsis(activeKazakhMovie) || t("home.kazakhFallback")}
                 </p>
 
                 <div className="kaz-spotlight-tags">
@@ -346,7 +348,7 @@ export default function HomePage() {
                 </div>
 
                 <Link to={`/movie/${getMovieId(activeKazakhMovie)}`} className="kaz-spotlight-link">
-                  Открыть фильм
+                  {t("home.openMovie")}
                   <ArrowRight size={16} />
                 </Link>
               </div>
@@ -359,7 +361,7 @@ export default function HomePage() {
         <section className="home-section">
           <div className="container">
             <div className="section-header">
-              <h2 className="section-title">Продолжить просмотр</h2>
+              <h2 className="section-title">{t("home.continueWatching")}</h2>
             </div>
             <MovieGrid movies={continueWatching} showProgress />
           </div>
@@ -368,32 +370,32 @@ export default function HomePage() {
 
       {userId && !isBecauseYouLikedError && personalizedItems.length > 0 ? (
         <MovieRail
-          title={becauseYouLikedData?.method === "popular" ? "Популярное для вас" : "ИИ-подборка для вас"}
+          title={becauseYouLikedData?.method === "popular" ? t("home.popularForYou") : t("home.aiForYou")}
           items={personalizedItems}
         />
       ) : null}
 
       <MovieRail
-        title="Новинки месяца"
+        title={t("home.freshMonth")}
         items={freshItems}
         linkTo="/genres"
-        linkLabel="Все жанры"
+        linkLabel={t("home.allGenres")}
       />
 
       <MovieRail
-        title="Последние добавленные"
+        title={t("home.recentlyAdded")}
         items={recentlyAddedItems}
         linkTo="/genres"
-        linkLabel="Все фильмы"
+        linkLabel={t("home.allMovies")}
       />
 
       {topRatedItems.length > 0 ? (
         <section className="home-section">
           <div className="container home-rated-grid">
             <div className="section-header">
-              <h2 className="section-title">Высокий рейтинг</h2>
+              <h2 className="section-title">{t("home.topRated")}</h2>
               <Link to="/genres" className="section-link">
-                Все фильмы
+                {t("home.allMovies")}
                 <ArrowRight size={16} />
               </Link>
             </div>
@@ -402,8 +404,8 @@ export default function HomePage() {
         </section>
       ) : null}
 
-      {isLoading ? <div className="container section-state">Загрузка каталога...</div> : null}
-      {isError ? <div className="container section-state error">Ошибка: {error.message}</div> : null}
+      {isLoading ? <div className="container section-state">{t("home.loadingCatalog")}</div> : null}
+      {isError ? <div className="container section-state error">{t("common.error")}: {error.message}</div> : null}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/internal/subtitles")
@@ -38,22 +39,29 @@ public class SubtitleTranslationWebhookController {
 
         log.info("Received translation webhook for movie ID: {}, status: {}", request.getMovieId(), request.getStatus());
 
-        // We update the original subtitle status since the python worker updates the DB state
-        // In theory it might be better to create a new MovieSubtitle for the new language, 
-        // but as per our architecture design we update the original row's status fields to track.
-        // Wait, does the movie have 1 subtitle row per language? Yes.
-        // So we just find ANY subtitle row for that movie and update `translationStatus` or we query by movieId.
-        
-        // Let's just find the first one for the movie, or update all for the movie.
-        List<MovieSubtitle> subtitles = subtitleRepository.findByMovieId(request.getMovieId());
-        
-        if (subtitles.isEmpty()) {
-            log.error("MovieSubtitle not found for movie ID {}", request.getMovieId());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Subtitle record not found");
-        }
+        // Find the subtitle record that is actively being translated (pending or in_progress).
+        // A movie can have multiple subtitle rows (ru, en, kk) — taking get(0) would update
+        // the wrong record if the first discovered language differs from the one being translated.
+        Optional<MovieSubtitle> activeSubtitle = subtitleRepository
+                .findFirstByMovieIdAndTranslationStatusIn(
+                        request.getMovieId(),
+                        List.of("pending", "in_progress")
+                );
 
-        // Just update the first one since it launched the process
-        MovieSubtitle sub = subtitles.get(0);
+        MovieSubtitle sub;
+        if (activeSubtitle.isPresent()) {
+            sub = activeSubtitle.get();
+        } else {
+            // Fallback: webhook may have arrived after a status update (e.g. retry). Take the first downloaded row.
+            List<MovieSubtitle> all = subtitleRepository.findByMovieId(request.getMovieId());
+            if (all.isEmpty()) {
+                log.error("MovieSubtitle not found for movie ID {}", request.getMovieId());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Subtitle record not found");
+            }
+            log.warn("No pending/in_progress subtitle for movie {}, falling back to first record (id={})",
+                    request.getMovieId(), all.get(0).getId());
+            sub = all.get(0);
+        }
         sub.setTranslationStatus(request.getStatus());
         
         if (request.getOutputPath() != null) {

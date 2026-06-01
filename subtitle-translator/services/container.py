@@ -1,7 +1,7 @@
 import os
-from typing import List, Optional
+from typing import Optional
 from config.settings import Settings
-from config.models import GEMINI_CHAIN, OPENAI_BATCH_MODEL
+from config.models import OPENAI_MODEL
 from services.checkpoint_repository import CheckpointRepository
 from processing.tag_preservator import TagPreservator
 from processing.smart_chunker import SmartChunker
@@ -10,7 +10,6 @@ from services.webhook_retry_worker import WebhookRetryWorker
 from services.batch_completion_handler import BatchCompletionHandler
 from services.batch_reconciler import BatchReconciler
 from services.translation_service import TranslationService
-from providers.base import BaseLLMProvider
 
 
 class ServiceContainer:
@@ -18,9 +17,9 @@ class ServiceContainer:
     Composition Root (Dependency Injection).
 
     Architecture:
-      - FallbackRouter receives a sync provider chain based on settings.PRIMARY_PROVIDER.
-      - OpenAI provider is built separately and used for batch fallback
-        when executing in batch mode or if explicitly requested.
+      - standard mode (OPENAI_EXECUTION_MODE=standard): sync OpenAI calls per chunk via FallbackRouter.
+      - batch mode    (OPENAI_EXECUTION_MODE=batch):    all chunks submitted to OpenAI Batch API at once
+                                                        (~2x cheaper, results arrive within ~24h).
     """
 
     def __init__(self, settings: Settings):
@@ -54,7 +53,7 @@ class ServiceContainer:
             checkpoint_repo=self.checkpoint_repo,
             smart_chunker=self.smart_chunker,
             tag_preservator=self.tag_preservator,
-            sync_provider_factory=self._build_sync_provider_chain,
+            sync_provider_factory=self._build_openai_sync_provider,
             openai_provider_factory=self._build_openai_batch_provider,
             webhook_client=self.webhook_client,
             settings=settings,
@@ -72,53 +71,30 @@ class ServiceContainer:
             openai_api_key=settings.OPENAI_API_KEY,
         )
 
-    def _build_sync_provider_chain(self) -> List[BaseLLMProvider]:
-        """Build the provider chain for FallbackRouter based on PRIMARY_PROVIDER."""
-        providers = []
-        if self.settings.PRIMARY_PROVIDER == "openai":
-            if self.settings.OPENAI_API_KEY:
-                from providers.openai_provider import OpenAIProvider
-                providers.append(
-                    OpenAIProvider(
-                        model=OPENAI_BATCH_MODEL["model"],
-                        api_key=self.settings.OPENAI_API_KEY,
-                        config=OPENAI_BATCH_MODEL,
-                        tag_preservator=self.tag_preservator,
-                        execution_mode="standard"
-                    )
-                )
-            return providers
-
-        # Default to Gemini
-        if not self.settings.GEMINI_API_KEY:
+    def _build_openai_sync_provider(self):
+        """Build OpenAI provider list for FallbackRouter (standard/sync mode)."""
+        if not self.settings.OPENAI_API_KEY:
             return []
+        from providers.openai_provider import OpenAIProvider
+        return [OpenAIProvider(
+            model=OPENAI_MODEL["model"],
+            api_key=self.settings.OPENAI_API_KEY,
+            config=OPENAI_MODEL,
+            tag_preservator=self.tag_preservator,
+            execution_mode="standard",
+        )]
 
-        from providers.gemini_provider import GeminiProvider
-
-        for cfg in GEMINI_CHAIN:
-            providers.append(
-                GeminiProvider(
-                    model=cfg["model"],
-                    api_key=self.settings.GEMINI_API_KEY,
-                    config=cfg,
-                    tag_preservator=self.tag_preservator,
-                )
-            )
-        return providers
-
-    def _build_openai_batch_provider(self):
-        """Build the OpenAI provider for batch-only fallback."""
+    def _build_openai_batch_provider(self) -> Optional["OpenAIProvider"]:
+        """Build OpenAI provider for batch mode (2x cheaper, ~24h queue)."""
         if not self.settings.OPENAI_API_KEY:
             return None
-
         from providers.openai_provider import OpenAIProvider
-
         return OpenAIProvider(
-            model=OPENAI_BATCH_MODEL["model"],
+            model=OPENAI_MODEL["model"],
             api_key=self.settings.OPENAI_API_KEY,
-            config=OPENAI_BATCH_MODEL,
+            config=OPENAI_MODEL,
             tag_preservator=self.tag_preservator,
-            execution_mode="standard", #or batch
+            execution_mode="batch",
         )
 
     async def startup(self) -> None:

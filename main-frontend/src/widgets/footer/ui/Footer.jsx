@@ -1,14 +1,17 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import "@/widgets/footer/ui/Footer.css";
 
 export default function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="app-footer">
       <div className="footer-content">
         <div className="footer-links">
-          <Link to="/terms">Пользовательское соглашение</Link>
-          <Link to="/privacy">Политика конфиденциальности</Link>
-          <Link to="/contacts">Контакты</Link>
+          <Link to="/terms">{t("footer.terms")}</Link>
+          <Link to="/privacy">{t("footer.privacy")}</Link>
+          <Link to="/contacts">{t("footer.contacts")}</Link>
         </div>
         <div className="footer-verified">
           <svg
@@ -26,10 +29,10 @@ export default function Footer() {
             <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
             <path d="m9 12 2 2 4-4" />
           </svg>
-          Официальный подтверждённый сервис
+          {t("footer.verified")}
         </div>
         <div className="footer-copy">
-          © {new Date().getFullYear()} Insight. Платформа для тихого домашнего кинозала.
+          © {new Date().getFullYear()} Insight. {t("footer.tagline")}
         </div>
       </div>
     </footer>

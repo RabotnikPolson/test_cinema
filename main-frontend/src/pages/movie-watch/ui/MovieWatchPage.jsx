@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { MoviePlayer } from "@/features/player";
 import { CommentsSection } from "@/features/comments";
 import { useAuth } from "@/features/auth";
@@ -14,6 +15,7 @@ import { ReviewCard } from "@/entities/review";
 import "@/pages/movie-watch/ui/MovieWatch.css";
 
 export default function MovieWatchPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,37 +69,37 @@ export default function MovieWatchPage() {
       const status = reviewError?.response?.status;
       const serverMsg = reviewError?.response?.data?.message;
       if (status === 409) {
-        setReviewMsg("Вы уже оставили отзыв на этот фильм.");
+        setReviewMsg(t("reviews.alreadyReviewed"));
       } else if (status === 403) {
-        setReviewMsg(serverMsg || "Отзыв можно изменить только один раз.");
+        setReviewMsg(serverMsg || t("reviews.editOnce"));
       } else {
-        setReviewMsg("Не удалось отправить отзыв.");
+        setReviewMsg(t("reviews.submitFailed"));
       }
     }
   };
 
   const onDelete = async (reviewId) => {
     if (!reviewId) return;
-    if (!window.confirm("Удалить отзыв?")) return;
+    if (!window.confirm(t("reviews.deleteConfirm"))) return;
     setReviewMsg("");
     try {
       await mutations.deleteReview.mutateAsync(reviewId);
     } catch (reviewError) {
       console.error(reviewError);
-      setReviewMsg("Не удалось удалить отзыв.");
+      setReviewMsg(t("reviews.deleteFailed"));
     }
   };
 
   if (isLoading) {
-    return <div className="loading container">Загрузка фильма...</div>;
+    return <div className="loading container">{t("details.loadingMovie")}</div>;
   }
 
   if (isError) {
     return (
       <div className="container">
-        <div className="error">Ошибка: {error?.message || "Не удалось загрузить фильм"}</div>
+        <div className="error">{t("common.error")}: {error?.message || t("details.loadError")}</div>
         <button className="button button--ghost" onClick={() => navigate(-1)}>
-          Назад
+          {t("common.back")}
         </button>
       </div>
     );
@@ -106,21 +108,21 @@ export default function MovieWatchPage() {
   if (!movieId) {
     return (
       <div className="container">
-        <div className="error">Фильм не найден</div>
+        <div className="error">{t("details.notFound")}</div>
         <Link to="/" className="button button--ghost">
-          На главную
+          {t("common.toHome")}
         </Link>
       </div>
     );
   }
 
-  const title = movie.title || "Фильм";
+  const title = movie.title || t("watch.movieFallback");
 
   return (
     <div className="watch-page">
       <div className="watch-topbar glass">
         <Link to={`/movie/${movieId}`} className="watch-back">
-          ← Вернуться к описанию
+          ← {t("watch.backToDetails")}
         </Link>
         <span className="watch-title-inline">{title}</span>
         {myReview ? (
@@ -133,7 +135,7 @@ export default function MovieWatchPage() {
                 setModalOpen(true);
               }}
             >
-              Изменить мой отзыв
+              {t("watch.editMyReview")}
             </button>
           )
         ) : (
@@ -145,7 +147,7 @@ export default function MovieWatchPage() {
               setModalOpen(true);
             }}
           >
-            Написать отзыв
+            {t("watch.writeReview")}
           </button>
         )}
       </div>
@@ -155,13 +157,13 @@ export default function MovieWatchPage() {
 
         <section className="watch-section glass">
           <div className="section-header">
-            <h3>Отзывы</h3>
+            <h3>{t("watch.reviewsTitle")}</h3>
           </div>
           {reviewMsg ? <div className="review-inline-msg">{reviewMsg}</div> : null}
           <div className="reviews-carousel no-scrollbar">
-            {reviewsQuery.isLoading ? <div className="status-text">Загрузка...</div> : null}
-            {reviewsQuery.isError ? <div className="status-text">Ошибка загрузки отзывов.</div> : null}
-            {!reviewsQuery.isLoading && reviews.length === 0 ? <div className="status-text">Пока нет отзывов.</div> : null}
+            {reviewsQuery.isLoading ? <div className="status-text">{t("common.loading")}</div> : null}
+            {reviewsQuery.isError ? <div className="status-text">{t("watch.reviewsLoadError")}</div> : null}
+            {!reviewsQuery.isLoading && reviews.length === 0 ? <div className="status-text">{t("watch.noReviews")}</div> : null}
             {reviews.map((review) => (
               <ReviewCard
                 key={review.id}
@@ -179,7 +181,7 @@ export default function MovieWatchPage() {
             {!reviewsQuery.isLoading && reviews.length > 0 ? (
               <div className="reviews-carousel-end">
                 <Link to={`/movie/${movieId}/reviews`} className="button btn-secondary">
-                  Читать все отзывы
+                  {t("watch.readAllReviews")}
                 </Link>
               </div>
             ) : null}
@@ -187,7 +189,7 @@ export default function MovieWatchPage() {
         </section>
 
         <section className="watch-section glass">
-          <h3>Комментарии</h3>
+          <h3>{t("watch.commentsTitle")}</h3>
           <CommentsSection movieId={movieId} />
         </section>
       </div>

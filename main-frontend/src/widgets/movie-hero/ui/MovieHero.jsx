@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Autoplay, Navigation } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -18,6 +19,7 @@ import {
 import "@/widgets/movie-hero/ui/MovieHero.css";
 
 function HeroSlide({ movie, navigate }) {
+  const { t } = useTranslation();
   const movieId = getMovieId(movie);
   const title = getMovieTitle(movie);
   const year = getMovieYear(movie);
@@ -36,12 +38,12 @@ function HeroSlide({ movie, navigate }) {
       <div className="hero-banner-gradient-top" />
 
       <div className="hero-banner-content">
-        <div className="hero-banner-label">В тренде сейчас</div>
+        <div className="hero-banner-label">{t("hero.trendingNow")}</div>
 
         <h1 className="hero-banner-title">{title}</h1>
 
         <p className="hero-banner-description">
-          {getMovieSynopsis(movie) || "Откройте для себя новые истории, собранные для вас."}
+          {getMovieSynopsis(movie) || t("hero.fallbackDescription")}
         </p>
 
         <div className="hero-banner-rating">
@@ -66,7 +68,7 @@ function HeroSlide({ movie, navigate }) {
             type="button"
           >
             <Play size={18} />
-            Смотреть
+            {t("hero.watch")}
           </button>
 
           <button
@@ -75,7 +77,7 @@ function HeroSlide({ movie, navigate }) {
             type="button"
           >
             <Info size={18} />
-            Подробнее
+            {t("hero.details")}
           </button>
         </div>
       </div>
@@ -84,6 +86,7 @@ function HeroSlide({ movie, navigate }) {
 }
 
 export default function HeroBanner() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const prevRef = useRef(null);
   const nextRef = useRef(null);
@@ -97,7 +100,7 @@ export default function HeroBanner() {
         ref={prevRef}
         type="button"
         className="hero-nav-btn hero-nav-btn--prev"
-        aria-label="Предыдущий фильм"
+        aria-label={t("home.prevMovie")}
       >
         <ChevronLeft size={22} />
       </button>
@@ -126,7 +129,7 @@ export default function HeroBanner() {
         ref={nextRef}
         type="button"
         className="hero-nav-btn hero-nav-btn--next"
-        aria-label="Следующий фильм"
+        aria-label={t("home.nextMovie")}
       >
         <ChevronRight size={22} />
       </button>

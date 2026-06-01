@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth';
 import './CommentForm.css';
 
@@ -7,11 +8,13 @@ export default function CommentForm({
   onChange,
   onSubmit,
   onCancel,
-  placeholder = "Написать комментарий...",
+  placeholder,
   autoFocus = false
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const textareaRef = useRef(null);
+  const inputPlaceholder = placeholder || t("comments.writePlaceholder");
 
   // Auto-resize textarea
   useEffect(() => {
@@ -54,25 +57,25 @@ export default function CommentForm({
         <textarea
           ref={textareaRef}
           className="comment-form-input"
-          placeholder={placeholder}
+          placeholder={inputPlaceholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        
+
         <div className="comment-form-actions">
           {onCancel && (
             <button className="comment-form-btn-cancel" onClick={onCancel}>
-              Отмена
+              {t("common.cancel")}
             </button>
           )}
-          <button 
-            className="comment-form-btn-submit" 
+          <button
+            className="comment-form-btn-submit"
             onClick={onSubmit}
             disabled={!hasText}
           >
-            Отправить
+            {t("common.send")}
           </button>
         </div>
       </div>

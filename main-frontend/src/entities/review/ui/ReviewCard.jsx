@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useReplies } from "@/features/reviews";
 import "./ReviewCard.css";
 
 export default function ReviewCard({ review, onReadFull, isOwner, onEdit, onDelete }) {
+  const { t } = useTranslation();
   const date = review.createdAt ? new Date(review.createdAt).toLocaleDateString() : "";
   const content = review.content || "";
   const short = content.length > 200 ? content.slice(0, 200).trim() + "…" : content;
@@ -33,12 +35,12 @@ export default function ReviewCard({ review, onReadFull, isOwner, onEdit, onDele
             <div className="review-meta">
               <Link to={`/activity/${review.userId}`} state={{ username: review.authorUsername }} className="review-author-link">
                 <span className="review-author-name">
-                  {review.authorUsername || "Пользователь"}
+                  {review.authorUsername || t("reviews.userFallback")}
                 </span>
               </Link>
               <span className="review-date">
                 {date}
-                {review.edited && <span className="review-edited"> · изменён</span>}
+                {review.edited && <span className="review-edited"> · {t("reviews.edited")}</span>}
               </span>
             </div>
           </div>
@@ -57,36 +59,36 @@ export default function ReviewCard({ review, onReadFull, isOwner, onEdit, onDele
         <div className="review-actions">
           {content.length > 200 && (
             <button className="review-btn btn-read-more" onClick={() => onReadFull?.(review)}>
-              Читать полностью
+              {t("reviews.readFull")}
             </button>
           )}
 
           {isOwner && (
             <div className="review-owner-actions">
               {!review.edited && (
-                <button className="review-btn btn-edit" onClick={onEdit}>Изменить</button>
+                <button className="review-btn btn-edit" onClick={onEdit}>{t("common.edit")}</button>
               )}
-              <button className="review-btn btn-delete" onClick={onDelete}>Удалить</button>
+              <button className="review-btn btn-delete" onClick={onDelete}>{t("common.delete")}</button>
             </div>
           )}
 
           {review.replyCount > 0 && (
              <button className="review-btn btn-replies" onClick={() => setShowReplies(!showReplies)}>
-               {showReplies ? "Скрыть ответы" : `Показать ответы (${review.replyCount})`}
+               {showReplies ? t("reviews.hideReplies") : t("reviews.showReplies", { count: review.replyCount })}
              </button>
           )}
         </div>
 
         {showReplies && (
           <div className="review-replies" style={{ marginTop: '1rem', paddingLeft: '1rem', borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
-             {repliesLoading && <div className="loading" style={{ fontSize: '0.9rem', color: '#999' }}>Загрузка ответов...</div>}
+             {repliesLoading && <div className="loading" style={{ fontSize: '0.9rem', color: '#999' }}>{t("reviews.loadingReplies")}</div>}
              <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
                {replies.map(reply => (
                  <ReviewCard key={reply.id} review={{ ...reply, body: reply.content }} isOwner={false} />
                ))}
              </div>
              {hasMoreReplies && (
-               <button onClick={() => setReplyPage(p => p + 1)} className="review-btn" style={{ marginTop: '1rem' }}>Загрузить еще ответы</button>
+               <button onClick={() => setReplyPage(p => p + 1)} className="review-btn" style={{ marginTop: '1rem' }}>{t("reviews.loadMoreReplies")}</button>
              )}
           </div>
         )}

@@ -19,6 +19,8 @@ public interface MovieSubtitleRepository extends JpaRepository<MovieSubtitle, Lo
 
     long countByTranslationStatus(String translationStatus);
 
+    Optional<MovieSubtitle> findFirstByMovieIdAndTranslationStatusIn(Long movieId, List<String> statuses);
+
     @Query(value = """
             SELECT
                 SUM(CASE WHEN translation_status = 'pending'     THEN 1 ELSE 0 END),
@@ -33,6 +35,7 @@ public interface MovieSubtitleRepository extends JpaRepository<MovieSubtitle, Lo
 
     @Query(value = """
             SELECT ms.id,
+                   ms.movie_id,
                    m.title,
                    ms.language,
                    ms.translation_status,
@@ -54,4 +57,20 @@ public interface MovieSubtitleRepository extends JpaRepository<MovieSubtitle, Lo
             LIMIT 100
             """, nativeQuery = true)
     List<Object[]> getSubtitleQueueRows();
+
+    @Query(value = """
+            SELECT ms.id,
+                   ms.movie_id,
+                   m.title,
+                   ms.language,
+                   'awaiting_download',
+                   ms.created_at::text,
+                   0
+            FROM movie_subtitles ms
+            JOIN movies m ON m.id = ms.movie_id
+            WHERE ms.is_downloaded = false
+            ORDER BY ms.created_at ASC
+            LIMIT 50
+            """, nativeQuery = true)
+    List<Object[]> getDownloadQueueRows();
 }

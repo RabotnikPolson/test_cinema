@@ -1,4 +1,7 @@
+import { useTranslation } from "react-i18next";
+
 export default function ReviewReadModal({ open, review, onClose }) {
+    const { t } = useTranslation();
     if (!open || !review) return null;
 
     const date = review.createdAt ? new Date(review.createdAt).toLocaleString() : "";
@@ -43,7 +46,7 @@ export default function ReviewReadModal({ open, review, onClose }) {
                         cursor: "pointer",
                         fontSize: 18,
                     }}
-                    aria-label="Close"
+                    aria-label={t("common.close")}
                 >
                     ×
                 </button>
@@ -75,7 +78,7 @@ export default function ReviewReadModal({ open, review, onClose }) {
 
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: 18, lineHeight: 1.2 }}>
-                            {review.authorUsername || "Пользователь"}
+                            {review.authorUsername || t("reviews.userFallback")}
                             {typeof review.score === "number" && (
                                 <span
                                     style={{

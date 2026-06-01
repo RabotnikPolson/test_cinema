@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { History, Menu, Search, Shield, User2, X } from "lucide-react";
 import { logSearch } from "@/shared/api/metricsApi";
 import { useAuth } from "@/features/auth";
 import { useMovies } from "@/features/movies";
 import { getMovieGenres } from "@/shared/lib/insight";
+import LanguageSwitcher from "@/shared/ui/LanguageSwitcher/LanguageSwitcher";
 import "@/widgets/header/ui/Header.css";
 
 const HISTORY_KEY = "search_history_v1";
@@ -26,6 +28,7 @@ function saveHistory(arr) {
 }
 
 export default function Header({ onMenuClick }) {
+  const { t } = useTranslation();
   const { user, logout, isAdmin } = useAuth();
   const { data: movies = [] } = useMovies();
   const [params] = useSearchParams();
@@ -203,7 +206,7 @@ export default function Header({ onMenuClick }) {
               ref={inputRef}
               type="text"
               className="search-input"
-              placeholder="Поиск фильмов и жанров"
+              placeholder={t("header.searchPlaceholder")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -216,13 +219,13 @@ export default function Header({ onMenuClick }) {
               <button
                 type="button"
                 className="search-btn search-clear"
-                aria-label="Очистить запрос"
+                aria-label={t("header.clearQuery")}
                 onClick={clearQuery}
               >
                 <X size={16} />
               </button>
             )}
-            <button type="submit" className="search-btn" aria-label="Поиск">
+            <button type="submit" className="search-btn" aria-label={t("header.search")}>
               <Search size={16} />
             </button>
           </form>
@@ -256,7 +259,7 @@ export default function Header({ onMenuClick }) {
               </ul>
               <div className="search-footer">
                 <button className="clear-history" type="button" onClick={clearHistory}>
-                  Очистить историю
+                  {t("header.clearHistory")}
                 </button>
               </div>
             </div>
@@ -266,12 +269,13 @@ export default function Header({ onMenuClick }) {
         <button
           className="mobile-menu-toggle"
           onClick={onMenuClick}
-          aria-label="Открыть меню"
+          aria-label={t("header.openMenu")}
         >
           <Menu size={18} />
         </button>
 
         <div className="header-right">
+          <LanguageSwitcher />
           {user ? (
             <>
               <Link to="/profile" className="profile-link">
@@ -283,20 +287,20 @@ export default function Header({ onMenuClick }) {
               {isAdmin ? (
                 <Link to="/admin/movies" className="auth-link auth-link-admin">
                   <Shield size={14} />
-                  <span>Админ</span>
+                  <span>{t("header.admin")}</span>
                 </Link>
               ) : null}
               <button type="button" className="logout-btn" onClick={logout}>
-                Выйти
+                {t("header.logout")}
               </button>
             </>
           ) : (
             <>
               <Link to="/login" className="auth-link">
-                Войти
+                {t("header.login")}
               </Link>
               <Link to="/register" className="auth-link">
-                Регистрация
+                {t("header.register")}
               </Link>
             </>
           )}

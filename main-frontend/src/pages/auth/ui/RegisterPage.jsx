@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Lock, Mail, User2 } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import "@/pages/auth/ui/Auth.css";
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const { register } = useAuth();
   const [form, setForm] = useState({
@@ -38,17 +40,17 @@ export default function RegisterPage() {
         <div className="auth-container">
           <div className="auth-card glass">
             <div className="auth-header">
-              <h1 className="auth-title display">Регистрация</h1>
-              <p className="auth-subtitle body">Создайте аккаунт и сохраните персональные подборки.</p>
+              <h1 className="auth-title display">{t("auth.registerTitle")}</h1>
+              <p className="auth-subtitle body">{t("auth.registerSubtitle")}</p>
             </div>
 
             {mutation.isError ? (
-              <div className="auth-error">Не удалось создать аккаунт. Попробуйте ещё раз.</div>
+              <div className="auth-error">{t("auth.registerError")}</div>
             ) : null}
 
             <form onSubmit={handleSubmit} className="auth-form">
               <div className="form-group">
-                <label className="form-label label">Email</label>
+                <label className="form-label label">{t("auth.emailLabel")}</label>
                 <div className="input-wrapper">
                   <Mail size={18} className="input-icon" />
                   <input
@@ -65,7 +67,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label label">Логин</label>
+                <label className="form-label label">{t("auth.usernameLabel")}</label>
                 <div className="input-wrapper">
                   <User2 size={18} className="input-icon" />
                   <input
@@ -84,7 +86,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label label">Пароль</label>
+                <label className="form-label label">{t("auth.passwordLabel")}</label>
                 <div className="input-wrapper">
                   <Lock size={18} className="input-icon" />
                   <input
@@ -102,7 +104,7 @@ export default function RegisterPage() {
                     type="button"
                     className="password-toggle"
                     onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -110,15 +112,15 @@ export default function RegisterPage() {
               </div>
 
               <button className="auth-button btn btn-primary" type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Создаём..." : "Создать аккаунт"}
+                {mutation.isPending ? t("auth.creating") : t("auth.registerButton")}
               </button>
             </form>
 
             <div className="auth-footer">
               <p className="auth-switch body">
-                Уже есть аккаунт?{" "}
+                {t("auth.haveAccount")}{" "}
                 <Link to="/login" className="auth-link">
-                  Войти
+                  {t("auth.loginLink")}
                 </Link>
               </p>
             </div>

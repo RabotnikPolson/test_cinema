@@ -72,7 +72,7 @@ public class SubtitleDownloadWorker {
                 if (fileBytes != null) {
                     saveFileToDisk(subtitle, fileBytes);
                     subtitle.setDownloaded(true);
-                    subtitle.setTranslationStatus("pending"); // Указываем, что перевод в очереди
+                    subtitle.setTranslationStatus("in_progress");
                     subtitleRepository.save(subtitle);
                     log.info("Successfully downloaded and saved subtitle to {}", subtitle.getLocalPath());
                     

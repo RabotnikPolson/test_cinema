@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { SlidersHorizontal, Star } from "lucide-react";
 import { useGenres, useMovies } from "@/features/movies";
 import { MovieGrid } from "@/shared/ui";
@@ -13,17 +14,17 @@ import {
 } from "@/shared/lib/insight";
 import "@/pages/genres/ui/Genres.css";
 
-const SORT_OPTIONS = [
-  { value: "rating", label: "По рейтингу" },
-  { value: "year", label: "Сначала новые" },
-  { value: "title", label: "По названию" },
-];
-
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
 export default function GenresPage() {
+  const { t } = useTranslation();
+  const SORT_OPTIONS = [
+    { value: "rating", label: t("genres.sortRating") },
+    { value: "year", label: t("genres.sortYear") },
+    { value: "title", label: t("genres.sortTitle") },
+  ];
   const { data: genres = [], isLoading: isGenresLoading } = useGenres();
   const { data: movies = [], isLoading: isMoviesLoading, isError, error } = useMovies();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -161,26 +162,24 @@ export default function GenresPage() {
       <div className="container genres-shell">
         <section className="genres-hero">
           <div className="genres-hero-copy">
-            <h1 className="genres-title">Все фильмы</h1>
-            <p className="genres-lead">
-              Полный каталог платформы. Фильтруйте по жанрам, сортируйте как удобно.
-            </p>
+            <h1 className="genres-title">{t("genres.title")}</h1>
+            <p className="genres-lead">{t("genres.lead")}</p>
 
             <div className="genres-stats">
               <div className="genres-stat">
-                <span>Фильмов</span>
+                <span>{t("genres.statMovies")}</span>
                 <strong>{movies.length}</strong>
               </div>
               <div className="genres-stat">
-                <span>Жанров</span>
+                <span>{t("genres.statGenres")}</span>
                 <strong>{genresWithCounts.length}</strong>
               </div>
               <div className="genres-stat">
-                <span>Казахских</span>
+                <span>{t("genres.statKazakh")}</span>
                 <strong>{kazakhCount}</strong>
               </div>
               <div className="genres-stat">
-                <span>Средний рейтинг</span>
+                <span>{t("genres.statAvgRating")}</span>
                 <strong>{averageRating ? averageRating.toFixed(1) : "—"}</strong>
               </div>
             </div>
@@ -201,7 +200,7 @@ export default function GenresPage() {
             >
               <span className="genre-feature-rank">0{index + 1}</span>
               <strong>{genre.name}</strong>
-              <span>{genre.count} фильмов</span>
+              <span>{t("genres.moviesCount", { count: genre.count })}</span>
             </button>
           ))}
         </section>
@@ -210,19 +209,19 @@ export default function GenresPage() {
           <div className="genres-toolbar-main">
             <div className="genres-toolbar-title">
               <SlidersHorizontal size={18} />
-              <span>Фильтры каталога</span>
+              <span>{t("genres.filters")}</span>
             </div>
 
             {(selectedGenre || sortBy !== "rating" || onlyKz || query) ? (
               <button type="button" className="genres-reset" onClick={resetFilters}>
-                Сбросить фильтры
+                {t("genres.resetFilters")}
               </button>
             ) : null}
           </div>
 
           <div className="genres-controls">
             <div className="genres-sort-block">
-              <span className="genres-control-label">Сортировка</span>
+              <span className="genres-control-label">{t("genres.sort")}</span>
               <div className="genres-sort-pills">
                 {SORT_OPTIONS.map((option) => (
                   <button
@@ -239,20 +238,20 @@ export default function GenresPage() {
                   className={`genres-sort-pill${onlyKz ? " is-active" : ""}`}
                   onClick={() => setOnlyKz((v) => !v)}
                 >
-                  Только KZ
+                  {t("genres.onlyKz")}
                 </button>
               </div>
             </div>
 
             <div className="genres-chip-block">
-              <span className="genres-control-label">Жанры</span>
+              <span className="genres-control-label">{t("genres.genresLabel")}</span>
               <div className="genres-chips">
                 <button
                   type="button"
                   className={`genre-chip${!selectedGenre ? " is-active" : ""}`}
                   onClick={() => setSelectedGenre("")}
                 >
-                  Все
+                  {t("genres.all")}
                 </button>
 
                 {genresWithCounts.map((genre) => (
@@ -277,17 +276,17 @@ export default function GenresPage() {
         <section className="genres-results">
           <div className="genres-results-head">
             <div>
-              <h2>{selectedGenreMeta?.name || "Весь каталог"}</h2>
+              <h2>{selectedGenreMeta?.name || t("genres.wholeCatalog")}</h2>
               <p>
-                Найдено <strong>{filteredMovies.length}</strong>
-                {selectedGenreMeta ? ` в жанре ${selectedGenreMeta.name}` : ""}
-                {query ? ` по запросу "${query}"` : ""}
+                {t("genres.found")} <strong>{filteredMovies.length}</strong>
+                {selectedGenreMeta ? t("genres.inGenre", { genre: selectedGenreMeta.name }) : ""}
+                {query ? t("genres.byQuery", { query }) : ""}
               </p>
             </div>
           </div>
 
-          {isMoviesLoading || isGenresLoading ? <div className="genres-state">Загрузка каталога...</div> : null}
-          {isError ? <div className="genres-state genres-state--error">Ошибка: {error.message}</div> : null}
+          {isMoviesLoading || isGenresLoading ? <div className="genres-state">{t("home.loadingCatalog")}</div> : null}
+          {isError ? <div className="genres-state genres-state--error">{t("common.error")}: {error.message}</div> : null}
 
           {!isMoviesLoading && !isError && filteredMovies.length > 0 ? (
             <MovieGrid movies={filteredMovies} />
@@ -295,10 +294,10 @@ export default function GenresPage() {
 
           {!isMoviesLoading && !isError && filteredMovies.length === 0 ? (
             <div className="genres-empty">
-              <h3>Ничего не найдено</h3>
-              <p>Попробуйте убрать часть фильтров или изменить запрос в общем поиске сверху.</p>
+              <h3>{t("genres.notFound")}</h3>
+              <p>{t("genres.notFoundHint")}</p>
               <button type="button" className="genres-reset genres-reset--solid" onClick={resetFilters}>
-                Сбросить фильтры
+                {t("genres.resetFilters")}
               </button>
             </div>
           ) : null}

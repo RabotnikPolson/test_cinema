@@ -1,20 +1,22 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
 import "@/pages/subscription/ui/Subscription.css";
 
 export default function SubscriptionPage() {
+  const { t } = useTranslation();
   const [demoMessage, setDemoMessage] = useState("");
 
   const handleSubscribe = () => {
-    setDemoMessage("Ой! Это демо-витрина. Но мы оценили ваш вкус!");
+    setDemoMessage(t("subscription.demoMessage"));
     setTimeout(() => setDemoMessage(""), 4000);
   };
 
   return (
     <div className="sub-page">
       <header className="sub-header">
-        <h1 className="sub-title">Выберите план</h1>
-        <p className="sub-desc">Получите доступ к лучшим фильмам без ограничений. Поддержите развитие авторского кино в Казахстане.</p>
+        <h1 className="sub-title">{t("subscription.title")}</h1>
+        <p className="sub-desc">{t("subscription.desc")}</p>
       </header>
 
       {demoMessage && (
@@ -34,27 +36,27 @@ export default function SubscriptionPage() {
 
       <div className="sub-grid">
         <article className="sub-plan">
-          <div className="sub-plan-name">Базовый</div>
-          <div className="sub-plan-price">0 <span>₸ / мес</span></div>
+          <div className="sub-plan-name">{t("subscription.basicName")}</div>
+          <div className="sub-plan-price">0 <span>{t("subscription.perMonth")}</span></div>
           <ul className="sub-plan-features">
-            <li className="sub-plan-feature"><Check size={18} /> Доступ к каталогу</li>
-            <li className="sub-plan-feature"><Check size={18} /> Стандартное качество</li>
-            <li className="sub-plan-feature disabled"><X size={18} /> Без рекламы</li>
-            <li className="sub-plan-feature disabled"><X size={18} /> Оффлайн просмотр</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.fCatalog")}</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.fStandard")}</li>
+            <li className="sub-plan-feature disabled"><X size={18} /> {t("subscription.fNoAds")}</li>
+            <li className="sub-plan-feature disabled"><X size={18} /> {t("subscription.fOffline")}</li>
           </ul>
-          <button className="sub-plan-btn" onClick={handleSubscribe}>Текущий план</button>
+          <button className="sub-plan-btn" onClick={handleSubscribe}>{t("subscription.currentPlan")}</button>
         </article>
 
         <article className="sub-plan sub-plan--pro">
           <div className="sub-plan-name">Insight+</div>
-          <div className="sub-plan-price">1 990 <span>₸ / мес</span></div>
+          <div className="sub-plan-price">1 990 <span>{t("subscription.perMonth")}</span></div>
           <ul className="sub-plan-features">
-            <li className="sub-plan-feature"><Check size={18} /> Полный каталог</li>
-            <li className="sub-plan-feature"><Check size={18} /> 4K HDR качество</li>
-            <li className="sub-plan-feature"><Check size={18} /> Без рекламы</li>
-            <li className="sub-plan-feature"><Check size={18} /> Оффлайн просмотр</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.fFullCatalog")}</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.f4k")}</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.fNoAds")}</li>
+            <li className="sub-plan-feature"><Check size={18} /> {t("subscription.fOffline")}</li>
           </ul>
-          <button className="sub-plan-btn" onClick={handleSubscribe}>Оформить подписку</button>
+          <button className="sub-plan-btn" onClick={handleSubscribe}>{t("subscription.subscribe")}</button>
         </article>
       </div>
     </div>

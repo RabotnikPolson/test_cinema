@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/features/auth";
 import { ReviewCard } from "@/entities/review";
 import {
@@ -14,6 +15,7 @@ import "./MovieReviews.css";
 const PAGE_SIZE = 20;
 
 export default function MovieReviewsPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const { user } = useAuth();
   const numericMovieId = Number(id);
@@ -55,19 +57,19 @@ export default function MovieReviewsPage() {
       console.error(reviewError);
       const status = reviewError?.response?.status;
       const serverMsg = reviewError?.response?.data?.message;
-      setReviewMsg(status === 403 ? (serverMsg || "Отзыв можно изменить только один раз.") : "Не удалось сохранить отзыв.");
+      setReviewMsg(status === 403 ? (serverMsg || t("reviews.editOnce")) : t("reviews.saveFailed"));
     }
   };
 
   const onDelete = async (reviewId) => {
     if (!reviewId) return;
-    if (!window.confirm("Удалить отзыв?")) return;
+    if (!window.confirm(t("reviews.deleteConfirm"))) return;
     setReviewMsg("");
     try {
       await mutations.deleteReview.mutateAsync(reviewId);
     } catch (reviewError) {
       console.error(reviewError);
-      setReviewMsg("Не удалось удалить отзыв.");
+      setReviewMsg(t("reviews.deleteFailed"));
     }
   };
 
@@ -75,23 +77,23 @@ export default function MovieReviewsPage() {
     <div className="watch-page">
       <div className="watch-topbar glass">
         <Link to={`/movie/${numericMovieId}/watch`} className="watch-back">
-          ← Назад к просмотру
+          ← {t("reviews.backToWatch")}
         </Link>
-        <span className="watch-title-inline">Все отзывы</span>
+        <span className="watch-title-inline">{t("reviews.allReviews")}</span>
       </div>
 
       <div className="watch-content">
         <section className="watch-section glass">
           <div className="section-header">
-            <h3>Отзывы {total ? `(${total})` : ""}</h3>
+            <h3>{t("watch.reviewsTitle")} {total ? `(${total})` : ""}</h3>
           </div>
 
           {reviewMsg ? <div className="review-inline-msg">{reviewMsg}</div> : null}
 
-          {isLoading && <div className="status-text">Загрузка...</div>}
-          {isError && <div className="status-text">Ошибка загрузки отзывов.</div>}
+          {isLoading && <div className="status-text">{t("common.loading")}</div>}
+          {isError && <div className="status-text">{t("watch.reviewsLoadError")}</div>}
           {!isLoading && !isError && items.length === 0 && (
-            <div className="status-text">Отзывов пока нет.</div>
+            <div className="status-text">{t("reviews.noneYet")}</div>
           )}
 
           <div className="reviews-grid">
@@ -114,7 +116,7 @@ export default function MovieReviewsPage() {
           {hasMore && (
             <div className="reviews-grid-more">
               <button className="button btn-secondary" onClick={() => setPage((value) => value + 1)}>
-                Загрузить ещё
+                {t("common.loadMore")}
               </button>
             </div>
           )}

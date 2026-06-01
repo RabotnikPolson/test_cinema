@@ -222,6 +222,20 @@ class TranslationService:
 
         # 8. Translation loop (Sync only)
         for i in range(job.next_chunk_index, len(chunks)):
+            # Check for cancellation between chunks (set via DELETE /api/translate/{movie_id})
+            current_status = await self._repo.get_job_status(job.job_id)
+            if current_status == "cancelled":
+                logger.info(f"Job {job.job_id} cancelled at chunk {i}/{len(chunks) - 1}. Stopping.")
+                await self._webhook_client.send_webhook(
+                    WebhookPayload(
+                        movie_id=job.movie_id,
+                        language="kk",
+                        status="failed",
+                        error_message="Cancelled by user",
+                    )
+                )
+                return {"status": "cancelled"}
+
             chunk = chunks[i]
             lines = [entry.text for entry in chunk]
             context_str = self._build_context(context_buffer)

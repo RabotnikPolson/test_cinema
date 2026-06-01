@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import CommentItem from "./CommentItem";
 import CommentForm from "./CommentForm";
 import {
@@ -11,15 +12,16 @@ import "@/features/comments/ui/CommentItem.css";
 import "./CommentsSection.css"; // ensure we load section CSS
 
 function SortDropdown({ value, onChange }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const items = useMemo(
     () => [
-      { value: "top", label: "Популярные" },
-      { value: "new", label: "Сначала новые" },
-      { value: "old", label: "Сначала старые" },
+      { value: "top", label: t("comments.sortTop") },
+      { value: "new", label: t("comments.sortNew") },
+      { value: "old", label: t("comments.sortOld") },
     ],
-    []
+    [t]
   );
 
   const currentLabel = useMemo(() => {
@@ -61,6 +63,7 @@ function SortDropdown({ value, onChange }) {
 }
 
 export default function CommentsSection({ movieId }) {
+  const { t } = useTranslation();
   const [order, setOrder] = useState("top");
   const [text, setText] = useState("");
 
@@ -90,7 +93,7 @@ export default function CommentsSection({ movieId }) {
     <section className="comments-section">
       <div className="comments-header">
         <h3>
-          Комментарии {count?.totalCount ? <span>({count.totalCount})</span> : ""}
+          {t("watch.commentsTitle")} {count?.totalCount ? <span>({count.totalCount})</span> : ""}
         </h3>
 
         <SortDropdown value={order} onChange={setOrder} />
@@ -101,10 +104,10 @@ export default function CommentsSection({ movieId }) {
         onChange={setText}
         onSubmit={submitRoot}
         onCancel={() => setText("")}
-        placeholder="Введите комментарий..."
+        placeholder={t("comments.placeholder")}
       />
 
-      {isLoading && <p>Загрузка…</p>}
+      {isLoading && <p>{t("common.loading")}</p>}
 
       {comments.map((c) => (
         <CommentThread key={c.id} comment={c} movieId={movieId} mutations={mutations} />
@@ -114,6 +117,7 @@ export default function CommentsSection({ movieId }) {
 }
 
 function CommentThread({ comment, movieId, mutations }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { data } = useReplies(open ? comment.id : null);
 
@@ -135,7 +139,7 @@ function CommentThread({ comment, movieId, mutations }) {
       {comment.repliesCount > 0 && !open && (
         <button className="show-replies" onClick={() => setOpen(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          Показать ответы ({comment.repliesCount})
+          {t("comments.showReplies", { count: comment.repliesCount })}
         </button>
       )}
 
@@ -152,7 +156,7 @@ function CommentThread({ comment, movieId, mutations }) {
           ))}
           <button className="hide-replies" onClick={() => setOpen(false)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-            Скрыть ответы
+            {t("comments.hideReplies")}
           </button>
         </div>
       )}

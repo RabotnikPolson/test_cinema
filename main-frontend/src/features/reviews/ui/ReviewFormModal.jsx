@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import "@/features/reviews/ui/reviewModal.css";
 
 function StarRating({ value, onChange }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(0);
 
   return (
-    <div className="review-rating" role="radiogroup" aria-label="Оценка">
+    <div className="review-rating" role="radiogroup" aria-label={t("reviews.score")}>
       {Array.from({ length: 10 }).map((_, i) => {
         const n = i + 1;
         const active = n <= (hover || value);
@@ -18,7 +20,7 @@ function StarRating({ value, onChange }) {
             onMouseEnter={() => setHover(n)}
             onMouseLeave={() => setHover(0)}
             onClick={() => onChange(n)}
-            aria-label={`Оценка ${n} из 10`}
+            aria-label={t("reviews.starAria", { n })}
           >
             ★
           </button>
@@ -33,6 +35,7 @@ function StarRating({ value, onChange }) {
 }
 
 export default function ReviewFormModal({ open, initial, onClose, onSubmit }) {
+  const { t } = useTranslation();
   const [content, setContent] = useState("");
   const [score, setScore] = useState(0);
   const [err, setErr] = useState("");
@@ -63,11 +66,11 @@ export default function ReviewFormModal({ open, initial, onClose, onSubmit }) {
     const trimmed = content.trim();
 
     if (!trimmed) {
-      setErr("Текст отзыва не должен быть пустым.");
+      setErr(t("reviews.errEmpty"));
       return;
     }
     if (!score || score < 1 || score > 10) {
-      setErr("Поставь оценку от 1 до 10.");
+      setErr(t("reviews.errScore"));
       return;
     }
 
@@ -80,7 +83,7 @@ export default function ReviewFormModal({ open, initial, onClose, onSubmit }) {
       <div className="review-modal-card" onMouseDown={(e) => e.stopPropagation()}>
         <div className="review-modal-head">
           <h3 className="review-modal-title">
-            {isEdit ? "Изменить отзыв" : "Написать отзыв"}
+            {isEdit ? t("reviews.formTitleEdit") : t("reviews.formTitleNew")}
           </h3>
 
           <button className="review-modal-close" type="button" onClick={onClose}>
@@ -89,18 +92,18 @@ export default function ReviewFormModal({ open, initial, onClose, onSubmit }) {
         </div>
 
         <div className="review-modal-block">
-          <div className="review-modal-label">Оценка</div>
+          <div className="review-modal-label">{t("reviews.score")}</div>
           <StarRating value={score} onChange={setScore} />
         </div>
 
         <div className="review-modal-block">
-          <div className="review-modal-label">Текст</div>
+          <div className="review-modal-label">{t("reviews.textLabel")}</div>
           <textarea
             className="review-modal-textarea"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={6}
-            placeholder="Напиши, что понравилось/не понравилось..."
+            placeholder={t("reviews.textPlaceholder")}
           />
         </div>
 
@@ -108,10 +111,10 @@ export default function ReviewFormModal({ open, initial, onClose, onSubmit }) {
 
         <div className="review-modal-actions">
           <button className="review-btn-primary" type="button" onClick={handleSubmit}>
-            Отправить
+            {t("common.send")}
           </button>
           <button className="review-btn-ghost" type="button" onClick={onClose}>
-            Отмена
+            {t("common.cancel")}
           </button>
         </div>
       </div>

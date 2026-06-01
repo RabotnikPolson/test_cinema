@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   BarChart3,
   CreditCard,
@@ -26,25 +27,26 @@ function matchesPath(pathname, target) {
 export default function Sidebar({ isOpen = false }) {
   const { isAdmin } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const items = [
-    { to: "/", label: "Главная", icon: Home },
-    { to: "/genres", label: "Все фильмы", icon: Film },
-    { to: "/favorites", label: "Избранное", icon: Heart },
-    { to: "/history", label: "История", icon: History },
-    { to: "/profile", label: "Профиль", icon: User },
-    { to: "/settings", label: "Настройки", icon: Settings },
-    { to: "/subscription", label: "Подписка", icon: CreditCard },
-    { to: "/shop", label: "Shop", icon: ShoppingBag },
+    { to: "/", label: t("nav.home"), icon: Home },
+    { to: "/genres", label: t("nav.allMovies"), icon: Film },
+    { to: "/favorites", label: t("nav.favorites"), icon: Heart },
+    { to: "/history", label: t("nav.history"), icon: History },
+    { to: "/profile", label: t("nav.profile"), icon: User },
+    { to: "/settings", label: t("nav.settings"), icon: Settings },
+    { to: "/subscription", label: t("nav.subscription"), icon: CreditCard },
+    { to: "/shop", label: t("nav.shop"), icon: ShoppingBag },
   ];
 
   if (isAdmin) {
-    items.push({ to: "/admin/movies", label: "Фильмы", icon: FilmIcon });
-    items.push({ to: "/analytics", label: "Аналитика", icon: BarChart3 });
+    items.push({ to: "/admin/movies", label: t("nav.adminMovies"), icon: FilmIcon });
+    items.push({ to: "/analytics", label: t("nav.analytics"), icon: BarChart3 });
   }
 
   return (
-    <nav className={`sidebar ${isOpen ? "open" : ""}`} aria-label="Основная навигация">
+    <nav className={`sidebar ${isOpen ? "open" : ""}`} aria-label={t("nav.ariaMain")}>
       <div className="sidebar-content">
         <ul className="sidebar-nav">
           {items.map((item) => {

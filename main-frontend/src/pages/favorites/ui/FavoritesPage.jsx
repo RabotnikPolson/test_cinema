@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Heart } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth";
-import { getFavoritesByUser, useFavorites } from "@/features/favorites";
+import { useFavorites } from "@/features/favorites";
 import { useMovies } from "@/features/movies";
 import { MovieGrid } from "@/shared/ui";
 import { guestFavoritesChangedEvent, readGuestFavorites } from "@/shared/utils";
 import "@/pages/favorites/ui/Favorites.css";
 
 export default function FavoritesPage() {
+  const { t } = useTranslation();
   const { data: movies = [] } = useMovies();
   const { user } = useAuth();
   const username = user?.username ?? null;
@@ -43,8 +44,8 @@ export default function FavoritesPage() {
     <div className="container favorites-page">
       <div className="favorites-hero">
         <div>
-          <div className="favorites-eyebrow">Ваша коллекция</div>
-          <h1>Избранное</h1>
+          <div className="favorites-eyebrow">{t("favorites.eyebrow")}</div>
+          <h1>{t("nav.favorites")}</h1>
         </div>
         <div className="favorites-count">
           <Heart size={18} />
@@ -52,13 +53,13 @@ export default function FavoritesPage() {
         </div>
       </div>
 
-      {username && favsLoading ? <div className="favorites-state">Загрузка...</div> : null}
+      {username && favsLoading ? <div className="favorites-state">{t("common.loading")}</div> : null}
 
       {!favsLoading && favMovies.length === 0 ? (
         <div className="favorites-empty">
           <Heart size={36} />
-          <h2>Пока пусто</h2>
-          <p>Нажмите на кнопку добавления на любой карточке, и фильм появится здесь.</p>
+          <h2>{t("favorites.empty")}</h2>
+          <p>{t("favorites.emptyHint")}</p>
         </div>
       ) : null}
 

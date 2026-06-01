@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/features/auth";
 import { useUserSettings } from "@/features/user-profile";
 import "@/pages/settings/ui/Settings.css";
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const username = user?.username || localStorage.getItem("username") || "";

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getSavedMovieProgress,
   saveMovieProgress,
@@ -66,6 +67,11 @@ const CaptionIcon = () => (
 
 export default function PlayerSurface({ movie, stream, attachSource }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  // Latest t() without forcing player effects to re-run on language switch
+  // (re-running attachSource would reset playback mid-film).
+  const tRef = useRef(t);
+  tRef.current = t;
   const videoRef = useRef(null);
   const wrapperRef = useRef(null);
   const timelineRef = useRef(null);
@@ -203,7 +209,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
 
     if (video.paused) {
       video.play().catch(() => {
-        setPlayerError("Playback could not be started in the browser.");
+        setPlayerError(tRef.current("player.playbackFailed"));
       });
       return;
     }
@@ -261,7 +267,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
       if (selectedTrack) {
         setTimeout(() => {
           if (selectedTrack.cues == null || selectedTrack.cues.length === 0) {
-            setSubtitleNotice("Субтитры не загрузились. Проверьте файл.");
+            setSubtitleNotice(tRef.current("player.subtitleFailed"));
           }
         }, 1500);
       }
@@ -357,7 +363,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
         detach = typeof cleanup === "function" ? cleanup : () => {};
       })
       .catch(() => {
-        setPlayerError("Video source could not be attached.");
+        setPlayerError(tRef.current("player.attachFailed"));
       });
 
     return () => {
@@ -449,7 +455,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
       saveProgressSnapshot(true);
     };
     const onError = () => {
-      setPlayerError("The browser could not decode this video source.");
+      setPlayerError(tRef.current("player.decodeFailed"));
       setBuffering(false);
       setPlaying(false);
     };
@@ -637,14 +643,14 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
 
       {buffering && (
         <div className="vp-state-overlay">
-          <span className="vp-state-pill">Buffering...</span>
+          <span className="vp-state-pill">{t("player.buffering")}</span>
         </div>
       )}
 
       {playerError && (
         <div className="vp-state-overlay">
           <div className="vp-error-card">
-            <strong>Playback error</strong>
+            <strong>{t("player.playbackError")}</strong>
             <span>{playerError}</span>
           </div>
         </div>
@@ -655,13 +661,13 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
       )}
 
       {!playing && !playerError && (
-        <button className="vp-big-play" type="button" onClick={togglePlay} aria-label="Play movie">
+        <button className="vp-big-play" type="button" onClick={togglePlay} aria-label={t("player.play")}>
           <PlayIcon />
         </button>
       )}
 
       {canResume && currentTime < 1 && !playing && !playerError && (
-        <div className="vp-resume-badge">Resume from {formatTime(resumeTime)}</div>
+        <div className="vp-resume-badge">{t("player.resumeFrom", { time: formatTime(resumeTime) })}</div>
       )}
 
 
@@ -678,12 +684,12 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
 
         <div className="vp-controls-row">
           <div className="vp-controls-group">
-            <button className="vp-icon-button" type="button" onClick={togglePlay} aria-label={playing ? "Pause movie" : "Play movie"}>
+            <button className="vp-icon-button" type="button" onClick={togglePlay} aria-label={playing ? t("player.pause") : t("player.play")}>
               {playing ? <PauseIcon /> : <PlayIcon />}
             </button>
 
             <div className="vp-volume-group">
-              <button className="vp-icon-button" type="button" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
+              <button className="vp-icon-button" type="button" onClick={toggleMute} aria-label={muted ? t("player.unmute") : t("player.mute")}>
                 {muted || volume === 0 ? <MuteIcon /> : <VolumeIcon />}
               </button>
               <input
@@ -694,7 +700,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
                 step="0.05"
                 value={muted ? 0 : volume}
                 onChange={onVolumeChange}
-                aria-label="Volume"
+                aria-label={t("player.volume")}
               />
             </div>
 
@@ -710,9 +716,9 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
                   className="vp-text-button"
                   type="button"
                   onClick={() => setQualityMenuOpen((value) => !value)}
-                  aria-label="Quality"
+                  aria-label={t("player.quality")}
                 >
-                  {selectedSource?.quality || "Source"}
+                  {selectedSource?.quality || t("player.source")}
                 </button>
 
                 {qualityMenuOpen && (
@@ -738,7 +744,7 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
                   className="vp-icon-button"
                   type="button"
                   onClick={() => setCaptionMenuOpen((value) => !value)}
-                  aria-label="Subtitles"
+                  aria-label={t("player.subtitles")}
                 >
                   <CaptionIcon />
                 </button>
@@ -760,14 +766,14 @@ export default function PlayerSurface({ movie, stream, attachSource }) {
                       className={activeSubtitle === "off" ? "vp-captions-active" : ""}
                       onClick={() => selectSubtitle("off")}
                     >
-                      Off
+                      {t("player.off")}
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            <button className="vp-icon-button" type="button" onClick={toggleFullscreen} aria-label="Fullscreen">
+            <button className="vp-icon-button" type="button" onClick={toggleFullscreen} aria-label={t("player.fullscreen")}>
               <FullscreenIcon />
             </button>
           </div>

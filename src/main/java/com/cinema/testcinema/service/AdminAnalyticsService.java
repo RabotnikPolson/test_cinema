@@ -115,14 +115,24 @@ public class AdminAnalyticsService {
 
     @Transactional(readOnly = true)
     public List<SubtitleQueueRowDto> getSubtitleQueueRows() {
-        return movieSubtitleRepository.getSubtitleQueueRows().stream()
+        return mapQueueRows(movieSubtitleRepository.getSubtitleQueueRows());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SubtitleQueueRowDto> getDownloadQueueRows() {
+        return mapQueueRows(movieSubtitleRepository.getDownloadQueueRows());
+    }
+
+    private List<SubtitleQueueRowDto> mapQueueRows(List<Object[]> rows) {
+        return rows.stream()
                 .map(row -> new SubtitleQueueRowDto(
                         ((Number) row[0]).longValue(),
-                        (String) row[1],
+                        ((Number) row[1]).longValue(),
                         (String) row[2],
                         (String) row[3],
-                        row[4] != null ? row[4].toString() : null,
-                        row[5] != null ? ((Number) row[5]).intValue() : 0
+                        (String) row[4],
+                        row[5] != null ? row[5].toString() : null,
+                        row[6] != null ? ((Number) row[6]).intValue() : 0
                 ))
                 .toList();
     }

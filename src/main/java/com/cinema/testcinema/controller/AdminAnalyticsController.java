@@ -40,9 +40,15 @@ public class AdminAnalyticsController {
     }
 
     @GetMapping("/subtitle-queue")
-    @Operation(summary = "Список фильмов в очереди субтитров (is_downloaded=true)")
+    @Operation(summary = "Список субтитров в очереди перевода (is_downloaded=true)")
     public List<SubtitleQueueRowDto> getSubtitleQueue() {
         return analyticsService.getSubtitleQueueRows();
+    }
+
+    @GetMapping("/download-queue")
+    @Operation(summary = "Список субтитров ожидающих скачивания (is_downloaded=false)")
+    public List<SubtitleQueueRowDto> getDownloadQueue() {
+        return analyticsService.getDownloadQueueRows();
     }
 
     @GetMapping("/rec-stats")
