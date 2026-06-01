@@ -31,7 +31,6 @@ public class SubtitleDownloadWorker {
     @Value("${storage.local.base-path:./storage}")
     private String basePath;
 
-    // Стейт-машина лимитов
     private final AtomicBoolean isQuotaExhausted = new AtomicBoolean(false);
     private Instant resumeAt = Instant.MIN;
 
@@ -43,7 +42,6 @@ public class SubtitleDownloadWorker {
         this.translationClient = translationClient;
     }
 
-    // Запуск каждые 30 минут
     @Scheduled(fixedDelay = 1800000)
     public void processDownloadQueue() {
         if (isQuotaExhausted.get()) {
@@ -58,7 +56,7 @@ public class SubtitleDownloadWorker {
 
         Optional<MovieSubtitle> pendingOpt = subtitleRepository.findFirstByIsDownloadedFalseOrderByCreatedAtAsc();
         if (pendingOpt.isEmpty()) {
-            return; // Очередь пуста
+            return;
         }
 
         MovieSubtitle subtitle = pendingOpt.get();
@@ -80,7 +78,6 @@ public class SubtitleDownloadWorker {
                     // между Java (запущена в /testCinema) и Python (запущен в /subtitle-translator)
                     String absoluteInputPath = java.nio.file.Path.of(subtitle.getLocalPath()).toAbsolutePath().normalize().toString().replace('\\', '/');
 
-                    // Формируем абсолютный путь для результата на казахском (kk.srt)
                     String absoluteOutputPath = absoluteInputPath
                             .replace(subtitle.getLanguage() + ".vtt", "kk.srt")
                             .replace(subtitle.getLanguage() + ".srt", "kk.srt");
@@ -110,7 +107,6 @@ public class SubtitleDownloadWorker {
     }
 
     private void saveFileToDisk(MovieSubtitle subtitle, byte[] bytes) throws IOException {
-        // Формируем путь: storage.local.base-path/subtitles/{movieId}/{lang}.vtt
         Path dirPath = Path.of(basePath, "subtitles", String.valueOf(subtitle.getMovie().getId()));
         if (!Files.exists(dirPath)) {
             Files.createDirectories(dirPath);

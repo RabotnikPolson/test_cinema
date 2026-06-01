@@ -46,8 +46,6 @@ public class MetricsService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм не найден"));
         MovieClick click = new MovieClick(userId, request.guestSessionId(), movieRef);
         clickRepo.save(click);
-        
-        // Увеличиваем счетчик в Redis для ленты трендов
         trendingRedisService.incrementMovieClick(request.movieId());
         
         log.debug("[METRICS] click: userId={}, guestSession={}, movieId={}", 

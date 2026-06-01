@@ -34,11 +34,6 @@ public class TrendingService {
         this.movieClickRepository = movieClickRepository;
     }
 
-    /**
-     * Топ-10 из Kinopoisk TOP_POPULAR_MOVIES — IDs для Hero-баннера.
-     * Кэшируем только ID чтобы не класть JPA-сущности в Redis.
-     * TTL = 24ч (дефолт), авто-импортирует фильмы которых нет в БД.
-     */
     @Cacheable(value = "hero_movies", key = "'top10'")
     public List<Long> getHeroMovieIds() {
         log.info("[HERO] Загружаем TOP_POPULAR_MOVIES из Кинопоиска...");
@@ -70,10 +65,9 @@ public class TrendingService {
         Map<Long, Double> scores = new HashMap<>();
         Map<Long, Movie> movieMap = new HashMap<>();
 
-        // 1. Внешние тренды: Kinopoisk Top 20 (только фильмы, исключая РФ)
         int rank = 0;
         int page = 1;
-        while (rank < 20 && page <= 5) { // Ограничим 5 страницами, чтобы не спамить API
+        while (rank < 20 && page <= 5) {
             try {
                 JsonNode topPopular = kinopoiskClient.fetchTopPopular(page);
                 if (topPopular != null && topPopular.has("items")) {
@@ -81,18 +75,16 @@ public class TrendingService {
                     if (items.isEmpty()) break;
                     
                     for (JsonNode item : items) {
-                        if (rank >= 20) break; // набрали топ-20
+                        if (rank >= 20) break;
 
                         String kinopoiskId = item.path("kinopoiskId").asText("");
                         if (kinopoiskId.isEmpty()) continue;
                         
-                        // Пропускаем сериалы (если type известен заранее)
                         String type = item.path("type").asText("");
                         if (!type.isEmpty() && type.contains("serial") || type.contains("TV_SHOW") || type.contains("MINI_SERIES") || type.contains("TV_SERIES")) {
                             continue;
                         }
 
-                        // Пропускаем российские (если страны известны)
                         boolean hasRussia = false;
                         if (item.has("countries")) {
                             for (JsonNode countryNode : item.get("countries")) {
@@ -107,7 +99,6 @@ public class TrendingService {
 
                         try {
                             Movie movie = syncService.fetchAndSave(kinopoiskId);
-                            // Повторная проверка уже на сохраненной модели
                             if (movie.isSerial() || (movie.getCountry() != null && movie.getCountry().contains("Россия"))) {
                                 continue;
                             }
@@ -130,29 +121,25 @@ public class TrendingService {
             page++;
         }
 
-        // 2. Внутренние тренды: Клики за последние 10 дней
         Instant lastWeek = Instant.now().minus(10, ChronoUnit.DAYS);
         List<TrendingClickProjection> internalTrends = movieClickRepository.findTopTrendingMovies(lastWeek, PageRequest.of(0, 20));
 
         for (TrendingClickProjection projection : internalTrends) {
             Movie movie = projection.getMovie();
             Long clicks = projection.getClicks();
-            
+
             movieMap.putIfAbsent(movie.getId(), movie);
-            
-            // Начисляем баллы за клики. Пусть 1 клик = 1 балл
+
             double currentScore = scores.getOrDefault(movie.getId(), 0.0);
             scores.put(movie.getId(), currentScore + clicks);
         }
 
-        // 3. Агрегация, бусты и сортировка
         List<TrendingMovieDto> result = new ArrayList<>();
-        
+
         for (Map.Entry<Long, Movie> entry : movieMap.entrySet()) {
             Movie movie = entry.getValue();
             double finalScore = scores.getOrDefault(movie.getId(), 0.0);
 
-            // Буст для казахстанских фильмов (x1.4)
             if (movie.isDomestic()) {
                 finalScore *= 1.4;
             }
@@ -161,12 +148,11 @@ public class TrendingService {
                     movie.getId(),
                     movie.getTitle(),
                     movie.getPosterUrl(),
-                    Math.round(finalScore * 100.0) / 100.0, // округление
+                    Math.round(finalScore * 100.0) / 100.0,
                     movie.isDomestic()
             ));
         }
 
-        // Сортировка по убыванию score
         result.sort((a, b) -> Double.compare(b.score(), a.score()));
 
         log.info("[TRENDING] Тренды успешно обновлены. Записей: {}", result.size());

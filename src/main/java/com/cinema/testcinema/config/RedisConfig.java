@@ -49,18 +49,13 @@ public class RedisConfig {
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory,
                                           GenericJackson2JsonRedisSerializer serializer) {
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(24)) // Дефолтный TTL
+                .entryTtl(Duration.ofHours(24))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
                 .disableCachingNullValues();
 
-        // Кастомная конфигурация для подборок на главной странице (TTL 30 минут)
         RedisCacheConfiguration homeCollectionsConfig = defaultConfig.entryTtl(Duration.ofMinutes(30));
-
-        // Кастомная конфигурация для карточки фильма (TTL 1 час)
         RedisCacheConfiguration movieDetailConfig = defaultConfig.entryTtl(Duration.ofHours(1));
-
-        // AI-рекомендации: trending и kazakhstan меняются редко, но свежесть важна (TTL 10 минут)
         RedisCacheConfiguration recTrendingConfig = defaultConfig.entryTtl(Duration.ofMinutes(10));
         RedisCacheConfiguration recKazakhstanConfig = defaultConfig.entryTtl(Duration.ofMinutes(10));
 

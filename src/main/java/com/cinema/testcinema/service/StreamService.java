@@ -47,7 +47,6 @@ public class StreamService {
         Map<String, String> response = new HashMap<>();
         response.put("type", "minio");
 
-        // 1. Ссылка на видео
         String videoS3Path = movie.getVideoS3Path();
         if (videoS3Path != null && !videoS3Path.isBlank()) {
             String videoUrl = s3StorageService.generatePresignedUrl(defaultBucket, videoS3Path, 3);
@@ -60,7 +59,6 @@ public class StreamService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Видео для этого фильма еще не загружено (video_s3_path пуст)");
         }
 
-        // 2. Ссылка на субтитры — учитываем и s3_path и local_path
         List<MovieSubtitle> subtitles = movieSubtitleRepository.findByMovieId(movieId);
         boolean hasKazakh = false;
         boolean hasAny = false;
@@ -107,7 +105,6 @@ public class StreamService {
         byte[] raw = null;
         String sourcePath = null;
 
-        // 1. Попытка из MinIO
         if (best.getS3Path() != null && !best.getS3Path().isBlank()) {
             try (InputStream is = s3StorageService.getObjectStream(defaultBucket, best.getS3Path())) {
                 raw = is.readAllBytes();
@@ -117,7 +114,6 @@ public class StreamService {
             }
         }
 
-        // 2. Fallback — локальный файл
         if (raw == null && best.getLocalPath() != null && !best.getLocalPath().isBlank()) {
             try {
                 Path localFile = Path.of(best.getLocalPath()).toAbsolutePath().normalize();
@@ -139,12 +135,10 @@ public class StreamService {
                 .replace("\r\n", "\n")
                 .replace("\r", "\n");
 
-        // Если уже VTT — отдаём как есть
         if (content.startsWith("WEBVTT")) {
             return raw;
         }
 
-        // SRT → VTT: заменяем запятую в таймкодах на точку
         String vtt = "WEBVTT\n\n" + SRT_TIMECODE.matcher(content).replaceAll("$1.$2");
         log.info("[Stream] Converted SRT→VTT for path={}", sourcePath);
         return vtt.getBytes(StandardCharsets.UTF_8);

@@ -41,8 +41,6 @@ public class OpenSubtitlesClient {
                 .build();
     }
 
-    // ── Аутентификация ────────────────────────────────────────────────────
-
     private synchronized void refreshTokenIfNeeded() {
         if (currentToken == null || Instant.now().isAfter(tokenExpiresAt)) {
             log.info("Refreshing OpenSubtitles JWT token for user: {}", username);
@@ -76,23 +74,7 @@ public class OpenSubtitlesClient {
         }
     }
 
-    // ── Поиск субтитров (по imdbId ИЛИ по tmdbId) ────────────────────────
-
-    /**
-     * Ищет субтитры на OpenSubtitles.
-     * <p>
-     * Стратегия:
-     * 1. Если imdbId не пустой → ищем по imdb_id (самый точный).
-     * 2. Если imdbId пустой, но tmdbId != null → ищем по tmdb_id (фоллбэк).
-     * 3. Если оба пусты → возвращаем null (нечего искать).
-     *
-     * @param imdbId IMDB ID фильма (может быть null/пустым)
-     * @param tmdbId TMDB ID фильма (может быть null)
-     * @param lang   Код языка субтитров ('kk', 'ru', 'en')
-     * @return os_file_id найденного файла субтитров, или null если ничего нет
-     */
     public String searchSubtitles(String imdbId, Long tmdbId, String lang) {
-        // Определяем параметр поиска
         String searchParam;
         if (imdbId != null && !imdbId.isBlank()) {
             searchParam = "imdb_id=" + parseImdbId(imdbId);
@@ -134,7 +116,6 @@ public class OpenSubtitlesClient {
                 && response.get("data").isArray()
                 && !response.get("data").isEmpty()) {
 
-            // Берем первый элемент (предполагается, что ты уже добавил order_by=download_count в запрос)
             JsonNode firstResult = response.get("data").get(0);
             JsonNode attributes = firstResult.has("attributes") ? firstResult.get("attributes") : null;
 
@@ -146,13 +127,11 @@ public class OpenSubtitlesClient {
                     String fileId = firstFile.has("file_id") ? firstFile.get("file_id").asText() : null;
 
                     if (fileId != null) {
-                        // Извлекаем метаданные для логов
                         String fileName = firstFile.has("file_name") ? firstFile.get("file_name").asText() : "unknown";
                         String release = attributes.has("release") ? attributes.get("release").asText() : "unknown";
                         String subtitleId = attributes.has("subtitle_id") ? attributes.get("subtitle_id").asText() : "unknown";
                         String downloadCount = attributes.has("download_count") ? attributes.get("download_count").asText() : "0";
 
-                        // Логируем полную картину
                         log.info("Selected Subtitle -> Subtitle ID: {}, File ID: {}, Downloads: {}, Release: '{}', File Name: '{}'",
                                 subtitleId, fileId, downloadCount, release, fileName);
 
@@ -165,7 +144,6 @@ public class OpenSubtitlesClient {
         log.warn("No valid files found in OpenSubtitles response.");
         return null;
     }
-    // ── Скачивание (расходует квоту 20/день!) ────────────────────────────
 
     public String requestDownloadLink(String osFileId) {
         refreshTokenIfNeeded();
@@ -203,8 +181,6 @@ public class OpenSubtitlesClient {
             return null;
         }
     }
-
-    // ── Обработка ошибок ─────────────────────────────────────────────────
 
     private void handleRateLimits(int statusCode) {
         if (statusCode == 406 || statusCode == 429) {

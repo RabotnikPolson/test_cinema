@@ -31,10 +31,9 @@ public class Watchlist {
     public Instant getAddedAt() { return addedAt; }
     public void setAddedAt(Instant addedAt) { this.addedAt = addedAt; }
 
-    // составной ключ
     public static class WatchlistId implements Serializable {
-        private Long user;  // id User
-        private Long movie; // id Movie
+        private Long user;
+        private Long movie;
         public WatchlistId() {}
         public WatchlistId(Long user, Long movie) { this.user=user; this.movie=movie; }
         @Override public boolean equals(Object o){

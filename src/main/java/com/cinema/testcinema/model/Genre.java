@@ -16,7 +16,6 @@ public class Genre {
     @Column(nullable = false, unique = true)
     private String name;
 
-    // Обратная сторона many-to-many
     @ManyToMany(mappedBy = "genres", fetch = FetchType.LAZY)
     @JsonIgnore
     private Set<Movie> movies = new HashSet<>();

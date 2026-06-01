@@ -53,10 +53,6 @@ public class CommentService {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    /**
-     * Корневые комментарии по фильму с сортировкой:
-     * order=new | old | top
-     */
     @Transactional(readOnly = true)
     public Page<CommentResponse> listByMovie(Long movieId, Pageable pageable, String order) {
         ensureMovieExists(movieId);
@@ -75,15 +71,12 @@ public class CommentService {
             return new PageImpl<>(List.of(), effectivePageable, roots.getTotalElements());
         }
 
-        // прямые ответы для root-комментов
         List<Comment> replies = commentRepository.findByParentIdIn(rootIds);
         Map<Long, List<Comment>> repliesMap = replies.stream()
                 .collect(Collectors.groupingBy(Comment::getParentId));
 
-        // ответы сортируем хронологически как диалог
         repliesMap.values().forEach(list -> list.sort(Comparator.comparing(Comment::getCreatedAt)));
 
-        // реакции для root + replies
         Set<Long> allIds = new HashSet<>(rootIds);
         allIds.addAll(replies.stream().map(Comment::getId).toList());
         Map<Long, List<CommentReactionSummary>> reactionMap = buildReactionMap(allIds);
@@ -91,9 +84,6 @@ public class CommentService {
         return roots.map(root -> toResponse(root, repliesMap.getOrDefault(root.getId(), List.of()), reactionMap));
     }
 
-    /**
-     * Счётчики комментариев по фильму
-     */
     @Transactional(readOnly = true)
     public CommentCountResponse getCountsByMovie(Long movieId) {
         ensureMovieExists(movieId);
@@ -150,8 +140,6 @@ public class CommentService {
         comment.setContent(request.content().trim());
 
         Comment saved = commentRepository.save(comment);
-
-        // реакций пока нет
         return toResponse(saved, List.of(), Map.of());
     }
 
@@ -216,8 +204,6 @@ public class CommentService {
         return summarizeReactions(reactions);
     }
 
-    // ---------------------- helpers ----------------------
-
     private void ensureMovieExists(Long movieId) {
         if (!movieRepository.existsById(movieId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фильм не найден");
@@ -229,7 +215,6 @@ public class CommentService {
         int size = pageable.getPageSize();
 
         if ("top".equalsIgnoreCase(order)) {
-            // сортировка внутри query
             return PageRequest.of(page, size);
         }
 
@@ -237,7 +222,6 @@ public class CommentService {
             return PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
         }
 
-        // default = new
         return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
@@ -277,7 +261,6 @@ public class CommentService {
                 comment.isEdited()
         );
 
-        // replies -> responses
         List<CommentResponse> replyResponses = replies.stream()
                 .map(r -> toResponse(r, List.of(), reactionMap))
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -291,7 +274,6 @@ public class CommentService {
         long totalReactions = reactions.stream().mapToLong(CommentReactionSummary::count).sum();
         response.setTotalReactions(totalReactions);
 
-        // автор
         if (userId != null) {
             userRepository.findById(userId).ifPresent(u -> {
                 response.setAuthorUsername(u.getUsername());

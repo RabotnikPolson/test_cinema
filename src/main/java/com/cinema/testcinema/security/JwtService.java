@@ -65,11 +65,6 @@ public class JwtService {
                 .compact();
     }
 
-//    public boolean isTokenValid(String token, UserDetails userDetails) {
-//        String email = extractEmail(token);
-//        return email.equalsIgnoreCase(userDetails.getUsername()) && !isTokenExpired(token);
-//    }
-
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             var jws = Jwts.parserBuilder()

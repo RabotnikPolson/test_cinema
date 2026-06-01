@@ -13,8 +13,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 
 @Service
-// Refresh tokens are persisted to the database to support rotation and logout. Switch to stateless tokens by
-// removing the repository usage and relying solely on JWT validation if requirements change.
 public class RefreshTokenService {
 
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
@@ -80,7 +78,6 @@ public class RefreshTokenService {
 
     @Transactional
     public void purgeExpired() {
-        // Позволяет в будущем добавить планировщик для очистки, пока вызывается вручную при логине/рефреше
         refreshTokenRepository.deleteByExpiresAtBefore(Instant.now());
     }
 }

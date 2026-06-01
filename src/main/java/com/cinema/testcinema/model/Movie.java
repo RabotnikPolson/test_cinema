@@ -14,7 +14,6 @@ public class Movie {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ── Идентификаторы ────────────────────────────────────────────────────
     @Column(nullable = false)
     private String title;
 
@@ -27,14 +26,12 @@ public class Movie {
     @Column(name = "kinopoisk_hd_id")
     private String kinopoiskHdId;
 
-    // ── Названия ──────────────────────────────────────────────────────────
     @Column(name = "name_en", length = 500)
     private String nameEn;
 
     @Column(name = "name_original", length = 500)
     private String nameOriginal;
 
-    // ── Медиа ─────────────────────────────────────────────────────────────
     private String posterUrl;
 
     @Column(name = "cover_url", length = 1000)
@@ -43,7 +40,6 @@ public class Movie {
     @Column(name = "logo_url", length = 1000)
     private String logoUrl;
 
-    // ── Описания ──────────────────────────────────────────────────────────
     @Column(length = 3000)
     private String description;
 
@@ -55,7 +51,6 @@ public class Movie {
     @Column(name = "editor_annotation", length = 1000)
     private String editorAnnotation;
 
-    // ── Мета-информация ───────────────────────────────────────────────────
     private Long year;
     private String country;
     private String runtime;
@@ -64,7 +59,6 @@ public class Movie {
     @Column(name = "content_type", length = 50)
     private String contentType;
 
-    // ── Рейтинги ──────────────────────────────────────────────────────────
     @Column(name = "rating_kinopoisk", precision = 4, scale = 2)
     private BigDecimal ratingKinopoisk;
 
@@ -76,18 +70,15 @@ public class Movie {
     @Column(name = "rating_imdb_vote_count")
     private Integer ratingImdbVoteCount;
 
-//    private String imdbVotes;
     private String rottenTomatoesRating;
     private String metacriticRating;
 
-    // ── Возрастные рейтинги ───────────────────────────────────────────────
     @Column(name = "rating_mpaa", length = 20)
     private String ratingMpaa;
 
     @Column(name = "rating_age", length = 20)
     private String ratingAge;
 
-    // ── Производство ──────────────────────────────────────────────────────
     private String director;
 
     @Column(length = 1000)
@@ -99,7 +90,6 @@ public class Movie {
     private String genreText;
     private String released;
 
-    // ── Технические флаги ─────────────────────────────────────────────────
     @Column(name = "is_domestic", nullable = false)
     private boolean isDomestic = false;
 
@@ -130,7 +120,6 @@ public class Movie {
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // ── Жанры (many-to-many) ──────────────────────────────────────────────
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "movie_genres",
@@ -215,9 +204,6 @@ public class Movie {
 
     public Integer getRatingImdbVoteCount() { return ratingImdbVoteCount; }
     public void setRatingImdbVoteCount(Integer ratingImdbVoteCount) { this.ratingImdbVoteCount = ratingImdbVoteCount; }
-
-//    public String getImdbVotes() { return imdbVotes; }
-//    public void setImdbVotes(String imdbVotes) { this.imdbVotes = imdbVotes; }
 
     public String getRottenTomatoesRating() { return rottenTomatoesRating; }
     public void setRottenTomatoesRating(String rottenTomatoesRating) { this.rottenTomatoesRating = rottenTomatoesRating; }

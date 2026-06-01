@@ -33,7 +33,9 @@ export default defineConfig({
     host: true,
     allowedHosts: ["21f6a1498cc3.ngrok-free.app"],
     watch: {
-      usePolling: true,
+      // Нативный запуск (npm run dev на хосте) — нативные FS-события, CPU не грузится.
+      // VITE_USE_POLLING=1 включать ТОЛЬКО при запуске фронта в Docker на Windows (bind-mount требует поллинга).
+      usePolling: process.env.VITE_USE_POLLING === "1",
       interval: 300,
     },
   },

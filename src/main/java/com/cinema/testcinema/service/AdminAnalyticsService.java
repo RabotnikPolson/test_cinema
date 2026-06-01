@@ -39,7 +39,6 @@ public class AdminAnalyticsService {
                 ? Instant.now().minus(30, ChronoUnit.DAYS)
                 : Instant.now().minus(7, ChronoUnit.DAYS);
 
-        // Блок 1 — Overview
         long totalMovies = movieRepository.count();
         long domesticMovies = movieRepository.countDomestic();
         long foreignMovies = movieRepository.countForeign();
@@ -53,7 +52,6 @@ public class AdminAnalyticsService {
                 translatedSubtitles
         );
 
-        // Блок 2 — Топы
         List<TopMovieDto> topByClicks = movieClickRepository
                 .findTopByClicks(since, topLimit)
                 .stream().map(this::mapToTopMovie).toList();
@@ -70,7 +68,6 @@ public class AdminAnalyticsService {
                 .findTopDomesticByClicks(since, topLimit)
                 .stream().map(this::mapToTopMovie).toList();
 
-        // Блок 3 — Соотношение казахский/зарубежный
         long domesticSeconds = watchHistoryRepository.getTotalDomesticWatchSeconds();
         long foreignSeconds = watchHistoryRepository.getTotalForeignWatchSeconds();
         long totalSeconds = domesticSeconds + foreignSeconds;
@@ -85,7 +82,6 @@ public class AdminAnalyticsService {
                 domesticSeconds, foreignSeconds, domesticPercent, foreignPercent
         );
 
-        // Блок 3 — Очередь субтитров
         List<Object[]> queueStats = movieSubtitleRepository.getSubtitleQueueStats();
         Object[] q = queueStats.isEmpty() ? new Object[5] : queueStats.get(0);
         SubtitleQueueDto subtitleQueue = new SubtitleQueueDto(

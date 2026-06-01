@@ -42,13 +42,11 @@ public class KinopoiskSyncService {
         Movie movie = movieRepository.findByKinopoiskId(kinopoiskId)
                 .orElse(new Movie());
 
-        // -- Identifiers ---------------------------------------------------
         movie.setKinopoiskId(kinopoiskId);
         movie.setKinopoiskHdId(textOf(data, "kinopoiskHDId"));
         String imdbId = textOf(data, "imdbId");
         if (imdbId != null && movie.getImdbId() == null) movie.setImdbId(imdbId);
 
-        // -- TMDB Enrichment (если Кинопоиск не дал imdbId) ----------------
         if (movie.getImdbId() == null) {
             log.info("No IMDb ID from Kinopoisk for '{}'. Searching in TMDB...", movie.getTitle() != null ? movie.getTitle() : textOf(data, "nameRu"));
             String searchTitle = firstNonBlank(textOf(data, "nameEn"), textOf(data, "nameOriginal"), textOf(data, "nameRu"));
@@ -57,7 +55,6 @@ public class KinopoiskSyncService {
             movie.setTmdbId(tmdbId);
         }
 
-        // -- Titles --------------------------------------------------------
         movie.setTitle(firstNonBlank(
                 textOf(data, "nameRu"),
                 textOf(data, "nameEn"),
@@ -67,18 +64,15 @@ public class KinopoiskSyncService {
         movie.setNameEn(textOf(data, "nameEn"));
         movie.setNameOriginal(textOf(data, "nameOriginal"));
 
-        // -- Media ---------------------------------------------------------
         movie.setPosterUrl(textOf(data, "posterUrl"));
         movie.setCoverUrl(textOf(data, "coverUrl"));
         movie.setLogoUrl(textOf(data, "logoUrl"));
 
-        // -- Descriptions --------------------------------------------------
         movie.setDescription(textOf(data, "description"));
         movie.setShortDescription(textOf(data, "shortDescription"));
         movie.setSlogan(textOf(data, "slogan"));
         movie.setEditorAnnotation(textOf(data, "editorAnnotation"));
 
-        // -- Year ----------------------------------------------------------
         Long year = null;
         if (data.hasNonNull("year") && data.get("year").asLong() > 0) {
             year = data.get("year").asLong();
@@ -91,16 +85,13 @@ public class KinopoiskSyncService {
         }
         movie.setYear(year);
 
-        // -- Runtime -------------------------------------------------------
         if (data.hasNonNull("filmLength")) {
             JsonNode fl = data.get("filmLength");
             movie.setRuntime(fl.isNumber() ? fl.asInt() + " min" : fl.asText());
         }
 
-        // -- Content type --------------------------------------------------
         movie.setContentType(textOf(data, "type"));
 
-        // -- Ratings -------------------------------------------------------
         if (data.hasNonNull("ratingKinopoisk"))
             movie.setRatingKinopoisk(BigDecimal.valueOf(data.get("ratingKinopoisk").asDouble()));
         if (data.hasNonNull("ratingKinopoiskVoteCount"))
@@ -110,7 +101,6 @@ public class KinopoiskSyncService {
         if (data.hasNonNull("ratingImdbVoteCount"))
             movie.setRatingImdbVoteCount(data.get("ratingImdbVoteCount").asInt());
 
-        // -- Age ratings ---------------------------------------------------
         movie.setRatingMpaa(textOf(data, "ratingMpaa"));
         String ageLimit = textOf(data, "ratingAgeLimits");
         if (ageLimit != null) {
@@ -118,7 +108,6 @@ public class KinopoiskSyncService {
             movie.setRatingAge(digits.isEmpty() ? ageLimit : digits + "+");
         }
 
-        // -- Country (все страны копродукции через запятую) ------------------
         if (data.hasNonNull("countries") && data.get("countries").isArray()
                 && !data.get("countries").isEmpty()) {
             StringBuilder countryBuilder = new StringBuilder();
@@ -134,18 +123,15 @@ public class KinopoiskSyncService {
             }
         }
 
-        // -- Production flags ----------------------------------------------
         movie.setProductionStatus(textOf(data, "productionStatus"));
         movie.setSerial(boolOf(data, "serial"));
         movie.setShortFilm(boolOf(data, "shortFilm"));
         movie.setHasImax(boolOf(data, "hasImax"));
         movie.setHas3d(boolOf(data, "has3D"));
 
-        // -- Domestic flag (KZ) -------------------------------------------
         String country = movie.getCountry();
         if (country != null) {
             String countryLower = country.toLowerCase();
-            // Ищем все вариации, включая русский язык и КазССР
             boolean domestic = countryLower.contains("казахстан")
                     || countryLower.contains("kazakhstan")
                     || countryLower.contains("казсср")
@@ -157,7 +143,6 @@ public class KinopoiskSyncService {
             movie.setKzCulturalWeight(domestic ? 5 : 1);
         }
 
-        // -- Genres --------------------------------------------------------
         movie.getGenres().clear();
         if (data.hasNonNull("genres") && data.get("genres").isArray()) {
             StringBuilder genreText = new StringBuilder();
@@ -173,7 +158,6 @@ public class KinopoiskSyncService {
             movie.setGenreText(genreText.toString());
         }
 
-        // -- Staff (2nd API call) ------------------------------------------
         try {
             JsonNode staffArray = client.fetchStaff(kinopoiskId);
             if (staffArray != null && staffArray.isArray()) {
@@ -201,8 +185,6 @@ public class KinopoiskSyncService {
                 saved.getTitle(), saved.getRatingKinopoisk(), saved.isDomestic(), saved.getDirector());
         return saved;
     }
-
-    // -- Utilities ---------------------------------------------------------
 
     private String textOf(JsonNode node, String field) {
         if (node == null || !node.hasNonNull(field)) return null;

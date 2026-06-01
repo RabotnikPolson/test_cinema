@@ -145,7 +145,6 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    // Endpoint exclusively for Swagger UI OAuth2 Password Flow
     @io.swagger.v3.oas.annotations.Operation(summary = "Login for Swagger UI (OAuth2 Password flow)", hidden = true)
     @PostMapping(value = "/swagger-login", consumes = org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public java.util.Map<String, String> swaggerLogin(

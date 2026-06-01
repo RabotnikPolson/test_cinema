@@ -15,32 +15,13 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Custom repository for filtering and paginating movies.  This repository performs a two‑step
- * query to avoid N+1 issues when fetching many‑to‑many relations.  First it selects a page
- * of movie IDs matching the provided filters, then fetches the corresponding Movie entities
- * along with their genres using a join fetch.  When no paging parameters are provided
- * (page and size are null) the full result set is returned.
- */
+// Two-step query: selects IDs first, then join-fetches entities with genres to avoid N+1.
 @Repository
 public class MovieFilterRepository {
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    /**
-     * Search movies according to optional filters.  All parameters are nullable and
-     * ignored when null.  Paging is applied only when both page and size are provided.
-     * Sorting is always by ascending movie id to maintain a stable order.
-     *
-     * @param q       substring to search in movie titles (case insensitive)
-     * @param genreId filter by genre id
-     * @param yearFrom inclusive lower bound for the movie year
-     * @param yearTo   inclusive upper bound for the movie year
-     * @param page     zero‑based page index; applied only when size is also provided
-     * @param size     number of items per page; applied only when page is also provided
-     * @return list of movies matching the provided criteria
-     */
     public List<Movie> searchMovies(String q,
                                     Long genreId,
                                     Long yearFrom,
@@ -65,7 +46,6 @@ public class MovieFilterRepository {
             ));
         }
         if (genreId != null) {
-            // inner join on genres when filtering by genre id
             Join<Object, Object> genreJoin = movieRoot.join("genres", JoinType.INNER);
             predicates.add(cb.equal(genreJoin.get("id"), genreId));
         }
@@ -92,7 +72,6 @@ public class MovieFilterRepository {
         // Second stage: fetch movies with genres using join fetch to avoid N+1
         CriteriaQuery<Movie> movieQuery = cb.createQuery(Movie.class);
         Root<Movie> fetchRoot = movieQuery.from(Movie.class);
-        // join fetch genres on the second query
         fetchRoot.fetch("genres", JoinType.LEFT);
         movieQuery.select(fetchRoot).distinct(true);
         movieQuery.where(fetchRoot.get("id").in(ids));

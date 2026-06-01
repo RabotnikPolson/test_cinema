@@ -17,31 +17,3 @@ public class TestCinemaApplication {
     }
 
 }
-//
-//public void deleteMovie(Long id) {
-//
-//    if (!movieRepository.existsById(id)) {
-//
-//        throw new RuntimeException("Фильм с ID " + id + " не найден");
-//
-//    }
-//
-//    movieRepository.deleteById(id);
-//
-//}
-//
-//
-//
-//@DeleteMapping("/{id}")
-//
-//@PreAuthorize("hasRole('ADMIN')")
-//
-//@Operation(summary = "Удалить фильм по ID (ADMIN). CASCADE удалит субтитры, рейтинги и историю.")
-//
-//public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
-//
-//    movieService.deleteMovie(id);
-//
-//    return ResponseEntity.noContent().build();
-//
-//}

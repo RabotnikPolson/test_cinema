@@ -65,7 +65,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         if (HttpMethod.OPTIONS.matches(request.getMethod())) return true;
 
-        // ПУБЛИЧНЫЕ GET — только movies и genres. ratings убран.
         if (HttpMethod.GET.matches(request.getMethod())) {
             return path.startsWith("/movies")
                     || path.startsWith("/genres")

@@ -43,7 +43,6 @@ public class MovieService {
         Optional<Genre> genreOpt = genreRepository.findById(movieDto.getGenreId());
         if (genreOpt.isPresent()) {
             Genre genre = genreOpt.get();
-            // добавляем жанр в many-to-many набор
             movie.getGenres().add(genre);
         } else {
             throw new RuntimeException("Genre not found with id: " + movieDto.getGenreId());
@@ -52,29 +51,12 @@ public class MovieService {
         return movieRepository.save(movie);
     }
 
-    /**
-     * Search and paginate movies with optional filters.  Delegates to
-     * {@link MovieFilterRepository#searchMovies(String, Long, Long, Long, Integer, Integer)}.
-     * When no pagination parameters are provided, all matching movies are returned.  If
-     * only one of page or size is provided, defaults are applied (page defaults to 0,
-     * size defaults to 20).  Basic validation is performed to ensure parameters are
-     * sensible.
-     *
-     * @param q       substring to search within the movie title (case‑insensitive)
-     * @param genreId filter by genre id
-     * @param yearFrom inclusive lower bound for the movie year
-     * @param yearTo   inclusive upper bound for the movie year
-     * @param page     zero‑based page index
-     * @param size     size of the page
-     * @return list of movies matching the criteria
-     */
     public List<Movie> searchMovies(String q,
                                     Long genreId,
                                     Long yearFrom,
                                     Long yearTo,
                                     Integer page,
                                     Integer size) {
-        // validate year range
         if (yearFrom != null && yearTo != null && yearFrom > yearTo) {
             throw new IllegalArgumentException("yearFrom must be less than or equal to yearTo");
         }
@@ -87,10 +69,10 @@ public class MovieService {
         Integer effectivePage = page;
         Integer effectiveSize = size;
         if (effectivePage != null && effectiveSize == null) {
-            effectiveSize = 20; // default page size
+            effectiveSize = 20;
         }
         if (effectivePage == null && effectiveSize != null) {
-            effectivePage = 0; // default page index
+            effectivePage = 0;
         }
 
         boolean isFullList = q == null && genreId == null && yearFrom == null && yearTo == null

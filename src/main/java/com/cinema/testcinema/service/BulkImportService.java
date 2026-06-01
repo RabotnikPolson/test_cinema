@@ -39,7 +39,7 @@ public class BulkImportService {
                 results.add(new BulkImportItemResult(
                         kpId, "already_exists", m.getTitle(), m.getId(), null
                 ));
-                success++; // Consider already exists as a successful result for the batch
+                success++;
             } else {
                 try {
                     Movie savedMovie = kinopoiskSyncService.fetchAndSave(kpId);
@@ -56,7 +56,6 @@ public class BulkImportService {
                 }
             }
 
-            // Rate limiter: 100ms pause
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

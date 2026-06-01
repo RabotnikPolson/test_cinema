@@ -30,11 +30,6 @@ public class SubtitleMetadataService {
         this.subtitleRepository = subtitleRepository;
     }
 
-    /**
-     * Каскадный поиск субтитров (Waterfall Fallback).
-     * Порядок: kk → ru (если СНГ) → en.
-     * Сохраняет метаданные в БД, НЕ скачивает файл (бережём лимит 20/день).
-     */
     @Transactional
     public void discoverForMovie(Movie movie) {
         Long movieId = movie.getId();
@@ -47,14 +42,12 @@ public class SubtitleMetadataService {
         log.info("║ Страна: {}", movie.getCountry());
         log.info("╚══════════════════════════════════════════════════════════════");
 
-        // ── Шаг 1: Казахские субтитры (kk) — высший приоритет ─────────────
         log.info("[Cascade Step 1/3] Ищем казахские субтитры (kk)...");
         if (tryDiscoverAndSave(movie, imdbId, tmdbId, "kk")) {
             return;
         }
         log.info("[Cascade Step 1/3] Казахские субтитры не найдены.");
 
-        // ── Шаг 2: Определяем регион и ищем русские (ru) ──────────────────
         boolean isCis = isCisCountry(movie.getCountry());
         if (isCis) {
             log.info("[Cascade Step 2/3] Страна '{}' определена как СНГ. Ищем русские субтитры (ru)...",
@@ -67,25 +60,17 @@ public class SubtitleMetadataService {
             log.info("[Cascade Step 2/3] Страна '{}' — не СНГ. Пропускаем поиск ru.", movie.getCountry());
         }
 
-        // ── Шаг 3: Английские субтитры (en) — последний фоллбэк ──────────
         log.info("[Cascade Step 3/3] Ищем английские субтитры (en)...");
         if (tryDiscoverAndSave(movie, imdbId, tmdbId, "en")) {
             return;
         }
         log.info("[Cascade Step 3/3] Английские субтитры не найдены.");
 
-        // ── Ничего не найдено ─────────────────────────────────────────────
         log.warn("⚠ No suitable base subtitles (kk, ru, en) found for movie '{}' (ID: {}). " +
                 "Subtitle queue is empty for this movie.", title, movieId);
     }
 
-    /**
-     * Пытается найти субтитры на указанном языке и сохранить метаданные в БД.
-     *
-     * @return true если субтитры найдены и сохранены, false если ничего нет
-     */
     private boolean tryDiscoverAndSave(Movie movie, String imdbId, Long tmdbId, String lang) {
-        // Проверяем дубликат
         if (subtitleRepository.existsByMovieIdAndLanguage(movie.getId(), lang)) {
             log.info("  → Субтитры ({}) для этого фильма уже есть в БД. Пропускаем.", lang);
             return true; // Уже есть — считаем успехом

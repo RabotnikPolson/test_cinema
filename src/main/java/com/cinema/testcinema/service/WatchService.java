@@ -56,7 +56,6 @@ public class WatchService {
         }
         wh.setLastBeatAt(Instant.now());
 
-        // Автоматически помечаем просмотр завершённым при достижении 90% хронометража
         if (!wh.isCompleted()) {
             Integer runtimeMinutes = parseRuntimeMinutes(movie.getRuntime());
             if (runtimeMinutes != null && runtimeMinutes > 0) {
@@ -72,19 +71,11 @@ public class WatchService {
         whRepo.save(wh);
     }
 
-    /**
-     * Парсит хронометраж фильма из строки.
-     * Поддерживаемые форматы: "120 min", "120"
-     *
-     * @param runtime строка из Movie.runtime
-     * @return длительность в минутах, или null если строка null / непарсируемая
-     */
     private Integer parseRuntimeMinutes(String runtime) {
         if (runtime == null || runtime.isBlank()) {
             return null;
         }
         try {
-            // Формат "120 min" — берём первый токен до пробела
             String trimmed = runtime.trim().split("\\s+")[0];
             return Integer.parseInt(trimmed);
         } catch (NumberFormatException e) {
@@ -95,11 +86,9 @@ public class WatchService {
 
     @Transactional(readOnly = true)
     public AnalyticsSummaryDto mySummary(Long userId) {
-        // total
         Long totalWatches = whRepo.getTotalSecondsWatched(userId);
         long total = totalWatches != null ? totalWatches : 0L;
 
-        // genres pie (using Native SQL for top 8 genres)
         List<Object[]> genresRaw = whRepo.getTopGenresWatched(userId);
         List<AnalyticsSummaryDto.Item> genresPie = new ArrayList<>();
         if (genresRaw != null) {
@@ -110,7 +99,6 @@ public class WatchService {
             }
         }
 
-        // activity by day (using Native SQL grouping by date)
         List<Object[]> daysRaw = whRepo.getActivityByDay(userId);
         List<AnalyticsSummaryDto.Point> points = new ArrayList<>();
         if (daysRaw != null) {

@@ -2,7 +2,7 @@ package com.cinema.testcinema.dto;
 
 public class MovieDto {
     private String title;
-    private int year; // int, а не long
+    private int year;
     private String imdbId;
     private String kinopoiskId;
     private Long genreId;
@@ -18,7 +18,6 @@ public class MovieDto {
         this.genreId = genreId;
     }
 
-    // Геттеры и сеттеры
     public String getTitle() {
         return title;
     }
@@ -29,7 +28,7 @@ public class MovieDto {
 
     public int getYear() {
         return year;
-    } // исправлено
+    }
 
     public void setYear(int year) {
         this.year = year;
